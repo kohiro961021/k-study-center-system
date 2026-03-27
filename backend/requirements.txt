@@ -1,0 +1,25 @@
+# 核心框架與伺服器
+fastapi>=0.110.0
+uvicorn[standard]>=0.27.0
+python-dotenv>=1.0.0  # <--- 建議加入
+
+# 資料庫連接 (SQLAlchemy 2.0 搭配 psycopg 3)
+sqlalchemy>=2.0.25
+psycopg[binary]>=3.1.18
+
+# 快取與資料驗證
+redis>=5.0.1
+pydantic[email]>=2.6.0
+python-multipart>=0.0.9
+
+# 安全性與加密
+python-jose[cryptography]>=3.3.0
+bcrypt>=4.0.0
+
+# 郵件功能 (選填，若要使用 SMTP 發信)
+# smtplib2>=10.0.0
+# python-dotenv>=1.0.0
+
+# 測試與開發
+
+    
