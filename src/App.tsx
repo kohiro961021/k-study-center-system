@@ -1,18 +1,31 @@
 import { useState, useEffect } from 'react';
-import { Shield, Calendar, Clock, LogOut, User, Lock, Mail, AlertCircle, RefreshCw } from 'lucide-react';
+import { Shield, Calendar, Clock, LogOut, User, Lock, Mail, AlertCircle, RefreshCw, Users, Key, Trash2, Search } from 'lucide-react';
 
 // 👉 修正 1：因為 vite.config.ts 已經設定了 Proxy，所以這裡留空，讓 Vite 幫我們轉發！
 const API_BASE = '';
 // 👉 修正 2：補上 Nginx 需要的通關密語
 const KLIB_KEY = 'test';
 
-type View = 'login' | 'register' | 'dashboard' | 'reserve';
+type View = 'login' | 'register' | 'dashboard' | 'reserve' | 'admin-reservations' | 'admin-users';
 type Seat = { id: number; label: string; x: number; y: number; status: string };
 type Reservation = { id: number; seat_id: number; res_date: string; timeslot: string; user_id: number };
+type AdminReservation = Reservation & { student_id: string; seat_label: string };
+type StudentUser = { id: number; student_id: string; is_admin: boolean };
+
+// 簡單解碼 JWT payload（不驗證簽名，僅用於前端顯示）
+function decodeJwtPayload(token: string): any {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch {
+    return null;
+  }
+}
 
 export default function App() {
   const [view, setView] = useState<View>('login');
   const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,6 +39,14 @@ export default function App() {
   const [seats, setSeats] = useState<Seat[]>([]);
   const [bookedSeatIds, setBookedSeatIds] = useState<number[]>([]);
   const [myReservations, setMyReservations] = useState<Reservation[]>([]);
+
+  // Admin 狀態
+  const [allReservations, setAllReservations] = useState<AdminReservation[]>([]);
+  const [allUsers, setAllUsers] = useState<StudentUser[]>([]);
+  const [resetStudentId, setResetStudentId] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [adminMessage, setAdminMessage] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // 統一的 API 呼叫函式
   const apiCall = async (endpoint: string, method = 'GET', body?: any) => {
@@ -42,7 +63,13 @@ export default function App() {
         body: body ? JSON.stringify(body) : undefined,
       });
 
-      const data = await res.json();
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(res.ok ? text : `伺服器錯誤 (${res.status})`);
+      }
       if (!res.ok) throw new Error(data.detail || '請求失敗');
       return data;
     } catch (err: any) {
@@ -53,8 +80,12 @@ export default function App() {
 
   useEffect(() => {
     if (token) {
-      setView('dashboard');
-      fetchMyReservations();
+      const payload = decodeJwtPayload(token);
+      const admin = payload?.admin === true;
+      setIsAdmin(admin);
+      setView(admin ? 'admin-reservations' : 'dashboard');
+      fetchSeats();
+      if (!admin) fetchMyReservations();
     }
   }, [token]);
 
@@ -63,6 +94,8 @@ export default function App() {
       fetchSeats();
       fetchAvailability();
     }
+    if (view === 'admin-reservations') fetchAdminReservations();
+    if (view === 'admin-users') fetchAdminUsers();
   }, [view, selectedDate, selectedSlot]);
 
   // 登入
@@ -84,7 +117,14 @@ export default function App() {
         },
         body: formData,
       });
-      const data = await res.json();
+
+      const text = await res.text();
+      let data: any;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`伺服器錯誤 (${res.status})`);
+      }
       if (!res.ok) throw new Error(data.detail);
 
       localStorage.setItem('token', data.access_token);
@@ -99,6 +139,7 @@ export default function App() {
   const handleLogout = () => {
     localStorage.removeItem('token');
     setToken(null);
+    setIsAdmin(false);
     setStudentId('');
     setPassword('');
     setView('login');
@@ -148,6 +189,57 @@ export default function App() {
     } catch (err) { }
   };
 
+  // --- Admin Functions ---
+  const fetchAdminReservations = async () => {
+    try {
+      const data = await apiCall('/api/admin/reservations');
+      setAllReservations(data);
+    } catch (err) { }
+  };
+
+  const fetchAdminUsers = async () => {
+    try {
+      const data = await apiCall('/api/admin/users');
+      setAllUsers(data);
+    } catch (err) { }
+  };
+
+  const handleAdminCancelReservation = async (resId: number) => {
+    if (!window.confirm('確定要取消這個學生的預約嗎？')) return;
+    try {
+      await apiCall(`/api/admin/reservations/${resId}`, 'DELETE');
+      setAdminMessage('已成功取消預約');
+      fetchAdminReservations();
+    } catch (err: any) {
+      setAdminMessage(`取消失敗: ${err.message}`);
+    }
+  };
+
+  const handleResetPassword = async (sid?: string) => {
+    const targetId = sid || resetStudentId;
+    const targetPw = sid ? '' : resetNewPassword;
+
+    if (!targetId) { setAdminMessage('請輸入學號'); return; }
+
+    // 如果從用戶列表點擊，用 prompt 取得新密碼
+    let newPw = targetPw;
+    if (sid) {
+      const input = window.prompt(`請輸入 ${sid} 的新密碼：`);
+      if (!input) return;
+      newPw = input;
+    }
+    if (!newPw) { setAdminMessage('請輸入新密碼'); return; }
+
+    try {
+      const result = await apiCall('/api/admin/reset-password', 'PUT', { student_id: targetId, new_password: newPw });
+      setAdminMessage(result.message);
+      setResetStudentId('');
+      setResetNewPassword('');
+    } catch (err: any) {
+      setAdminMessage(`重設失敗: ${err.message}`);
+    }
+  };
+
   // 畫面渲染 - 登入頁面
   if (!token) {
     return (
@@ -190,18 +282,155 @@ export default function App() {
         <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-slate-900 text-lg">
             <Shield className="w-6 h-6 text-indigo-600" />
-            K書中心預約系統
+            K書中心{isAdmin ? '管理後台' : '預約系統'}
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => setView('dashboard')} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${view === 'dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>我的預約</button>
-            <button onClick={() => setView('reserve')} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${view === 'reserve' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>預約座位</button>
+            {isAdmin ? (
+              <>
+                <button onClick={() => setView('admin-reservations')} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${view === 'admin-reservations' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+                  <span className="flex items-center gap-1"><Calendar className="w-4 h-4" />預約管理</span>
+                </button>
+                <button onClick={() => setView('admin-users')} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${view === 'admin-users' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+                  <span className="flex items-center gap-1"><Users className="w-4 h-4" />學生管理</span>
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={() => setView('dashboard')} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${view === 'dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>我的預約</button>
+                <button onClick={() => setView('reserve')} className={`px-4 py-2 rounded-lg font-medium text-sm transition ${view === 'reserve' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>預約座位</button>
+              </>
+            )}
             <button onClick={handleLogout} className="ml-2 text-red-600 hover:bg-red-50 p-2 rounded-lg transition"><LogOut className="w-5 h-5" /></button>
           </div>
         </div>
       </nav>
 
       <main className="max-w-7xl mx-auto px-4 py-8">
-        {/* 我的預約面板 */}
+
+        {/* ===== 管理員：預約管理 ===== */}
+        {view === 'admin-reservations' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+                <Calendar className="w-7 h-7 text-amber-600" />
+                全部預約紀錄
+              </h2>
+              <button onClick={fetchAdminReservations} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition">
+                <RefreshCw className="w-4 h-4" /> 重新整理
+              </button>
+            </div>
+
+            {adminMessage && (
+              <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
+                <span>{adminMessage}</span>
+                <button onClick={() => setAdminMessage(null)} className="text-amber-600 hover:text-amber-800 font-bold">✕</button>
+              </div>
+            )}
+
+            {allReservations.length === 0 ? (
+              <div className="p-8 text-center bg-white rounded-2xl border border-slate-200 text-slate-500">目前沒有任何預約紀錄</div>
+            ) : (
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700">學號</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700">日期</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700">時段</th>
+                      <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {allReservations.map(res => (
+                      <tr key={res.id} className="hover:bg-slate-50 transition">
+                        <td className="px-4 py-3 font-medium text-indigo-700">{res.student_id}</td>
+                        <td className="px-4 py-3 font-bold">{res.seat_label}</td>
+                        <td className="px-4 py-3 text-slate-600">{res.res_date}</td>
+                        <td className="px-4 py-3 text-slate-600">{res.timeslot}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={() => handleAdminCancelReservation(res.id)} className="text-red-500 hover:bg-red-50 px-3 py-1 rounded-lg border border-red-200 hover:border-red-300 text-xs font-bold transition flex items-center gap-1 ml-auto">
+                            <Trash2 className="w-3 h-3" /> 取消預約
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== 管理員：學生管理 ===== */}
+        {view === 'admin-users' && (
+          <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+              <Users className="w-7 h-7 text-amber-600" />
+              學生帳號管理
+            </h2>
+
+            {adminMessage && (
+              <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
+                <span>{adminMessage}</span>
+                <button onClick={() => setAdminMessage(null)} className="text-amber-600 hover:text-amber-800 font-bold">✕</button>
+              </div>
+            )}
+
+            {/* 重設密碼表單 */}
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Key className="w-5 h-5 text-amber-600" /> 重設學生密碼</h3>
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="flex-1 min-w-[180px] space-y-1">
+                  <label className="text-sm font-medium text-slate-600">學號</label>
+                  <input type="text" value={resetStudentId} onChange={(e) => setResetStudentId(e.target.value)} placeholder="輸入學號" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" />
+                </div>
+                <div className="flex-1 min-w-[180px] space-y-1">
+                  <label className="text-sm font-medium text-slate-600">新密碼</label>
+                  <input type="text" value={resetNewPassword} onChange={(e) => setResetNewPassword(e.target.value)} placeholder="輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" />
+                </div>
+                <button onClick={() => handleResetPassword()} className="bg-amber-500 hover:bg-amber-400 text-white font-bold px-6 py-2 rounded-lg transition flex items-center gap-2">
+                  <Key className="w-4 h-4" /> 重設密碼
+                </button>
+              </div>
+            </div>
+
+            {/* 學生列表 */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="p-4 border-b border-slate-200 flex items-center gap-3">
+                <Search className="w-4 h-4 text-slate-400" />
+                <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="搜尋學號..." className="flex-1 outline-none text-sm" />
+              </div>
+              <table className="w-full text-sm">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-bold text-slate-700">學號</th>
+                    <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {allUsers
+                    .filter(u => u.student_id.toLowerCase().includes(searchTerm.toLowerCase()))
+                    .map(u => (
+                      <tr key={u.id} className="hover:bg-slate-50 transition">
+                        <td className="px-4 py-3 font-medium text-indigo-700">{u.student_id}</td>
+                        <td className="px-4 py-3 text-right">
+                          <button onClick={() => handleResetPassword(u.student_id)} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 hover:border-amber-300 text-xs font-bold transition flex items-center gap-1 ml-auto">
+                            <Key className="w-3 h-3" /> 重設密碼
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  {allUsers.filter(u => u.student_id.toLowerCase().includes(searchTerm.toLowerCase())).length === 0 && (
+                    <tr><td colSpan={2} className="px-4 py-8 text-center text-slate-400">沒有找到符合的學生</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* ===== 學生：我的預約面板 ===== */}
         {view === 'dashboard' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-slate-900">我的預約紀錄</h2>
@@ -226,7 +455,7 @@ export default function App() {
           </div>
         )}
 
-        {/* 預約座位面板 */}
+        {/* ===== 學生：預約座位面板 ===== */}
         {view === 'reserve' && (
           <div className="space-y-8">
             <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-4 items-end">
@@ -238,7 +467,8 @@ export default function App() {
                 <label className="text-sm font-bold text-slate-700">選擇時段</label>
                 <select value={selectedSlot} onChange={(e) => setSelectedSlot(e.target.value)} className="block w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
                   <option value="17:00-21:00">平日晚間 (17:00-21:00)</option>
-                  <option value="09:00-17:00">假日全天 (09:00-17:00)</option>
+                  <option value="09:00-12:00">假日上午 (09:00-12:00)</option>
+                  <option value="13:00-17:00">假日下午 (13:00-17:00)</option>
                 </select>
               </div>
               <button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 transition">
