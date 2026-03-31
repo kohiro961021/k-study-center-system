@@ -9,6 +9,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - SECRET_KEY=super_secret_key_change_this
       - JWT_ALGORITHM=HS256
+      - GOOGLE_CLIENT_ID=your_google_client_id_here
     depends_on:
       - db
       - redis
