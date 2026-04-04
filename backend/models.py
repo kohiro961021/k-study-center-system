@@ -43,6 +43,7 @@ class Reservation(Base):
     res_date = Column(String, nullable=False)  # Format: YYYY-MM-DD
     attendance_status = Column(String, nullable=True)  # null=未點名, "present"=有到, "absent"=未到
     created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="reservations")
     seat = relationship("Seat", back_populates="reservations")

@@ -13,18 +13,25 @@
 
 ### 🎒 學生預約端 (Student Side)
 - **多館別選擇**：完整的「新館」與「舊館」座位配置，包含 314 個真實座位。
+- **週末規則**：週六日僅開放舊館，新館自動標示為不可預約。
 - **直覺式選位**：採用視覺化介面輕鬆點擊預約感興趣的座位。
 - **多元登入方式**：支援學號信箱驗證註冊與學校 Google 帳號 (`@fssh.khc.edu.tw`) 一鍵登入。
-- **個人儀表板**：快速查看、一鍵取消個人預約，並追蹤出席紀錄。
+- **預約管理**：可取消未來的預約；過去日期或當天已點名的預約自動歸入「歷史紀錄」，無法取消。
+- **歷史紀錄**：獨立的歷史預約頁面，顯示出席狀態追蹤。
 
 ### 🛡️ 管理員後台 (Admin Dashboard)
 - **全域管理**：具備代領座位、強制取消預約以及重設學生密碼之權限。
 - **出席追蹤系統**：即時標記學生「有到」或「未到」，並統計每日預約人數。
+- **座位維修管理**：管理員可直接將座位設為「維修中」並鎖定，自動取消該座位未來所有預約。
 - **座位註記維護**：地圖上的座位支援動態註記（如：設備維修、特殊用途）。
+- **預約紀錄排序**：支援按學號、座位、日期、建立時間、最後修改時間排序，並記錄每筆預約的修改時間。
 - **視覺化監控**：一覽全館 314 個座位的預約分佈，協助中心管理人員調度。
 
-### ⚡ 系統穩定性 (System Robustness)
+### ⚡ 系統穩定性與安全性 (System Robustness & Security)
 - **並發衝突保護**：利用 **Redis 分散式鎖**，確保同一秒內不會有學生搶到同一個位置。
+- **防腳本搶位**：Per-User Rate Limiter（每人每分鐘最多 5 次預約嘗試），防止機器人搶座位。
+- **日期格式驗證**：嚴格 `YYYY-MM-DD` 格式驗證，防止非標準日期進入資料庫。
+- **XSS 防護**：出席名單列印等動態輸出均經過 HTML 轉義處理。
 - **身份安全驗證**：Nginx 層級的 `X-KLib-Key` 安全驗證與頻率限制。
 - **即時地圖回報**：與資料庫即時連動，準確反映當前空位狀態。
 
@@ -44,6 +51,7 @@
 - **PostgreSQL**: 穩定、可靠的關聯式資料庫。
 - **Redis**: 
   - **Distributed Lock**: 使用 Redis Lock 處理預約時的 Race Condition。
+  - **Rate Limiting**: 滑動窗口 Per-User 頻率限制，防止自動化腳本。
   - **Caching**: 存儲臨時驗證碼。
 - **JWT (HS256)**: 基於 Token 的安全身份驗證。
 - **SQLAlchemy (ORM)**: 資料庫模型與查詢管理。
@@ -64,20 +72,22 @@
    cd k-study-center-system
    ```
 
-2. **配置環境變數**
-   複製 `.env.example` 並重新命名為 `.env`：
+2. **啟動後端** (PostgreSQL + Redis + FastAPI + Nginx)
    ```bash
-   cp .env.example .env
-   ```
-   *請務必修改 `.env` 中的 `SECRET_KEY` 與資料庫密碼。*
-
-3. **一鍵啟動**
-   ```bash
+   cd backend
    docker-compose up --build -d
    ```
-   系統將自動建立並啟動 PostgreSQL, Redis, FastAPI 與 Nginx。
-   - 前端訪問：`http://localhost`
-   - API 文檔：`http://localhost/docs` (需攜帶正確 Header)
+
+3. **啟動前端** (Vite 開發伺服器)
+   ```bash
+   # 回到專案根目錄
+   npm install
+   npm run dev
+   ```
+
+   系統將自動建立並啟動所有後端服務。
+   - 前端訪問：`http://localhost:3000`（開發模式）或 `http://localhost`（Docker Nginx）
+   - API 文檔：`http://localhost/docs`（需攜帶正確 Header）
 
 ---
 
@@ -178,14 +188,13 @@ docker exec -it kstudy_app python seed_user.py student001 pass123 false
 # 建立管理員 (預設)
 docker exec -it kstudy_app python seed_user.py admin001 adminpass true
 test account(admin): admin001 / adminpass
-test account(student): student001 / pass123
+test account(student): student001 / 123456
 test account(student): student002 / pass2
 ```
 [+] Successfully created:
     - Student ID: admin001
     - Password: adminpass
     - Role: Admin
-```
 ```
 **手動開發環境下：**
 ```bash
@@ -194,41 +203,21 @@ python seed_user.py test123 password123 true
 ```
 *註：若不帶參數執行，預設建立 `test123` / `password123` 的管理員帳號。*
 
+#### 3. 資料庫遷移（已有舊資料庫時）
+若資料庫已有舊版 schema，需手動執行以下 SQL 更新：
+```bash
+# 新增 updated_at 欄位
+docker exec kstudy_db psql -U user -d kstudy -c \
+  "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP;"
+
+# 更新特殊座位類型（新館 34/35 工讀生、36/44 柱子）
+docker exec kstudy_db psql -U user -d kstudy -c \
+  "UPDATE seats SET seat_type = 'staff' WHERE seat_number IN (34, 35);
+   UPDATE seats SET seat_type = 'pillar' WHERE seat_number IN (36, 44);"
+```
+
 ---
 
-### 方式二：手動開發環境設定
-
-#### 1. 前端 (Frontend) 設定
-```bash
-# 進入專案根目錄
-npm install
-
-# 啟動 Vite 開發伺服器
-npm run dev
-```
-前端預設運行於：`http://localhost:3000`
-
-#### 2. 後端 (Backend) 設定
-```bash
-cd backend
-
-# 建議建立虛擬環境 (Virtual Environment)
-python -m venv venv
-
-# 啟動虛擬環境 (Windows)
-.\venv\Scripts\activate
-# 啟動虛擬環境 (Mac/Linux)
-# source venv/bin/activate
-
-# 安裝連線與運行所需的套件
-pip install -r requirements.txt
-
-# 啟動 FastAPI (使用 Uvicorn)
-uvicorn app:app --reload --host 0.0.0.0 --port 8000
-```
-後端預設運行於：`http://localhost:8000`
-
----
 
 ## 🐛 疑難排解 (Troubleshooting)
 
@@ -295,6 +284,20 @@ Invoke-RestMethod -Uri "http://127.0.0.1/api/seats" -Headers @{"X-KLib-Key"="tes
 # Step 5: 驗證結果（應顯示 314）
 docker exec kstudy_db psql -U user -d kstudy -c "SELECT count(*) FROM seats;"
 ```
+5. 🪑 新增特殊座位標記（工讀生 / 柱子）
+[MODIFY] 
+seat_layout.py
+將座位 34、35 從 normal 改為 staff（工讀生）
+將座位 36、44 從 normal 改為 pillar（柱子）
+需注意：這些座位在 新3(311) 區（29~44）中，需要將 _add(range(29, 45), ...) 拆分為帶特殊標記的版本
+WARNING
+
+資料庫遷移：如果已有舊資料庫，需要執行 SQL 更新已存在的座位類型：
+```
+sql
+UPDATE seats SET seat_type = 'staff' WHERE seat_number IN (34, 35);
+UPDATE seats SET seat_type = 'pillar' WHERE seat_number IN (36, 44);
+```
 
 **預防措施**：
 - 更新程式碼後，若涉及資料庫 schema 變更，務必同步更新 Docker 中的資料庫。
@@ -339,10 +342,11 @@ docker-compose -f backend/docker-compose.yml up -d
 | 接口 | 方法 | 說明 | 權限要求 |
 | :--- | :--- | :--- | :--- |
 | `/api/seats` | `GET` | 取得所有座位配置與狀態 | 公開 (需 Header) |
-| `/api/availability`| `GET` | 查詢特定日期的可用位置 | 公開 (需 Header) |
-| `/api/my-reservations`| `GET` | 查詢個人所有預約紀錄 | 需登入 |
-| `/api/reserve` | `POST` | 進行座位預約 (支援 Redis 競爭鎖) | 需登入 |
-| `/api/reservations/{id}`| `DELETE` | 取消個人預約 | 需登入 |
+| `/api/availability`| `GET` | 查詢特定日期的可用位置（週末自動包含新館） | 公開 (需 Header) |
+| `/api/my-reservations`| `GET` | 查詢可取消的預約（未來日期 + 當天未點名） | 需登入 |
+| `/api/my-history`| `GET` | 查詢歷史預約（過去日期 + 當天已點名） | 需登入 |
+| `/api/reserve` | `POST` | 進行座位預約 (限每人/分鐘 5 次，週末禁新館) | 需登入 |
+| `/api/reservations/{id}`| `DELETE` | 取消預約（過去/已點名的不可取消） | 需登入 |
 
 ### 🛠️ 管理員功能 (Admin Features)
 
@@ -352,13 +356,14 @@ docker-compose -f backend/docker-compose.yml up -d
 | :--- | :--- | :--- |
 | `/api/admin/users` | `GET` | 取得所有學生清單 |
 | `/api/admin/reset-password`| `PUT` | 強制重設學生密碼 |
-| `/api/admin/reservations` | `GET` | 取得系統內所有預約紀錄 |
-| `/api/admin/reserve` | `POST` | 代替學生進行預約 |
+| `/api/admin/reservations` | `GET` | 取得系統內所有預約紀錄 (含建立/修改時間) |
+| `/api/admin/reserve` | `POST` | 代替學生進行預約 (週末禁新館) |
 | `/api/admin/reservations/{id}`| `PUT` | 修改預約資料 (變更日期或座位) |
 | `/api/admin/reservations/{id}`| `DELETE` | 強制取消學生預約 |
 | `/api/admin/reservations/{id}/attendance`| `PUT` | 更新出席狀態 (`present` / `absent`) |
 | `/api/admin/attendance?date=...`| `GET` | 導出特定日期的出席名單 |
-| `/api/admin/seats/{id}/note`| `PUT` | 編輯座位註記 (對應 `Seat` 模型) |
+| `/api/admin/seats/{id}/note`| `PUT` | 編輯座位註記 |
+| `/api/admin/seats/{id}/status`| `PUT` | 設定座位狀態 (`maintenance` / `available`，維修時自動取消未來預約) |
 | `/api/admin/notes` | `GET` | 快速檢視所有含有註記的座位 |
 
 ---

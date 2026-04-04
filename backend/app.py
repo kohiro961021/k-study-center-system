@@ -1,4 +1,5 @@
 import os
+import re
 import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
@@ -9,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine
 from jose import JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 import redis
 
 from models import Base, User, Seat, Reservation
@@ -31,6 +32,10 @@ SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_key")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+
+# Rate limit config
+RESERVE_RATE_LIMIT = 5          # max attempts
+RESERVE_RATE_WINDOW = 60        # per N seconds
 
 # --- Database Setup ---
 engine = create_engine(DATABASE_URL)
@@ -105,6 +110,53 @@ app.add_middleware(
 mail_service = MailService()
 
 
+# ═══════════════════
+#  Date Validation
+# ═══════════════════
+DATE_REGEX = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+def validate_date_format(date_str: str) -> str:
+    """Validate date string is exactly YYYY-MM-DD and represents a real date."""
+    if not DATE_REGEX.match(date_str):
+        raise ValueError("日期格式必須為 YYYY-MM-DD（例如 2026-04-08）")
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        raise ValueError("無效的日期")
+    return date_str
+
+
+def is_weekend(date_str: str) -> bool:
+    """Check if the given date falls on Saturday (5) or Sunday (6)."""
+    d = datetime.strptime(date_str, "%Y-%m-%d").date()
+    return d.weekday() in (5, 6)  # 5=Saturday, 6=Sunday
+
+
+# ═══════════════════
+#  Rate Limiting
+# ═══════════════════
+def check_rate_limit(user_id: int):
+    """Sliding window rate limit: max RESERVE_RATE_LIMIT attempts per RESERVE_RATE_WINDOW seconds."""
+    key = f"ratelimit:reserve:{user_id}"
+    now = datetime.now(timezone.utc).timestamp()
+    pipe = redis_client.pipeline()
+    # Remove expired entries
+    pipe.zremrangebyscore(key, 0, now - RESERVE_RATE_WINDOW)
+    # Count current window
+    pipe.zcard(key)
+    # Add current attempt
+    pipe.zadd(key, {str(now): now})
+    pipe.expire(key, RESERVE_RATE_WINDOW)
+    results = pipe.execute()
+    count = results[1]
+    if count >= RESERVE_RATE_LIMIT:
+        raise HTTPException(
+            status_code=429,
+            detail=f"操作太頻繁，請在 {RESERVE_RATE_WINDOW} 秒後再試（每分鐘最多 {RESERVE_RATE_LIMIT} 次）"
+        )
+
+
 # --- Pydantic Models ---
 class UserRegister(BaseModel):
     student_id: str
@@ -121,6 +173,11 @@ class Token(BaseModel):
 class ReservationRequest(BaseModel):
     seat_id: int
     res_date: str  # YYYY-MM-DD
+
+    @field_validator("res_date")
+    @classmethod
+    def validate_res_date(cls, v):
+        return validate_date_format(v)
 
 
 class SendCodeRequest(BaseModel):
@@ -148,6 +205,8 @@ class ReservationOut(BaseModel):
     user_id: int
     seat_id: int
     res_date: str
+    attendance_status: Optional[str] = None
+    created_at: Optional[str] = None
     model_config = {"from_attributes": True}
 
 
@@ -179,15 +238,38 @@ class SeatNoteRequest(BaseModel):
     note: str
 
 
+class SeatStatusRequest(BaseModel):
+    status: str  # "maintenance" or "available"
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v):
+        if v not in ("maintenance", "available"):
+            raise ValueError("狀態只能是 maintenance 或 available")
+        return v
+
+
 class AdminReserveRequest(BaseModel):
     student_id: str
     seat_id: int
     res_date: str
 
+    @field_validator("res_date")
+    @classmethod
+    def validate_res_date(cls, v):
+        return validate_date_format(v)
+
 
 class AdminModifyReservationRequest(BaseModel):
     seat_id: Optional[int] = None
     res_date: Optional[str] = None
+
+    @field_validator("res_date")
+    @classmethod
+    def validate_res_date(cls, v):
+        if v is not None:
+            return validate_date_format(v)
+        return v
 
 
 class AttendanceUpdateRequest(BaseModel):
@@ -196,10 +278,18 @@ class AttendanceUpdateRequest(BaseModel):
 
 # --- Helpers ---
 def check_reservation_date(res_date_str: str):
+    """Validate date is within bookable range (today ~ today+7)."""
+    # Format already validated by Pydantic
     now = datetime.now()
     res_date = datetime.strptime(res_date_str, "%Y-%m-%d").date()
     if not (now.date() <= res_date <= now.date() + timedelta(days=7)):
         raise HTTPException(status_code=400, detail="只能預約未來 7 天內的座位")
+
+
+def check_weekend_building(res_date_str: str, seat: Seat):
+    """Block new building reservations on weekends."""
+    if is_weekend(res_date_str) and seat.building == "新館":
+        raise HTTPException(status_code=400, detail="週六日僅開放舊館，新館不可預約")
 
 
 def init_seats(db: Session):
@@ -223,6 +313,13 @@ def _make_token(user: User) -> dict:
         data={"sub": user.student_id, "admin": user.is_admin, "name": user.name or ""}
     )
     return {"access_token": access_token, "token_type": "bearer"}
+
+
+def _format_datetime(dt) -> Optional[str]:
+    """Format datetime to ISO string for JSON output."""
+    if dt is None:
+        return None
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 # ═══════════════════
@@ -309,22 +406,81 @@ def get_seats(db: Session = Depends(get_db)):
 
 @app.get("/api/availability")
 def get_availability(res_date: str, db: Session = Depends(get_db)):
+    # Validate date format
+    try:
+        validate_date_format(res_date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     reservations = db.query(Reservation).filter(Reservation.res_date == res_date).all()
-    return [r.seat_id for r in reservations]
+    booked_ids = [r.seat_id for r in reservations]
+
+    # On weekends, all new building seats are unavailable
+    if is_weekend(res_date):
+        new_building_seats = db.query(Seat).filter(Seat.building == "新館").all()
+        new_building_ids = [s.id for s in new_building_seats]
+        booked_ids = list(set(booked_ids + new_building_ids))
+
+    return booked_ids
 
 
 # ═══════════════════
 #  Student Routes
 # ═══════════════════
 
-@app.get("/api/my-reservations", response_model=List[ReservationOut])
+@app.get("/api/my-reservations")
 def get_my_reservations(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return db.query(Reservation).filter(Reservation.user_id == current_user.id).all()
+    """Return active (cancellable) reservations only."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    all_res = db.query(Reservation).filter(Reservation.user_id == current_user.id).all()
+    result = []
+    for r in all_res:
+        # Active = future dates OR today with no attendance marked
+        if r.res_date > today or (r.res_date == today and r.attendance_status is None):
+            result.append({
+                "id": r.id,
+                "user_id": r.user_id,
+                "seat_id": r.seat_id,
+                "res_date": r.res_date,
+                "attendance_status": r.attendance_status,
+                "created_at": _format_datetime(r.created_at),
+            })
+    return result
+
+
+@app.get("/api/my-history")
+def get_my_history(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Return past / non-cancellable reservations (history)."""
+    today = datetime.now().strftime("%Y-%m-%d")
+    all_res = db.query(Reservation).filter(Reservation.user_id == current_user.id).all()
+    result = []
+    for r in all_res:
+        # History = past dates OR today with attendance already marked
+        if r.res_date < today or (r.res_date == today and r.attendance_status is not None):
+            seat = db.query(Seat).filter(Seat.id == r.seat_id).first()
+            result.append({
+                "id": r.id,
+                "user_id": r.user_id,
+                "seat_id": r.seat_id,
+                "res_date": r.res_date,
+                "attendance_status": r.attendance_status,
+                "seat_label": seat.label if seat else f"#{r.seat_id}",
+                "seat_zone": seat.zone if seat else "",
+                "seat_building": seat.building if seat else "",
+                "created_at": _format_datetime(r.created_at),
+            })
+    # Sort newest first
+    result.sort(key=lambda x: x["res_date"], reverse=True)
+    return result
 
 
 @app.post("/api/reserve")
 def create_reservation(req: ReservationRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    # Date format already validated by Pydantic
     check_reservation_date(req.res_date)
+
+    # Per-user rate limiting
+    check_rate_limit(current_user.id)
 
     seat = db.query(Seat).filter(Seat.id == req.seat_id).first()
     if not seat:
@@ -333,6 +489,9 @@ def create_reservation(req: ReservationRequest, current_user: User = Depends(get
         raise HTTPException(status_code=400, detail="此座位不可預約")
     if seat.status == "maintenance":
         raise HTTPException(status_code=400, detail="此座位維修中")
+
+    # Weekend restriction
+    check_weekend_building(req.res_date, seat)
 
     lock_key = f"lock:{req.res_date}:{req.seat_id}"
     lock = redis_client.lock(lock_key, timeout=5)
@@ -361,6 +520,17 @@ def cancel_reservation(reservation_id: int, current_user: User = Depends(get_cur
         raise HTTPException(status_code=404, detail="找不到此預約")
     if reservation.user_id != current_user.id and not current_user.is_admin:
         raise HTTPException(status_code=403, detail="只能取消自己的預約")
+
+    # Student cancellation restrictions (admin bypass)
+    if not current_user.is_admin:
+        today = datetime.now().strftime("%Y-%m-%d")
+        # Rule 1: Cannot cancel past reservations
+        if reservation.res_date < today:
+            raise HTTPException(status_code=403, detail="過去日期的預約無法取消")
+        # Rule 2: Cannot cancel today's reservation if already marked attendance
+        if reservation.res_date == today and reservation.attendance_status is not None:
+            raise HTTPException(status_code=403, detail="今日已點名的預約無法取消")
+
     db.delete(reservation)
     db.commit()
     return {"message": "預約已取消"}
@@ -401,6 +571,8 @@ def admin_list_reservations(admin: User = Depends(get_admin_user), db: Session =
             "student_name": (user.name if user and user.name else "未填寫"),
             "seat_label": seat.label if seat else f"#{r.seat_id}",
             "attendance_status": r.attendance_status,
+            "created_at": _format_datetime(r.created_at),
+            "updated_at": _format_datetime(r.updated_at),
         })
     return result
 
@@ -425,6 +597,37 @@ def admin_update_seat_note(seat_id: int, req: SeatNoteRequest, admin: User = Dep
     return {"message": f"已更新座位 {seat.label} 的註記"}
 
 
+@app.put("/api/admin/seats/{seat_id}/status")
+def admin_update_seat_status(seat_id: int, req: SeatStatusRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    """Set seat to maintenance or available. When setting maintenance, cancel future reservations."""
+    seat = db.query(Seat).filter(Seat.id == seat_id).first()
+    if not seat:
+        raise HTTPException(status_code=404, detail="座位不存在")
+
+    old_status = seat.status
+    seat.status = req.status
+
+    cancelled_count = 0
+    if req.status == "maintenance" and old_status != "maintenance":
+        # Cancel all reservations for this seat from today onward
+        today = datetime.now().strftime("%Y-%m-%d")
+        future_reservations = db.query(Reservation).filter(
+            Reservation.seat_id == seat_id,
+            Reservation.res_date >= today
+        ).all()
+        cancelled_count = len(future_reservations)
+        for r in future_reservations:
+            db.delete(r)
+
+    db.commit()
+
+    status_text = "維修中" if req.status == "maintenance" else "可用"
+    msg = f"座位 {seat.label} 已設為「{status_text}」"
+    if cancelled_count > 0:
+        msg += f"，已自動取消 {cancelled_count} 筆未來預約"
+    return {"message": msg}
+
+
 @app.post("/api/admin/reserve")
 def admin_create_reservation(req: AdminReserveRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
     user = db.query(User).filter(User.student_id == req.student_id).first()
@@ -433,6 +636,13 @@ def admin_create_reservation(req: AdminReserveRequest, admin: User = Depends(get
     seat = db.query(Seat).filter(Seat.id == req.seat_id).first()
     if not seat:
         raise HTTPException(status_code=404, detail="座位不存在")
+
+    # Weekend restriction applies to admin too
+    check_weekend_building(req.res_date, seat)
+
+    if seat.status == "maintenance":
+        raise HTTPException(status_code=400, detail="此座位維修中，無法預約")
+
     if db.query(Reservation).filter(Reservation.res_date == req.res_date, Reservation.seat_id == req.seat_id).first():
         raise HTTPException(status_code=409, detail="此座位在該日期已被預約")
     if db.query(Reservation).filter(Reservation.res_date == req.res_date, Reservation.user_id == user.id).first():
@@ -462,6 +672,8 @@ def admin_modify_reservation(reservation_id: int, req: AdminModifyReservationReq
         reservation.seat_id = req.seat_id
     if req.res_date is not None:
         reservation.res_date = req.res_date
+    # Manually touch updated_at
+    reservation.updated_at = datetime.utcnow()
     db.commit()
     return {"message": "預約已修改"}
 
@@ -474,6 +686,7 @@ def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, a
     if not reservation:
         raise HTTPException(status_code=404, detail="找不到此預約")
     reservation.attendance_status = req.status
+    reservation.updated_at = datetime.utcnow()
     db.commit()
     status_text = "有到" if req.status == "present" else "未到"
     return {"message": f"已更新出席狀態為：{status_text}"}
@@ -481,6 +694,12 @@ def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, a
 
 @app.get("/api/admin/attendance")
 def admin_get_attendance(date: str, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    # Validate date format
+    try:
+        validate_date_format(date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
     reservations = db.query(Reservation).filter(Reservation.res_date == date).all()
     result = []
     for r in reservations:

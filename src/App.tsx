@@ -1,17 +1,29 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Shield, Calendar, LogOut, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList } from 'lucide-react';
+import { Shield, Calendar, LogOut, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Wrench, ArrowUpDown } from 'lucide-react';
 
 const API_BASE = '';
 const KLIB_KEY = 'test';
 const GOOGLE_CLIENT_ID = ''; // Set your Google Client ID here
 
-type View = 'login' | 'register' | 'dashboard' | 'reserve' | 'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes';
+type View = 'login' | 'register' | 'dashboard' | 'history' | 'reserve' | 'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes';
 type SeatData = { id: number; label: string; seat_number: number; zone: string; building: string; seat_type: string; note: string | null; status: string };
-type Reservation = { id: number; seat_id: number; res_date: string; user_id: number };
-type AdminReservation = Reservation & { student_id: string; student_name: string; seat_label: string; attendance_status: string | null };
+type Reservation = { id: number; seat_id: number; res_date: string; user_id: number; attendance_status?: string | null; created_at?: string | null };
+type AdminReservation = Reservation & { student_id: string; student_name: string; seat_label: string; attendance_status: string | null; created_at: string | null; updated_at: string | null };
+type HistoryReservation = { id: number; seat_id: number; res_date: string; user_id: number; attendance_status: string | null; seat_label: string; seat_zone: string; seat_building: string; created_at: string | null };
 type StudentUser = { id: number; student_id: string; name: string | null; is_admin: boolean };
 type AttendanceEntry = { id: number; seat_label: string; seat_number: number; zone: string; building: string; student_id: string; student_name: string; attendance_status: string | null };
 type NoteEntry = { id: number; seat_number: number; label: string; zone: string; building: string; note: string };
+type SortKey = 'res_date' | 'student_id' | 'seat_label' | 'created_at' | 'updated_at';
+type SortDir = 'asc' | 'desc';
+
+function escapeHtml(str: string): string {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function isWeekend(dateStr: string): boolean {
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.getDay() === 0 || d.getDay() === 6;
+}
 
 function decodeJwtPayload(token: string): any {
   try {
@@ -160,6 +172,7 @@ export default function App() {
   const [seats, setSeats] = useState<SeatData[]>([]);
   const [bookedSeatIds, setBookedSeatIds] = useState<number[]>([]);
   const [myReservations, setMyReservations] = useState<Reservation[]>([]);
+  const [myHistory, setMyHistory] = useState<HistoryReservation[]>([]);
 
   const [allReservations, setAllReservations] = useState<AdminReservation[]>([]);
   const [allUsers, setAllUsers] = useState<StudentUser[]>([]);
@@ -179,6 +192,8 @@ export default function App() {
   // Attendance & notes
   const [attendanceList, setAttendanceList] = useState<AttendanceEntry[]>([]);
   const [notesList, setNotesList] = useState<NoteEntry[]>([]);
+  const [sortKey, setSortKey] = useState<SortKey>('res_date');
+  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   const apiCall = async (endpoint: string, method = 'GET', body?: any) => {
     const headers: any = { 'Content-Type': 'application/json', 'X-KLib-Key': KLIB_KEY };
@@ -211,6 +226,8 @@ export default function App() {
     if (view === 'admin-users') fetchAdminUsers();
     if (view === 'admin-attendance') fetchAttendanceList();
     if (view === 'admin-notes') fetchNotesList();
+    if (view === 'dashboard') { fetchMyReservations(); fetchSeats(); }
+    if (view === 'history') fetchMyHistory();
   }, [view, selectedDate]);
 
   const handleLogin = async (e: any) => {
@@ -253,6 +270,7 @@ export default function App() {
   const fetchSeats = async () => { try { setSeats(await apiCall('/api/seats')); } catch {} };
   const fetchAvailability = async () => { try { setBookedSeatIds(await apiCall(`/api/availability?res_date=${selectedDate}`)); } catch {} };
   const fetchMyReservations = async () => { try { setMyReservations(await apiCall('/api/my-reservations')); } catch {} };
+  const fetchMyHistory = async () => { try { setMyHistory(await apiCall('/api/my-history')); } catch {} };
   const fetchAdminReservations = async () => { try { setAllReservations(await apiCall('/api/admin/reservations')); } catch {} };
   const fetchAdminUsers = async () => { try { setAllUsers(await apiCall('/api/admin/users')); } catch {} };
   const fetchAttendanceList = async () => { try { setAttendanceList(await apiCall(`/api/admin/attendance?date=${selectedDate}`)); } catch {} };
@@ -267,7 +285,7 @@ export default function App() {
 
   const handleCancel = async (resId: number) => {
     if (!window.confirm('確定要取消這個預約嗎？')) return;
-    try { await apiCall(`/api/reservations/${resId}`, 'DELETE'); fetchMyReservations(); } catch {}
+    try { await apiCall(`/api/reservations/${resId}`, 'DELETE'); fetchMyReservations(); } catch (err: any) { alert(`無法取消：${err.message}`); }
   };
 
   const handleAdminCancelReservation = async (resId: number) => {
@@ -324,12 +342,24 @@ export default function App() {
       <h1>鳳山高中 K書中心 出席名單</h1>
       <h2>日期：${selectedDate}　　共 ${data.length} 人</h2>
       <table><thead><tr><th>座位號碼</th><th>區域</th><th>館別</th><th>學號</th><th>姓名</th></tr></thead><tbody>
-      ${data.map(d => `<tr><td>${d.seat_label}</td><td>${d.zone}</td><td>${d.building}</td><td>${d.student_id}</td><td>${d.student_name}</td></tr>`).join('')}
+      ${data.map(d => `<tr><td>${escapeHtml(d.seat_label)}</td><td>${escapeHtml(d.zone)}</td><td>${escapeHtml(d.building)}</td><td>${escapeHtml(d.student_id)}</td><td>${escapeHtml(d.student_name)}</td></tr>`).join('')}
       </tbody></table>
       <br><button onclick="window.print()" style="padding:8px 24px;font-size:14px;cursor:pointer">🖨️ 列印</button>
       </body></html>`);
       printWindow.document.close();
     } catch (err: any) { setAdminMessage(`無法取得出席名單: ${err.message}`); }
+  };
+
+  const handleSeatStatus = async (seatId: number, newStatus: 'maintenance' | 'available') => {
+    const action = newStatus === 'maintenance' ? '設為維修中（會自動取消該座位未來的所有預約）' : '恢復為可用';
+    if (!window.confirm(`確定要${action}嗎？`)) return;
+    try {
+      const result = await apiCall(`/api/admin/seats/${seatId}/status`, 'PUT', { status: newStatus });
+      setAdminMessage(result.message);
+      fetchSeats();
+      fetchAvailability();
+      fetchAdminReservations();
+    } catch (err: any) { setAdminMessage(`操作失敗: ${err.message}`); }
   };
 
   // ═══════════ Seat Rendering Helper ═══════════
@@ -354,15 +384,17 @@ export default function App() {
     const handleClick = () => {
       if (isAdminView) {
         if (isPillar) return;
-        const action = window.prompt(`座位 ${seat.label}\n${seat.note ? `註記: ${seat.note}\n` : ''}狀態: ${isBooked ? '已預約' : isStaff ? '工讀生' : '空位'}\n\n輸入操作:\n1 = 編輯註記\n2 = 代為預約\n3 = 有到\n4 = 未到\n取消 = 關閉`);
+        const statusText = isMaint ? '維修中' : isBooked ? '已預約' : isStaff ? '工讀生' : '空位';
+        const action = window.prompt(`座位 ${seat.label}\n${seat.note ? `註記: ${seat.note}\n` : ''}狀態: ${statusText}\n\n輸入操作：\n1 = 編輯註記\n2 = 代為預約\n3 = 有到\n4 = 未到\n5 = 設為維修中\n6 = 恢復可用\n取消 = 關閉`);
         if (action === '1') { setEditingSeatNote(seat); setNoteText(seat.note || ''); }
         else if (action === '2') { setAdminReserveSeatId(seat.id); setAdminReserveStudentId(''); setAdminReserveDate(selectedDate); setShowAdminReserve(true); }
         else if (action === '3' || action === '4') {
-          // Find the reservation for this seat on selected date
           const targetRes = allReservations.find(r => r.seat_id === seat.id && r.res_date === selectedDate);
           if (!targetRes) { alert('該座位在這個日期沒有預約'); return; }
           handleUpdateAttendance(targetRes.id, action === '3' ? 'present' : 'absent');
         }
+        else if (action === '5') { handleSeatStatus(seat.id, 'maintenance'); }
+        else if (action === '6') { handleSeatStatus(seat.id, 'available'); }
       } else {
         if (!disabled) handleReserve(seat.id);
       }
@@ -374,6 +406,7 @@ export default function App() {
         <span>{seat.seat_number}</span>
         {isPillar && <span className="text-[7px] leading-none">柱</span>}
         {isStaff && <span className="text-[7px] leading-none">工</span>}
+        {isMaint && <span className="text-[7px] leading-none">🔧</span>}
         {seat.note && <span className="absolute -top-1 -right-1 w-2 h-2 bg-blue-500 rounded-full" />}
       </button>
     );
@@ -618,6 +651,7 @@ export default function App() {
               <button onClick={() => setView('admin-users')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-users' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><Users className="w-4 h-4 inline mr-1" />學生</button>
             </>) : (<>
               <button onClick={() => setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>我的預約</button>
+              <button onClick={() => setView('history')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'history' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}><History className="w-4 h-4 inline mr-1" />歷史紀錄</button>
               <button onClick={() => setView('reserve')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'reserve' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>預約座位</button>
             </>)}
             <button onClick={handleLogout} className="ml-1 text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition"><LogOut className="w-4 h-4" /></button>
@@ -646,16 +680,18 @@ export default function App() {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">學號</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'student_id') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('student_id'); setSortDir('asc'); } }}>學號 {sortKey === 'student_id' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                       <th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">日期</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'seat_label') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('seat_label'); setSortDir('asc'); } }}>座位 {sortKey === 'seat_label' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'res_date') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('res_date'); setSortDir('desc'); } }}>日期 {sortKey === 'res_date' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                       <th className="px-4 py-3 text-center font-bold text-slate-700">出席</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'created_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('created_at'); setSortDir('desc'); } }}>建立時間 {sortKey === 'created_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'updated_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('updated_at'); setSortDir('desc'); } }}>最後修改 {sortKey === 'updated_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
                       <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {allReservations.map(res => (
+                    {[...allReservations].sort((a, b) => { const av = (a as any)[sortKey] || ''; const bv = (b as any)[sortKey] || ''; return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av)); }).map(res => (
                       <tr key={res.id} className="hover:bg-slate-50 transition">
                         <td className="px-4 py-3 font-medium text-indigo-700">{res.student_id}</td>
                         <td className="px-4 py-3 text-slate-600">{res.student_name}</td>
@@ -666,6 +702,8 @@ export default function App() {
                           {res.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 text-red-500 font-bold text-xs"><XCircle className="w-3.5 h-3.5" />未到</span>}
                           {!res.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
                         </td>
+                        <td className="px-4 py-3 text-slate-500 text-xs">{res.created_at || '-'}</td>
+                        <td className="px-4 py-3 text-slate-500 text-xs">{res.updated_at || '-'}</td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center gap-1 justify-end">
                             <button onClick={() => handleUpdateAttendance(res.id, 'present')} className="text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 text-xs font-bold transition" title="有到"><CheckCircle className="w-3 h-3" /></button>
@@ -883,6 +921,46 @@ export default function App() {
           </div>
         )}
 
+        {/* ===== Student: History ===== */}
+        {view === 'history' && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><History className="w-6 h-6 text-indigo-600" />歷史預約紀錄</h2>
+            <p className="text-sm text-slate-500">以下為過去日期或當天已點名的預約，無法取消。</p>
+            {myHistory.length === 0 ? (
+              <div className="p-8 text-center bg-white/70 rounded-2xl border border-slate-200 text-slate-500">目前沒有歷史紀錄</div>
+            ) : (
+              <div className="bg-white/70 backdrop-blur rounded-2xl border border-slate-200 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700">日期</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
+                      <th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
+                      <th className="px-4 py-3 text-center font-bold text-slate-700">出席狀態</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {myHistory.map(h => (
+                      <tr key={h.id} className={`transition ${h.attendance_status === 'present' ? 'bg-emerald-50/30' : h.attendance_status === 'absent' ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
+                        <td className="px-4 py-3 text-slate-600">{h.res_date}</td>
+                        <td className="px-4 py-3 font-bold text-indigo-700">{h.seat_label}</td>
+                        <td className="px-4 py-3 text-slate-600">{h.seat_building}</td>
+                        <td className="px-4 py-3 text-slate-600">{h.seat_zone}</td>
+                        <td className="px-4 py-3 text-center">
+                          {h.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
+                          {h.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold"><XCircle className="w-3.5 h-3.5" />未到</span>}
+                          {!h.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* ===== Student: Reserve Seat ===== */}
         {view === 'reserve' && (
           <div className="space-y-4">
@@ -890,17 +968,18 @@ export default function App() {
               <div className="space-y-1 flex-1 min-w-[180px]">
                 <label className="text-sm font-bold text-slate-700">選擇日期</label>
                 <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="block w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                {isWeekend(selectedDate) && <div className="text-xs text-amber-600 font-medium mt-1">⚠️ 週六日僅開放舊館</div>}
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200'}`}>新館</button>
-                <button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200'}`}>舊館</button>
+                <button onClick={() => setSelectedBuilding('新館')} disabled={isWeekend(selectedDate)} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isWeekend(selectedDate) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : selectedBuilding === '新館' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200'}`}>{isWeekend(selectedDate) ? '新館（週末未開放）' : '新館'}</button>
+                <button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' || isWeekend(selectedDate) ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200'}`}>舊館</button>
               </div>
               <button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
             </div>
             {renderLegend()}
             <div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
-              <h3 className="text-lg font-bold text-slate-900 mb-4 text-center">📍 {selectedBuilding}座位圖 — 點擊空位即可預約</h3>
-              {selectedBuilding === '新館' ? renderNewBuilding(false) : renderOldBuilding(false)}
+              <h3 className="text-lg font-bold text-slate-900 mb-4 text-center">📍 {isWeekend(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}座位圖 — 點擊空位即可預約</h3>
+              {isWeekend(selectedDate) && selectedBuilding === '新館' ? renderOldBuilding(false) : (selectedBuilding === '新館' ? renderNewBuilding(false) : renderOldBuilding(false))}
             </div>
           </div>
         )}
