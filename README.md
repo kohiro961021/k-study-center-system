@@ -120,7 +120,7 @@
 ### 4. 配置環境變數
 將取得的 Client ID 填入專案根目錄的 `.env` 檔案中：
 ```bash
-GOOGLE_CLIENT_ID=你的用戶端ID_在此貼上.apps.googleusercontent.com
+GOOGLE_CLIENT_ID=252589031268-5vna4g6l79lct8rdr4rtpmjlb16fm6vo.apps.googleusercontent.com
 ```
 
 *完成後重啟 Docker 容器。前端選位頁面會自動顯示「使用 Google 帳號登入」的按鈕。*
