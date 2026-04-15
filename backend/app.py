@@ -13,7 +13,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, field_validator
 import redis
 
-from models import Base, User, Seat, Reservation
+from models import Base, User, Seat, Reservation, Announcement
 from mail_service import MailService
 from seat_layout import SEAT_LAYOUT
 
@@ -79,7 +79,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
 async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+        detail="無法驗證憑證，請重新登入",
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
@@ -224,6 +224,12 @@ class AdminReservationOut(BaseModel):
 class ResetPasswordRequest(BaseModel):
     student_id: str
     new_password: str
+
+
+class AdminChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str
+    confirm_password: str
 
 
 class UserOut(BaseModel):
@@ -485,7 +491,7 @@ def create_reservation(req: ReservationRequest, current_user: User = Depends(get
     seat = db.query(Seat).filter(Seat.id == req.seat_id).first()
     if not seat:
         raise HTTPException(status_code=404, detail="座位不存在")
-    if seat.seat_type in ("staff", "pillar"):
+    if seat.seat_type == "staff" or (seat.seat_type == "pillar" and seat.seat_number not in (64, 72, 77, 83)):
         raise HTTPException(status_code=400, detail="此座位不可預約")
     if seat.status == "maintenance":
         raise HTTPException(status_code=400, detail="此座位維修中")
@@ -555,6 +561,22 @@ def admin_reset_password(req: ResetPasswordRequest, admin: User = Depends(get_ad
     user.password_hash = get_password_hash(req.new_password)
     db.commit()
     return {"message": f"已成功重設 {req.student_id} 的密碼"}
+
+
+@app.put("/api/admin/change-password")
+def admin_change_own_password(req: AdminChangePasswordRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    """管理員修改自己的密碼，需驗證舊密碼並確認兩次新密碼一致。"""
+    if not admin.password_hash or not verify_password(req.old_password, admin.password_hash):
+        raise HTTPException(status_code=400, detail="舊密碼不正確")
+    if req.new_password != req.confirm_password:
+        raise HTTPException(status_code=400, detail="兩次輸入的新密碼不一致")
+    if len(req.new_password) < 4:
+        raise HTTPException(status_code=400, detail="新密碼長度至少需要 4 個字元")
+    if req.old_password == req.new_password:
+        raise HTTPException(status_code=400, detail="新密碼不能與舊密碼相同")
+    admin.password_hash = get_password_hash(req.new_password)
+    db.commit()
+    return {"message": "密碼已成功修改"}
 
 
 @app.get("/api/admin/reservations")
@@ -734,3 +756,82 @@ def admin_get_notes(admin: User = Depends(get_admin_user), db: Session = Depends
             "note": s.note,
         })
     return result
+
+
+# ═══════════════════
+#  Announcement Routes
+# ═══════════════════
+
+class AnnouncementCreate(BaseModel):
+    title: str
+    content: str  # Markdown
+    is_pinned: bool = False
+
+
+class AnnouncementUpdate(BaseModel):
+    title: Optional[str] = None
+    content: Optional[str] = None
+    is_pinned: Optional[bool] = None
+
+
+@app.get("/api/announcements")
+def get_announcements(db: Session = Depends(get_db)):
+    """公開 API — 任何人（含未登入）都可以讀取公告"""
+    announcements = db.query(Announcement).order_by(
+        Announcement.is_pinned.desc(),
+        Announcement.created_at.desc()
+    ).all()
+    result = []
+    for a in announcements:
+        author = db.query(User).filter(User.id == a.author_id).first()
+        result.append({
+            "id": a.id,
+            "title": a.title,
+            "content": a.content,
+            "is_pinned": a.is_pinned,
+            "author_name": author.name if author and author.name else "管理員",
+            "created_at": _format_datetime(a.created_at),
+            "updated_at": _format_datetime(a.updated_at),
+        })
+    return result
+
+
+@app.post("/api/admin/announcements")
+def admin_create_announcement(req: AnnouncementCreate, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    if not req.title.strip() or not req.content.strip():
+        raise HTTPException(status_code=400, detail="標題和內容不能為空")
+    ann = Announcement(
+        title=req.title.strip(),
+        content=req.content.strip(),
+        is_pinned=req.is_pinned,
+        author_id=admin.id
+    )
+    db.add(ann)
+    db.commit()
+    return {"message": "公告已發布", "id": ann.id}
+
+
+@app.put("/api/admin/announcements/{ann_id}")
+def admin_update_announcement(ann_id: int, req: AnnouncementUpdate, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    ann = db.query(Announcement).filter(Announcement.id == ann_id).first()
+    if not ann:
+        raise HTTPException(status_code=404, detail="找不到此公告")
+    if req.title is not None:
+        ann.title = req.title.strip()
+    if req.content is not None:
+        ann.content = req.content.strip()
+    if req.is_pinned is not None:
+        ann.is_pinned = req.is_pinned
+    ann.updated_at = datetime.utcnow()
+    db.commit()
+    return {"message": "公告已更新"}
+
+
+@app.delete("/api/admin/announcements/{ann_id}")
+def admin_delete_announcement(ann_id: int, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    ann = db.query(Announcement).filter(Announcement.id == ann_id).first()
+    if not ann:
+        raise HTTPException(status_code=404, detail="找不到此公告")
+    db.delete(ann)
+    db.commit()
+    return {"message": "公告已刪除"}

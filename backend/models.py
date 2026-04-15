@@ -54,3 +54,17 @@ class Reservation(Base):
         # 同一天同一人只能預約一個座位
         UniqueConstraint('res_date', 'user_id', name='uq_reservation_user_date'),
     )
+
+
+class Announcement(Base):
+    __tablename__ = "announcements"
+
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, nullable=False)
+    content = Column(String, nullable=False)  # Markdown content
+    author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    is_pinned = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    author = relationship("User")

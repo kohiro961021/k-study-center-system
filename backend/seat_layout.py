@@ -11,7 +11,7 @@ def _add(numbers, zone, building, seat_type="normal"):
     for num in numbers:
         SEAT_LAYOUT.append({
             "seat_number": num,
-            "label": str(num),
+            "label": str(num).zfill(3),
             "zone": zone,
             "building": building,
             "seat_type": seat_type,

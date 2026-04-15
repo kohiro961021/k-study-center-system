@@ -1,11 +1,12 @@
-import { useState, useEffect } from 'react';
-import { Shield, Calendar, LogOut, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Wrench, ArrowUpDown } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Shield, Calendar, LogOut, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Wrench, ArrowUpDown, Megaphone, Pin, Clock, KeyRound } from 'lucide-react';
 
 const API_BASE = '';
 const KLIB_KEY = 'test';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-type View = 'login' | 'register' | 'dashboard' | 'history' | 'reserve' | 'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes';
+type View = 'login' | 'register' | 'dashboard' | 'history' | 'reserve' | 'announcements' | 'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes' | 'admin-announcements';
+type AnnouncementData = { id: number; title: string; content: string; is_pinned: boolean; author_name: string; created_at: string | null; updated_at: string | null };
 type SeatData = { id: number; label: string; seat_number: number; zone: string; building: string; seat_type: string; note: string | null; status: string };
 type Reservation = { id: number; seat_id: number; res_date: string; user_id: number; attendance_status?: string | null; created_at?: string | null };
 type AdminReservation = Reservation & { student_id: string; student_name: string; seat_label: string; attendance_status: string | null; created_at: string | null; updated_at: string | null };
@@ -17,7 +18,7 @@ type SortKey = 'res_date' | 'student_id' | 'seat_label' | 'created_at' | 'update
 type SortDir = 'asc' | 'desc';
 
 function escapeHtml(str: string): string {
-  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function isWeekend(dateStr: string): boolean {
@@ -35,17 +36,46 @@ function decodeJwtPayload(token: string): any {
 // ═══════════════════ Zone Layout Definitions ═══════════════════
 // Each zone defines rows of seat numbers matching the physical layout
 
+// ═══════════════════ Simple Markdown Renderer ═══════════════════
+function renderMarkdown(md: string): string {
+  let html = md
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    // Headers
+    .replace(/^### (.+)$/gm, '<h3 class="text-base font-bold mt-3 mb-1">$1</h3>')
+    .replace(/^## (.+)$/gm, '<h2 class="text-lg font-bold mt-4 mb-1">$1</h2>')
+    .replace(/^# (.+)$/gm, '<h1 class="text-xl font-bold mt-4 mb-2">$1</h1>')
+    // Bold & Italic
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    // Inline code
+    .replace(/`(.+?)`/g, '<code class="bg-slate-100 px-1 py-0.5 rounded text-sm font-mono">$1</code>')
+    // Unordered list
+    .replace(/^[\-\*] (.+)$/gm, '<li class="ml-4 list-disc">$1</li>')
+    // Ordered list
+    .replace(/^\d+\. (.+)$/gm, '<li class="ml-4 list-decimal">$1</li>')
+    // Blockquote
+    .replace(/^&gt; (.+)$/gm, '<blockquote class="border-l-4 border-indigo-300 pl-3 text-slate-600 italic my-1">$1</blockquote>')
+    // Horizontal rule
+    .replace(/^---$/gm, '<hr class="my-3 border-slate-200" />')
+    // Links
+    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 underline">$1</a>')
+    // Line breaks: double newline = paragraph break, single = <br>
+    .replace(/\n\n/g, '</p><p class="my-1">')
+    .replace(/\n/g, '<br/>');
+  return '<p class="my-1">' + html + '</p>';
+}
+
 const NEW_BUILDING_ZONES: Record<string, { label: string; rows: number[][] }> = {
-  "新1(315)": { label: "新1(315)", rows: [[9,10,11,12,13,14,15,16],[1,2,3,4,5,6,7,8]] },
-  "新2(308)": { label: "新2(308)", rows: [[23,24,25,26,27,28],[17,18,19,20,21,22]] },
-  "新3(311)": { label: "新3(311)", rows: [[37,38,39,40,41,42,43,44],[29,30,31,32,33,34,35,36]] },
-  "新4(314)": { label: "新4(314)", rows: [[51,52,53,54,55,56],[45,46,47,48,49,50]] },
-  "中間區左": { label: "中間區", rows: [[65,66,67,68,69,70,71,72],[57,58,59,60,61,62,63,64]] },
-  "中間區右": { label: "中間區", rows: [[79,80,81,82,83,84],[73,74,75,76,77,78]] },
-  "新5(309)": { label: "新5(309)", rows: [[85,92],[86,93],[87,94],[88,95],[89,96],[90,97],[91,98]] },
-  "新6(306)": { label: "新6(306)", rows: [[99,106],[100,107],[101,108],[102,109],[103,110],[104,111],[105,112]] },
-  "新7(301)": { label: "新7(301)", rows: [[113,120],[114,121],[115,122],[116,123],[117,124],[118,125],[119,126]] },
-  "新8(317)": { label: "新8(317)", rows: [[127,134],[128,135],[129,136],[130,137],[131,138],[132,139],[133,140]] },
+  "新1(315)": { label: "新1(315)", rows: [[9, 10, 11, 12, 13, 14, 15, 16], [1, 2, 3, 4, 5, 6, 7, 8]] },
+  "新2(308)": { label: "新2(308)", rows: [[23, 24, 25, 26, 27, 28], [17, 18, 19, 20, 21, 22]] },
+  "新3(311)": { label: "新3(311)", rows: [[37, 38, 39, 40, 41, 42, 43], [29, 30, 31, 32, 33, 34, 35]] },
+  "新4(314)": { label: "新4(314)", rows: [[51, 52, 53, 54, 55, 56], [45, 46, 47, 48, 49, 50]] },
+  "中間區左": { label: "中間區", rows: [[65, 66, 67, 68, 69, 70, 71, 72], [57, 58, 59, 60, 61, 62, 63, 64]] },
+  "中間區右": { label: "中間區", rows: [[79, 80, 81, 82, 83, 84], [73, 74, 75, 76, 77, 78]] },
+  "新5(309)": { label: "新5(309)", rows: [[85, 92], [86, 93], [87, 94], [88, 95], [89, 96], [90, 97], [91, 98]] },
+  "新6(306)": { label: "新6(306)", rows: [[99, 106], [100, 107], [101, 108], [102, 109], [103, 110], [104, 111], [105, 112]] },
+  "新7(301)": { label: "新7(301)", rows: [[113, 120], [114, 121], [115, 122], [116, 123], [117, 124], [118, 125], [119, 126]] },
+  "新8(317)": { label: "新8(317)", rows: [[127, 134], [128, 135], [129, 136], [130, 137], [131, 138], [132, 139], [133, 140]] },
 };
 
 // ═══════════════════ Old Building Zone Layout ═══════════════════
@@ -54,107 +84,189 @@ const NEW_BUILDING_ZONES: Record<string, { label: string; rows: number[][] }> = 
 
 // Staff seats (bottom-left of map)
 const OLD_STAFF_ZONES = {
-  "工讀生1": { label: "工讀生", rows: [[141,142,143]] },
-  "工讀生2": { label: "工讀生", rows: [[144,145,146]] },
-  "工讀室": { label: "工讀室", rows: [[147,148,149]] },
+  "工讀生1": { label: "工讀生", rows: [[141, 142, 143]] },
+  "工讀生2": { label: "工讀生", rows: [[144, 145, 146]] },
+  "工讀室": { label: "工讀室", rows: [[147, 148, 149]] },
 };
 
 // Old building desk groups — each group is a cluster of desks
 // Columns go left to right, rows go top to bottom (matching the physical image)
 const OLD_BUILDING_ZONES: Record<string, { label: string; rows: number[][] }> = {
   // ─── Left Column (leftmost 3-seat wide desks, 150-164) ───
-  "舊左A": { label: "", rows: [
-    [162, 163, 164],
-    [159, 160, 161],
-    [156, 157, 158],
-    [153, 154, 155],
-    [150, 151, 152],
-  ]},
+  "舊左A1": {
+    label: "", rows: [
+      [162, 163, 164],
+      [159, 160, 161],
+    ]
+  },
+  "舊左A2": {
+    label: "", rows: [
+      [156, 157, 158],
+      [153, 154, 155],
+    ]
+  },
+  "舊左A3": {
+    label: "", rows: [
+      [150, 151, 152],
+    ]
+  },
   // ─── Left-Center Column (165-182) ───
-  "舊左B": { label: "", rows: [
-    [180, 181, 182],
-    [177, 178, 179],
-    [174, 175, 176],
-    [171, 172, 173],
-  ]},
-  "舊左B2": { label: "", rows: [
-    [169, 170],
-    [165, 166, 167, 168],
-  ]},
+  "舊左B1": {
+    label: "", rows: [
+      [180, 181, 182],
+      [177, 178, 179],
+    ]
+  },
+  "舊左B2": {
+    label: "", rows: [
+      [174, 175, 176],
+      [171, 172, 173],
+    ]
+  },
+  "舊左B3": {
+    label: "", rows: [
+      [168, 169, 170],
+      [165, 166, 167],
+    ]
+  },
   // ─── Center-Left Columns (183-200) ───
-  "舊中A": { label: "", rows: [
-    [198, 199, 200],
-    [195, 196, 197],
-    [192, 193, 194],
-    [189, 190, 191],
-  ]},
-  "舊中A2": { label: "", rows: [
-    [186, 187, 188],
-    [183, 184, 185],
-  ]},
+  "舊中A1": {
+    label: "", rows: [
+      [198, 199, 200],
+      [195, 196, 197],
+    ]
+  },
+  "舊中A2": {
+    label: "", rows: [
+      [192, 193, 194],
+      [189, 190, 191],
+    ]
+  },
+  "舊中A3": {
+    label: "", rows: [
+      [186, 187, 188],
+      [183, 184, 185],
+    ]
+  },
   // ─── Center Columns (201-224) ───
-  "舊中B": { label: "", rows: [
-    [222, 223, 224],
-    [219, 220, 221],
-    [216, 217, 218],
-    [213, 214, 215],
-  ]},
-  "舊中B2": { label: "", rows: [
-    [210, 211, 212],
-    [207, 208, 209],
-  ]},
-  "舊中B3": { label: "", rows: [
-    [204, 205, 206],
-    [201, 202, 203],
-  ]},
+  "舊中B1": {
+    label: "", rows: [
+      [222, 223, 224],
+      [219, 220, 221],
+    ]
+  },
+  "舊中B2": {
+    label: "", rows: [
+      [216, 217, 218],
+      [213, 214, 215],
+    ]
+  },
+  "舊中B3": {
+    label: "", rows: [
+      [210, 211, 212],
+      [207, 208, 209],
+    ]
+  },
+  "舊中B4": {
+    label: "", rows: [
+      [204, 205, 206],
+      [201, 202, 203],
+    ]
+  },
   // ─── Center-Right (225-248) ───
-  "舊中C": { label: "", rows: [
-    [246, 247, 248],
-    [243, 244, 245],
-    [240, 241, 242],
-    [237, 238, 239],
-    [234, 235, 236],
-    [231, 232, 233],
-  ]},
-  "舊中C2": { label: "", rows: [
-    [228, 229, 230],
-    [225, 226, 227],
-  ]},
+  "舊中C1": {
+    label: "", rows: [
+      [246, 247, 248],
+      [243, 244, 245],
+    ]
+  },
+  "舊中C2": {
+    label: "", rows: [
+      [240, 241, 242],
+      [237, 238, 239],
+    ]
+  },
+  "舊中C3": {
+    label: "", rows: [
+      [234, 235, 236],
+      [231, 232, 233],
+    ]
+  },
+  "舊中C4": {
+    label: "", rows: [
+      [228, 229, 230],
+      [225, 226, 227],
+    ]
+  },
   // ─── Right columns (249-272) ───
-  "舊右A": { label: "", rows: [
-    [270, 271, 272],
-    [267, 268, 269],
-    [264, 265, 266],
-    [261, 262, 263],
-    [258, 259, 260],
-    [255, 256, 257],
-  ]},
-  "舊右A2": { label: "", rows: [
-    [252, 253, 254],
-    [249, 250, 251],
-  ]},
+  "舊右A1": {
+    label: "", rows: [
+      [270, 271, 272],
+      [267, 268, 269],
+    ]
+  },
+  "舊右A2": {
+    label: "", rows: [
+      [264, 265, 266],
+      [261, 262, 263],
+    ]
+  },
+  "舊右A3": {
+    label: "", rows: [
+      [258, 259, 260],
+      [255, 256, 257],
+    ]
+  },
+  "舊右A4": {
+    label: "", rows: [
+      [252, 253, 254],
+      [249, 250, 251],
+    ]
+  },
   // ─── Far-Right (273-296) ───
-  "舊右B": { label: "", rows: [
-    [294, 295, 296],
-    [291, 292, 293],
-    [288, 289, 290],
-    [285, 286, 287],
-    [282, 283, 284],
-    [279, 280, 281],
-  ]},
-  "舊右B2": { label: "", rows: [
-    [276, 277, 278],
-    [273, 274, 275],
-  ]},
+  "舊右B1": {
+    label: "", rows: [
+      [294, 295, 296],
+      [291, 292, 293],
+    ]
+  },
+  "舊右B2": {
+    label: "", rows: [
+      [288, 289, 290],
+      [285, 286, 287],
+    ]
+  },
+  "舊右B3": {
+    label: "", rows: [
+      [282, 283, 284],
+      [279, 280, 281],
+    ]
+  },
+  "舊右B4": {
+    label: "", rows: [
+      [276, 277, 278],
+      [273, 274, 275],
+    ]
+  },
   // ─── Rightmost columns (297-314) ───  
-  "舊最右": { label: "", rows: [
-    [312, 313, 314],
-    [309, 310, 311],
-    [306, 307, 308],
-    [303, 304, 305],
-    [300, 301, 302],
-    [297, 298, 299],
-  ]},
+  "舊最右1": {
+    label: "", rows: [
+      [312, 313, 314],
+      [309, 310, 311],
+    ]
+  },
+  "舊最右2": {
+    label: "", rows: [
+      [306, 307, 308],
+      [303, 304, 305],
+    ]
+  },
+  "舊最右3": {
+    label: "", rows: [
+      [300, 301, 302],
+      [297, 298, 299],
+    ]
+  },
 };
 
 export default function App() {
@@ -194,6 +306,26 @@ export default function App() {
   const [notesList, setNotesList] = useState<NoteEntry[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>('res_date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [reservationSearch, setReservationSearch] = useState('');
+
+  // Announcements
+  const [announcements, setAnnouncements] = useState<AnnouncementData[]>([]);
+  const [annTitle, setAnnTitle] = useState('');
+  const [annContent, setAnnContent] = useState('');
+  const [annPinned, setAnnPinned] = useState(false);
+  const [editingAnn, setEditingAnn] = useState<AnnouncementData | null>(null);
+
+  // Admin change password
+  const [adminOldPw, setAdminOldPw] = useState('');
+  const [adminNewPw, setAdminNewPw] = useState('');
+  const [adminConfirmPw, setAdminConfirmPw] = useState('');
+
+  // Clock
+  const [currentTime, setCurrentTime] = useState(new Date());
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   const apiCall = async (endpoint: string, method = 'GET', body?: any) => {
     const headers: any = { 'Content-Type': 'application/json', 'X-KLib-Key': KLIB_KEY };
@@ -209,6 +341,7 @@ export default function App() {
   };
 
   useEffect(() => {
+    fetchAnnouncements();
     if (token) {
       const payload = decodeJwtPayload(token);
       const admin = payload?.admin === true;
@@ -228,6 +361,7 @@ export default function App() {
     if (view === 'admin-notes') fetchNotesList();
     if (view === 'dashboard') { fetchMyReservations(); fetchSeats(); }
     if (view === 'history') fetchMyHistory();
+    if (view === 'announcements' || view === 'admin-announcements') fetchAnnouncements();
   }, [view, selectedDate]);
 
   const handleLogin = async (e: any) => {
@@ -282,14 +416,41 @@ export default function App() {
     setStudentId(''); setPassword(''); setView('login');
   };
 
-  const fetchSeats = async () => { try { setSeats(await apiCall('/api/seats')); } catch {} };
-  const fetchAvailability = async () => { try { setBookedSeatIds(await apiCall(`/api/availability?res_date=${selectedDate}`)); } catch {} };
-  const fetchMyReservations = async () => { try { setMyReservations(await apiCall('/api/my-reservations')); } catch {} };
-  const fetchMyHistory = async () => { try { setMyHistory(await apiCall('/api/my-history')); } catch {} };
-  const fetchAdminReservations = async () => { try { setAllReservations(await apiCall('/api/admin/reservations')); } catch {} };
-  const fetchAdminUsers = async () => { try { setAllUsers(await apiCall('/api/admin/users')); } catch {} };
-  const fetchAttendanceList = async () => { try { setAttendanceList(await apiCall(`/api/admin/attendance?date=${selectedDate}`)); } catch {} };
-  const fetchNotesList = async () => { try { setNotesList(await apiCall('/api/admin/notes')); } catch {} };
+  const fetchSeats = async () => { try { setSeats(await apiCall('/api/seats')); } catch { } };
+  const fetchAvailability = async () => { try { setBookedSeatIds(await apiCall(`/api/availability?res_date=${selectedDate}`)); } catch { } };
+  const fetchMyReservations = async () => { try { setMyReservations(await apiCall('/api/my-reservations')); } catch { } };
+  const fetchMyHistory = async () => { try { setMyHistory(await apiCall('/api/my-history')); } catch { } };
+  const fetchAdminReservations = async () => { try { setAllReservations(await apiCall('/api/admin/reservations')); } catch { } };
+  const fetchAdminUsers = async () => { try { setAllUsers(await apiCall('/api/admin/users')); } catch { } };
+  const fetchAttendanceList = async () => { try { setAttendanceList(await apiCall(`/api/admin/attendance?date=${selectedDate}`)); } catch { } };
+  const fetchNotesList = async () => { try { setNotesList(await apiCall('/api/admin/notes')); } catch { } };
+  const fetchAnnouncements = async () => {
+    try {
+      const headers: any = { 'Content-Type': 'application/json', 'X-KLib-Key': KLIB_KEY };
+      const res = await fetch(`${API_BASE}/api/announcements`, { headers });
+      const data = await res.json();
+      setAnnouncements(data);
+    } catch { }
+  };
+  const handleCreateAnnouncement = async () => {
+    if (!annTitle.trim() || !annContent.trim()) { setAdminMessage('標題和內容不能為空'); return; }
+    try {
+      await apiCall('/api/admin/announcements', 'POST', { title: annTitle, content: annContent, is_pinned: annPinned });
+      setAdminMessage('公告已發布'); setAnnTitle(''); setAnnContent(''); setAnnPinned(false); fetchAnnouncements();
+    } catch (err: any) { setAdminMessage(`發布失敗: ${err.message}`); }
+  };
+  const handleUpdateAnnouncement = async () => {
+    if (!editingAnn) return;
+    try {
+      await apiCall(`/api/admin/announcements/${editingAnn.id}`, 'PUT', { title: annTitle, content: annContent, is_pinned: annPinned });
+      setAdminMessage('公告已更新'); setEditingAnn(null); setAnnTitle(''); setAnnContent(''); setAnnPinned(false); fetchAnnouncements();
+    } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
+  };
+  const handleDeleteAnnouncement = async (id: number) => {
+    if (!window.confirm('確定要刪除這則公告嗎？')) return;
+    try { await apiCall(`/api/admin/announcements/${id}`, 'DELETE'); setAdminMessage('公告已刪除'); fetchAnnouncements(); }
+    catch (err: any) { setAdminMessage(`刪除失敗: ${err.message}`); }
+  };
 
   const handleReserve = async (seatId: number) => {
     if (!window.confirm('確定要預約這個座位嗎？')) return;
@@ -317,6 +478,19 @@ export default function App() {
     if (!newPw) { setAdminMessage('請輸入新密碼'); return; }
     try { const result = await apiCall('/api/admin/reset-password', 'PUT', { student_id: targetId, new_password: newPw }); setAdminMessage(result.message); setResetStudentId(''); setResetNewPassword(''); }
     catch (err: any) { setAdminMessage(`重設失敗: ${err.message}`); }
+  };
+
+  const handleAdminChangePassword = async () => {
+    if (!adminOldPw) { setAdminMessage('請輸入舊密碼'); return; }
+    if (!adminNewPw) { setAdminMessage('請輸入新密碼'); return; }
+    if (!adminConfirmPw) { setAdminMessage('請再次輸入新密碼確認'); return; }
+    if (adminNewPw !== adminConfirmPw) { setAdminMessage('兩次輸入的新密碼不一致'); return; }
+    if (!window.confirm('⚠️ 確定要修改管理員密碼嗎？\n\n修改後需要使用新密碼重新登入。')) return;
+    try {
+      const result = await apiCall('/api/admin/change-password', 'PUT', { old_password: adminOldPw, new_password: adminNewPw, confirm_password: adminConfirmPw });
+      setAdminMessage(result.message);
+      setAdminOldPw(''); setAdminNewPw(''); setAdminConfirmPw('');
+    } catch (err: any) { setAdminMessage(`修改失敗: ${err.message}`); }
   };
 
   const handleSaveSeatNote = async () => {
@@ -386,19 +560,20 @@ export default function App() {
 
     const isBooked = bookedSeatIds.includes(seat.id);
     const isPillar = seat.seat_type === 'pillar';
+    const isReservablePillar = isPillar && [72, 64, 83, 77].includes(seat.seat_number);
     const isStaff = seat.seat_type === 'staff';
     const isMaint = seat.status === 'maintenance';
-    const disabled = isBooked || isPillar || isStaff || isMaint;
+    const disabled = isBooked || (isPillar && !isReservablePillar) || isStaff || isMaint;
 
     let bg = 'bg-emerald-100 border-emerald-400 text-emerald-800 hover:bg-emerald-500 hover:text-white hover:shadow-lg hover:-translate-y-0.5';
-    if (isPillar) bg = 'bg-slate-300 border-slate-400 text-slate-500 cursor-not-allowed';
+    if (isPillar && !isReservablePillar) bg = 'bg-slate-300 border-slate-400 text-slate-500 cursor-not-allowed';
     else if (isStaff) bg = 'bg-amber-100 border-amber-400 text-amber-700 cursor-not-allowed';
     else if (isMaint) bg = 'bg-yellow-100 border-yellow-400 text-yellow-700 cursor-not-allowed';
     else if (isBooked) bg = 'bg-red-100 border-red-300 text-red-500 cursor-not-allowed';
 
     const handleClick = () => {
       if (isAdminView) {
-        if (isPillar) return;
+        if (isPillar && !isReservablePillar) return;
         const statusText = isMaint ? '維修中' : isBooked ? '已預約' : isStaff ? '工讀生' : '空位';
         const action = window.prompt(`座位 ${seat.label}\n${seat.note ? `註記: ${seat.note}\n` : ''}狀態: ${statusText}\n\n輸入操作：\n1 = 編輯註記\n2 = 代為預約\n3 = 有到\n4 = 未到\n5 = 設為維修中\n6 = 恢復可用\n取消 = 關閉`);
         if (action === '1') { setEditingSeatNote(seat); setNoteText(seat.note || ''); }
@@ -418,7 +593,7 @@ export default function App() {
     return (
       <button key={seat.id} disabled={!isAdminView && disabled} onClick={handleClick} title={`座位 ${seat.seat_number}${seat.note ? ` — ${seat.note}` : ''}`}
         className={`w-11 h-11 rounded-lg flex flex-col items-center justify-center text-[11px] font-bold transition-all border-2 relative ${bg}`}>
-        <span>{seat.seat_number}</span>
+        <span>{seat.label}</span>
         {isPillar && <span className="text-[7px] leading-none">柱</span>}
         {isStaff && <span className="text-[7px] leading-none">工</span>}
         {isMaint && <span className="text-[7px] leading-none">🔧</span>}
@@ -444,19 +619,19 @@ export default function App() {
     <div className="space-y-4">
       {/* Top row: 新5-新8 */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {["新5(309)","新6(306)","新7(301)","新8(317)"].map(k => renderZone(k, NEW_BUILDING_ZONES[k], isAdminView))}
+        {["新5(309)", "新6(306)", "新7(301)", "新8(317)"].map(k => renderZone(k, NEW_BUILDING_ZONES[k], isAdminView))}
       </div>
       {/* Middle: 中間區 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {["中間區左","中間區右"].map(k => renderZone(k, NEW_BUILDING_ZONES[k], isAdminView))}
+        {["中間區左", "中間區右"].map(k => renderZone(k, NEW_BUILDING_ZONES[k], isAdminView))}
       </div>
       {/* Bottom: 新3, 新4 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {["新3(311)","新4(314)"].map(k => renderZone(k, NEW_BUILDING_ZONES[k], isAdminView))}
+        {["新3(311)", "新4(314)"].map(k => renderZone(k, NEW_BUILDING_ZONES[k], isAdminView))}
       </div>
       {/* Bottom: 新1, 新2 */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-        {["新1(315)","新2(308)"].map(k => renderZone(k, NEW_BUILDING_ZONES[k], isAdminView))}
+        {["新1(315)", "新2(308)"].map(k => renderZone(k, NEW_BUILDING_ZONES[k], isAdminView))}
       </div>
       <div className="text-center text-slate-400 font-bold text-sm py-2 border-t border-slate-200">🚪 入口</div>
     </div>
@@ -484,17 +659,23 @@ export default function App() {
           <div className="flex gap-3 items-start">
             {/* Column 1: leftmost (150-164) */}
             <div className="flex flex-col gap-1">
-              {renderOldDeskGroup("舊左A", OLD_BUILDING_ZONES["舊左A"], isAdminView)}
+              {renderOldDeskGroup("舊左A1", OLD_BUILDING_ZONES["舊左A1"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊左A2", OLD_BUILDING_ZONES["舊左A2"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊左A3", OLD_BUILDING_ZONES["舊左A3"], isAdminView)}
             </div>
 
             {/* Column 2 (165-182) */}
             <div className="flex flex-col gap-1">
-              {renderOldDeskGroup("舊左B", OLD_BUILDING_ZONES["舊左B"], isAdminView)}
+              {renderOldDeskGroup("舊左B1", OLD_BUILDING_ZONES["舊左B1"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊左B2", OLD_BUILDING_ZONES["舊左B2"], isAdminView)}
               {/* walkway gap */}
               <div className="h-4 flex items-center justify-center">
                 <div className="w-full border-t border-dashed border-slate-300" />
               </div>
-              {renderOldDeskGroup("舊左B2", OLD_BUILDING_ZONES["舊左B2"], isAdminView)}
+              {renderOldDeskGroup("舊左B3", OLD_BUILDING_ZONES["舊左B3"], isAdminView)}
             </div>
 
             {/* Walkway */}
@@ -504,22 +685,26 @@ export default function App() {
 
             {/* Column 3 (183-200) */}
             <div className="flex flex-col gap-1">
-              {renderOldDeskGroup("舊中A", OLD_BUILDING_ZONES["舊中A"], isAdminView)}
+              {renderOldDeskGroup("舊中A1", OLD_BUILDING_ZONES["舊中A1"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊中A2", OLD_BUILDING_ZONES["舊中A2"], isAdminView)}
               <div className="h-4 flex items-center justify-center">
                 <div className="w-full border-t border-dashed border-slate-300" />
               </div>
-              {renderOldDeskGroup("舊中A2", OLD_BUILDING_ZONES["舊中A2"], isAdminView)}
+              {renderOldDeskGroup("舊中A3", OLD_BUILDING_ZONES["舊中A3"], isAdminView)}
             </div>
 
             {/* Column 4 (201-224) */}
             <div className="flex flex-col gap-1">
-              {renderOldDeskGroup("舊中B", OLD_BUILDING_ZONES["舊中B"], isAdminView)}
+              {renderOldDeskGroup("舊中B1", OLD_BUILDING_ZONES["舊中B1"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊中B2", OLD_BUILDING_ZONES["舊中B2"], isAdminView)}
               <div className="h-4 flex items-center justify-center">
                 <div className="w-full border-t border-dashed border-slate-300" />
               </div>
-              {renderOldDeskGroup("舊中B2", OLD_BUILDING_ZONES["舊中B2"], isAdminView)}
-              <div className="h-1" />
               {renderOldDeskGroup("舊中B3", OLD_BUILDING_ZONES["舊中B3"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊中B4", OLD_BUILDING_ZONES["舊中B4"], isAdminView)}
             </div>
 
             {/* Walkway */}
@@ -529,16 +714,24 @@ export default function App() {
 
             {/* Column 5 (225-248) */}
             <div className="flex flex-col gap-1">
-              {renderOldDeskGroup("舊中C", OLD_BUILDING_ZONES["舊中C"], isAdminView)}
+              {renderOldDeskGroup("舊中C1", OLD_BUILDING_ZONES["舊中C1"], isAdminView)}
               <div className="h-1" />
               {renderOldDeskGroup("舊中C2", OLD_BUILDING_ZONES["舊中C2"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊中C3", OLD_BUILDING_ZONES["舊中C3"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊中C4", OLD_BUILDING_ZONES["舊中C4"], isAdminView)}
             </div>
 
             {/* Column 6 (249-272) */}
             <div className="flex flex-col gap-1">
-              {renderOldDeskGroup("舊右A", OLD_BUILDING_ZONES["舊右A"], isAdminView)}
+              {renderOldDeskGroup("舊右A1", OLD_BUILDING_ZONES["舊右A1"], isAdminView)}
               <div className="h-1" />
               {renderOldDeskGroup("舊右A2", OLD_BUILDING_ZONES["舊右A2"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊右A3", OLD_BUILDING_ZONES["舊右A3"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊右A4", OLD_BUILDING_ZONES["舊右A4"], isAdminView)}
             </div>
 
             {/* Walkway */}
@@ -548,14 +741,22 @@ export default function App() {
 
             {/* Column 7 (273-296) */}
             <div className="flex flex-col gap-1">
-              {renderOldDeskGroup("舊右B", OLD_BUILDING_ZONES["舊右B"], isAdminView)}
+              {renderOldDeskGroup("舊右B1", OLD_BUILDING_ZONES["舊右B1"], isAdminView)}
               <div className="h-1" />
               {renderOldDeskGroup("舊右B2", OLD_BUILDING_ZONES["舊右B2"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊右B3", OLD_BUILDING_ZONES["舊右B3"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊右B4", OLD_BUILDING_ZONES["舊右B4"], isAdminView)}
             </div>
 
             {/* Column 8: rightmost (297-314) */}
             <div className="flex flex-col gap-1">
-              {renderOldDeskGroup("舊最右", OLD_BUILDING_ZONES["舊最右"], isAdminView)}
+              {renderOldDeskGroup("舊最右1", OLD_BUILDING_ZONES["舊最右1"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊最右2", OLD_BUILDING_ZONES["舊最右2"], isAdminView)}
+              <div className="h-1" />
+              {renderOldDeskGroup("舊最右3", OLD_BUILDING_ZONES["舊最右3"], isAdminView)}
             </div>
           </div>
         </div>
@@ -597,50 +798,89 @@ export default function App() {
       <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-emerald-100 border-2 border-emerald-400 inline-block" /> 空位</span>
       <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-red-100 border-2 border-red-300 inline-block" /> 已預約</span>
       <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-amber-100 border-2 border-amber-400 inline-block" /> 工讀生</span>
-      <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-slate-300 border-2 border-slate-400 inline-block" /> 柱子</span>
       <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-yellow-100 border-2 border-yellow-400 inline-block" /> 維修中</span>
       <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> 有註記</span>
+      <span className="flex items-center gap-1">
+        <span className="text-gray-500 font-medium border-b border-gray-400">柱</span>
+        <span className="text-gray-600">：代表旁邊有柱子</span>
+      </span>
     </div>
   );
+
+  const formatTime = (d: Date) => d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  const formatDate = (d: Date) => d.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' });
 
   // ═══════════ Login Page ═══════════
   if (!token) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-4">
-        <div className="w-full max-w-md bg-white/80 backdrop-blur rounded-2xl shadow-xl p-8 border border-slate-100">
-          <div className="flex items-center gap-2 mb-8">
-            <Shield className="w-8 h-8 text-indigo-600" />
-            <h1 className="text-2xl font-bold text-slate-900">鳳山高中 K書中心</h1>
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-4">
+        {/* Clock bar */}
+        <div className="text-center mb-6 pt-4">
+          <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur rounded-full px-6 py-2 shadow-sm border border-slate-100">
+            <Clock className="w-4 h-4 text-indigo-500" />
+            <span className="text-sm font-medium text-slate-700">{formatDate(currentTime)}</span>
+            <span className="text-lg font-bold text-indigo-600 font-mono">{formatTime(currentTime)}</span>
+          </div>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto items-start justify-center">
+          {/* Login form */}
+          <div className="w-full max-w-md bg-white/80 backdrop-blur rounded-2xl shadow-xl p-8 border border-slate-100">
+            <div className="flex items-center gap-2 mb-8">
+              <Shield className="w-8 h-8 text-indigo-600" />
+              <h1 className="text-2xl font-bold text-slate-900">鳳山高中 K書中心</h1>
+            </div>
+
+            {GOOGLE_CLIENT_ID && (
+              <div className="mb-4">
+                <div id="google-signin-btn" className="flex justify-center" />
+              </div>
+            )}
+
+            {GOOGLE_CLIENT_ID && <div className="text-center text-xs text-slate-400 mb-4">── 或使用帳號密碼 ──</div>}
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">學號</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} required placeholder="輸入學號" className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm font-medium text-slate-700">密碼</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="輸入密碼" className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                </div>
+              </div>
+              {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{error}</div>}
+              <button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 transition">
+                {loading ? '登入中...' : '登入'}
+              </button>
+            </form>
           </div>
 
-          {GOOGLE_CLIENT_ID && (
-            <div className="mb-4">
-              <div id="google-signin-btn" className="flex justify-center" />
+          {/* Announcements on login page */}
+          {announcements.length > 0 && (
+            <div className="w-full max-w-md bg-white/80 backdrop-blur rounded-2xl shadow-xl p-6 border border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
+                <Megaphone className="w-5 h-5 text-amber-500" />公告欄
+              </h2>
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+                {announcements.slice(0, 5).map(ann => (
+                  <div key={ann.id} className={`rounded-xl p-4 border ${ann.is_pinned ? 'bg-amber-50/80 border-amber-200' : 'bg-slate-50/80 border-slate-200'}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      {ann.is_pinned && <Pin className="w-3.5 h-3.5 text-amber-500" />}
+                      <span className="font-bold text-sm text-slate-900">{ann.title}</span>
+                    </div>
+                    <div className="text-xs text-slate-500 mb-2">{ann.author_name} · {ann.created_at}</div>
+                    <div className="prose-sm text-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
+                  </div>
+                ))}
+              </div>
             </div>
           )}
-
-          {GOOGLE_CLIENT_ID && <div className="text-center text-xs text-slate-400 mb-4">── 或使用帳號密碼 ──</div>}
-
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">學號</label>
-              <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} required placeholder="輸入學號" className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium text-slate-700">密碼</label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="輸入密碼" className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-              </div>
-            </div>
-            {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{error}</div>}
-            <button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 transition">
-              {loading ? '登入中...' : '登入'}
-            </button>
-          </form>
         </div>
       </div>
     );
@@ -652,9 +892,16 @@ export default function App() {
       {/* Nav */}
       <nav className="bg-white/80 backdrop-blur border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-slate-900">
-            <Shield className="w-5 h-5 text-indigo-600" />
-            <span className="hidden sm:inline">K書中心{isAdmin ? '管理後台' : '預約系統'}</span>
+          <div className="flex items-center gap-3 font-bold text-slate-900">
+            <div className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-indigo-600" />
+              <span className="hidden sm:inline">K書中心{isAdmin ? '管理後台' : '預約系統'}</span>
+            </div>
+            <div className="hidden md:flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-50 rounded-full px-3 py-1">
+              <Clock className="w-3.5 h-3.5 text-indigo-400" />
+              <span>{formatDate(currentTime)}</span>
+              <span className="font-bold text-indigo-600 font-mono">{formatTime(currentTime)}</span>
+            </div>
           </div>
           <div className="flex items-center gap-1 text-sm">
             {isAdmin ? (<>
@@ -663,10 +910,12 @@ export default function App() {
               <button onClick={() => setView('admin-seats')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-seats' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><MessageSquare className="w-4 h-4 inline mr-1" />座位</button>
               <button onClick={() => setView('admin-notes')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-notes' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><FileText className="w-4 h-4 inline mr-1" />註記</button>
               <button onClick={() => setView('admin-users')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-users' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><Users className="w-4 h-4 inline mr-1" />學生</button>
+              <button onClick={() => setView('admin-announcements')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-announcements' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><Megaphone className="w-4 h-4 inline mr-1" />公告</button>
             </>) : (<>
               <button onClick={() => setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>我的預約</button>
               <button onClick={() => setView('history')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'history' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}><History className="w-4 h-4 inline mr-1" />歷史紀錄</button>
               <button onClick={() => setView('reserve')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'reserve' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>預約座位</button>
+              <button onClick={() => setView('announcements')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'announcements' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}><Megaphone className="w-4 h-4 inline mr-1" />公告</button>
             </>)}
             <button onClick={handleLogout} className="ml-1 text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition"><LogOut className="w-4 h-4" /></button>
           </div>
@@ -687,6 +936,20 @@ export default function App() {
               </div>
             </div>
             {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
+            {/* Search bar */}
+            <div className="flex items-center gap-2 bg-white/80 backdrop-blur border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+              <Search className="w-4 h-4 text-slate-400 shrink-0" />
+              <input
+                type="text"
+                value={reservationSearch}
+                onChange={e => setReservationSearch(e.target.value)}
+                placeholder="搜尋學號、姓名、座位、日期..."
+                className="flex-1 outline-none text-sm bg-transparent placeholder-slate-400"
+              />
+              {reservationSearch && (
+                <button onClick={() => setReservationSearch('')} className="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
+              )}
+            </div>
             {allReservations.length === 0 ? (
               <div className="p-8 text-center bg-white/70 rounded-2xl border border-slate-200 text-slate-500">目前沒有任何預約紀錄</div>
             ) : (
@@ -705,7 +968,18 @@ export default function App() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {[...allReservations].sort((a, b) => { const av = (a as any)[sortKey] || ''; const bv = (b as any)[sortKey] || ''; return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av)); }).map(res => (
+                    {[...allReservations]
+                      .filter(res => {
+                        if (!reservationSearch.trim()) return true;
+                        const q = reservationSearch.trim().toLowerCase();
+                        return (
+                          res.student_id.toLowerCase().includes(q) ||
+                          res.student_name.toLowerCase().includes(q) ||
+                          res.seat_label.toLowerCase().includes(q) ||
+                          res.res_date.includes(q)
+                        );
+                      })
+                      .sort((a, b) => { const av = (a as any)[sortKey] || ''; const bv = (b as any)[sortKey] || ''; return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av)); }).map(res => (
                       <tr key={res.id} className="hover:bg-slate-50 transition">
                         <td className="px-4 py-3 font-medium text-indigo-700">{res.student_id}</td>
                         <td className="px-4 py-3 text-slate-600">{res.student_name}</td>
@@ -845,7 +1119,7 @@ export default function App() {
                           <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs"><MessageSquare className="w-3 h-3" />{n.note}</span>
                         </td>
                         <td className="px-4 py-3 text-right">
-                          <button onClick={() => { const seat = seats.find(s => s.id === n.id); if (seat) { setEditingSeatNote(seat); setNoteText(seat.note || ''); }}} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Edit3 className="w-3 h-3 inline mr-1" />編輯</button>
+                          <button onClick={() => { const seat = seats.find(s => s.id === n.id); if (seat) { setEditingSeatNote(seat); setNoteText(seat.note || ''); } }} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Edit3 className="w-3 h-3 inline mr-1" />編輯</button>
                         </td>
                       </tr>
                     ))}
@@ -905,6 +1179,29 @@ export default function App() {
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Admin change own password */}
+            <div className="bg-white/70 backdrop-blur p-6 rounded-2xl border border-slate-200 shadow-sm">
+              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><KeyRound className="w-5 h-5 text-indigo-600" /> 修改管理員密碼</h3>
+              <div className="flex flex-wrap gap-3 items-end">
+                <div className="flex-1 min-w-[160px] space-y-1">
+                  <label className="text-sm font-medium text-slate-600">舊密碼</label>
+                  <input type="password" value={adminOldPw} onChange={e => setAdminOldPw(e.target.value)} placeholder="輸入目前密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+                </div>
+                <div className="flex-1 min-w-[160px] space-y-1">
+                  <label className="text-sm font-medium text-slate-600">新密碼</label>
+                  <input type="password" value={adminNewPw} onChange={e => setAdminNewPw(e.target.value)} placeholder="輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+                </div>
+                <div className="flex-1 min-w-[160px] space-y-1">
+                  <label className="text-sm font-medium text-slate-600">確認新密碼</label>
+                  <input type="password" value={adminConfirmPw} onChange={e => setAdminConfirmPw(e.target.value)} placeholder="再次輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+                </div>
+                <button onClick={handleAdminChangePassword} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2 rounded-lg transition flex items-center gap-1"><KeyRound className="w-4 h-4" />修改密碼</button>
+              </div>
+              {adminNewPw && adminConfirmPw && adminNewPw !== adminConfirmPw && (
+                <div className="mt-2 text-sm text-red-500 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />兩次輸入的新密碼不一致</div>
+              )}
             </div>
           </div>
         )}
@@ -995,6 +1292,95 @@ export default function App() {
               <h3 className="text-lg font-bold text-slate-900 mb-4 text-center">📍 {isWeekend(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}座位圖 — 點擊空位即可預約</h3>
               {isWeekend(selectedDate) && selectedBuilding === '新館' ? renderOldBuilding(false) : (selectedBuilding === '新館' ? renderNewBuilding(false) : renderOldBuilding(false))}
             </div>
+          </div>
+        )}
+
+        {/* ===== Student: Announcements ===== */}
+        {view === 'announcements' && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Megaphone className="w-6 h-6 text-amber-500" />公告欄</h2>
+            {announcements.length === 0 ? (
+              <div className="p-8 text-center bg-white/70 rounded-2xl border border-slate-200 text-slate-500">目前沒有公告</div>
+            ) : (
+              <div className="space-y-4">
+                {announcements.map(ann => (
+                  <div key={ann.id} className={`bg-white/70 backdrop-blur rounded-2xl border p-6 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      {ann.is_pinned && <Pin className="w-4 h-4 text-amber-500" />}
+                      <h3 className="text-lg font-bold text-slate-900">{ann.title}</h3>
+                    </div>
+                    <div className="text-xs text-slate-500 mb-3">由 {ann.author_name} 發布 · {ann.created_at}{ann.updated_at !== ann.created_at ? ` · 最後更新 ${ann.updated_at}` : ''}</div>
+                    <div className="prose-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ===== Admin: Announcement Management ===== */}
+        {view === 'admin-announcements' && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Megaphone className="w-6 h-6 text-amber-600" />公告管理</h2>
+            {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
+
+            {/* Create / Edit form */}
+            <div className="bg-white/70 backdrop-blur rounded-2xl border border-slate-200 p-6 shadow-sm">
+              <h3 className="text-base font-bold text-slate-900 mb-3">{editingAnn ? `編輯公告 #${editingAnn.id}` : '發布新公告'}</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm font-medium text-slate-600">標題</label>
+                  <input type="text" value={annTitle} onChange={e => setAnnTitle(e.target.value)} placeholder="輸入公告標題" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-400" />
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-slate-600">內容（支援 Markdown 語法）</label>
+                  <textarea value={annContent} onChange={e => setAnnContent(e.target.value)} placeholder="支援 **粗體**、*斜體*、# 標題、- 列表、> 引用、[連結](URL) 等語法" rows={6} className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-400 font-mono text-sm" />
+                </div>
+                {annContent && (
+                  <div>
+                    <label className="text-sm font-medium text-slate-600">預覽</label>
+                    <div className="mt-1 bg-slate-50 rounded-lg border border-slate-200 p-4 prose-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(annContent) }} />
+                  </div>
+                )}
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={annPinned} onChange={e => setAnnPinned(e.target.checked)} className="rounded border-slate-300" />
+                  <Pin className="w-3.5 h-3.5 text-amber-500" /> 置頂此公告
+                </label>
+                <div className="flex gap-2">
+                  {editingAnn ? (<>
+                    <button onClick={handleUpdateAnnouncement} className="bg-amber-500 hover:bg-amber-400 text-white px-5 py-2 rounded-lg font-bold text-sm transition">更新公告</button>
+                    <button onClick={() => { setEditingAnn(null); setAnnTitle(''); setAnnContent(''); setAnnPinned(false); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium text-sm transition">取消</button>
+                  </>) : (
+                    <button onClick={handleCreateAnnouncement} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg font-bold text-sm transition">發布公告</button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Existing announcements */}
+            {announcements.length > 0 && (
+              <div className="space-y-3">
+                <h3 className="text-base font-bold text-slate-700">已發布的公告</h3>
+                {announcements.map(ann => (
+                  <div key={ann.id} className={`bg-white/70 backdrop-blur rounded-2xl border p-5 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          {ann.is_pinned && <Pin className="w-4 h-4 text-amber-500" />}
+                          <span className="font-bold text-slate-900">{ann.title}</span>
+                        </div>
+                        <div className="text-xs text-slate-500 mb-2">{ann.author_name} · {ann.created_at}</div>
+                        <div className="prose-sm text-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button onClick={() => { setEditingAnn(ann); setAnnTitle(ann.title); setAnnContent(ann.content); setAnnPinned(ann.is_pinned); }} className="text-amber-600 hover:bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Edit3 className="w-3 h-3" /></button>
+                        <button onClick={() => handleDeleteAnnouncement(ann.id)} className="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg border border-red-200 text-xs font-bold transition"><Trash2 className="w-3 h-3" /></button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </main>
