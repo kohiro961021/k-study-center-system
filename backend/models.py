@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship, declarative_base
-from datetime import datetime
+from datetime import datetime, timezone
 
 Base = declarative_base()
 
@@ -42,8 +42,8 @@ class Reservation(Base):
     seat_id = Column(Integer, ForeignKey("seats.id"), nullable=False)
     res_date = Column(String, nullable=False)  # Format: YYYY-MM-DD
     attendance_status = Column(String, nullable=True)  # null=未點名, "present"=有到, "absent"=未到
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     user = relationship("User", back_populates="reservations")
     seat = relationship("Seat", back_populates="reservations")
@@ -64,7 +64,7 @@ class Announcement(Base):
     content = Column(String, nullable=False)  # Markdown content
     author_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     is_pinned = Column(Boolean, default=False)
-    created_at = Column(DateTime, default=datetime.utcnow)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     author = relationship("User")

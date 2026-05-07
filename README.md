@@ -94,6 +94,7 @@ docker exec -it kstudy_app python seed_user.py admin001 adminpass true
 docker exec -it kstudy_app python seed_user.py student001 pass123 false
 ```
 
+
 ---
 
 ### 測試學生註冊（驗證碼）

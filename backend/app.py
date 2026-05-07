@@ -7,7 +7,7 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import create_engine
 from jose import JWTError, jwt
 from pydantic import BaseModel, field_validator
@@ -458,12 +458,14 @@ def get_my_reservations(current_user: User = Depends(get_current_user), db: Sess
 def get_my_history(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Return past / non-cancellable reservations (history)."""
     today = datetime.now().strftime("%Y-%m-%d")
-    all_res = db.query(Reservation).filter(Reservation.user_id == current_user.id).all()
+    all_res = db.query(Reservation).options(
+        joinedload(Reservation.seat)
+    ).filter(Reservation.user_id == current_user.id).all()
     result = []
     for r in all_res:
         # History = past dates OR today with attendance already marked
         if r.res_date < today or (r.res_date == today and r.attendance_status is not None):
-            seat = db.query(Seat).filter(Seat.id == r.seat_id).first()
+            seat = r.seat
             result.append({
                 "id": r.id,
                 "user_id": r.user_id,
@@ -581,11 +583,14 @@ def admin_change_own_password(req: AdminChangePasswordRequest, admin: User = Dep
 
 @app.get("/api/admin/reservations")
 def admin_list_reservations(admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
-    reservations = db.query(Reservation).all()
+    reservations = db.query(Reservation).options(
+        joinedload(Reservation.user),
+        joinedload(Reservation.seat)
+    ).all()
     result = []
     for r in reservations:
-        user = db.query(User).filter(User.id == r.user_id).first()
-        seat = db.query(Seat).filter(Seat.id == r.seat_id).first()
+        user = r.user
+        seat = r.seat
         result.append({
             "id": r.id, "user_id": r.user_id, "seat_id": r.seat_id,
             "res_date": r.res_date,
@@ -695,7 +700,7 @@ def admin_modify_reservation(reservation_id: int, req: AdminModifyReservationReq
     if req.res_date is not None:
         reservation.res_date = req.res_date
     # Manually touch updated_at
-    reservation.updated_at = datetime.utcnow()
+    reservation.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"message": "預約已修改"}
 
@@ -708,7 +713,7 @@ def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, a
     if not reservation:
         raise HTTPException(status_code=404, detail="找不到此預約")
     reservation.attendance_status = req.status
-    reservation.updated_at = datetime.utcnow()
+    reservation.updated_at = datetime.now(timezone.utc)
     db.commit()
     status_text = "有到" if req.status == "present" else "未到"
     return {"message": f"已更新出席狀態為：{status_text}"}
@@ -722,11 +727,14 @@ def admin_get_attendance(date: str, admin: User = Depends(get_admin_user), db: S
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    reservations = db.query(Reservation).filter(Reservation.res_date == date).all()
+    reservations = db.query(Reservation).options(
+        joinedload(Reservation.user),
+        joinedload(Reservation.seat)
+    ).filter(Reservation.res_date == date).all()
     result = []
     for r in reservations:
-        user = db.query(User).filter(User.id == r.user_id).first()
-        seat = db.query(Seat).filter(Seat.id == r.seat_id).first()
+        user = r.user
+        seat = r.seat
         result.append({
             "id": r.id,
             "seat_label": seat.label if seat else f"#{r.seat_id}",
@@ -777,13 +785,15 @@ class AnnouncementUpdate(BaseModel):
 @app.get("/api/announcements")
 def get_announcements(db: Session = Depends(get_db)):
     """公開 API — 任何人（含未登入）都可以讀取公告"""
-    announcements = db.query(Announcement).order_by(
+    announcements = db.query(Announcement).options(
+        joinedload(Announcement.author)
+    ).order_by(
         Announcement.is_pinned.desc(),
         Announcement.created_at.desc()
     ).all()
     result = []
     for a in announcements:
-        author = db.query(User).filter(User.id == a.author_id).first()
+        author = a.author
         result.append({
             "id": a.id,
             "title": a.title,
@@ -822,7 +832,7 @@ def admin_update_announcement(ann_id: int, req: AnnouncementUpdate, admin: User 
         ann.content = req.content.strip()
     if req.is_pinned is not None:
         ann.is_pinned = req.is_pinned
-    ann.updated_at = datetime.utcnow()
+    ann.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"message": "公告已更新"}
 

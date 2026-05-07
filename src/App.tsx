@@ -57,8 +57,11 @@ function renderMarkdown(md: string): string {
     .replace(/^&gt; (.+)$/gm, '<blockquote class="border-l-4 border-indigo-300 pl-3 text-slate-600 italic my-1">$1</blockquote>')
     // Horizontal rule
     .replace(/^---$/gm, '<hr class="my-3 border-slate-200" />')
-    // Links
-    .replace(/\[(.+?)\]\((.+?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" class="text-indigo-600 underline">$1</a>')
+    // Links (block non-http protocols to prevent javascript: XSS)
+    .replace(/\[(.+?)\]\((.+?)\)/g, (_: string, text: string, url: string) => {
+      if (!/^https?:\/\//i.test(url)) return text;
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-indigo-600 underline">${text}</a>`;
+    })
     // Line breaks: double newline = paragraph break, single = <br>
     .replace(/\n\n/g, '</p><p class="my-1">')
     .replace(/\n/g, '<br/>');
@@ -344,6 +347,11 @@ export default function App() {
     fetchAnnouncements();
     if (token) {
       const payload = decodeJwtPayload(token);
+      // Check if token is expired
+      if (!payload || (payload.exp && payload.exp * 1000 < Date.now())) {
+        handleLogout();
+        return;
+      }
       const admin = payload?.admin === true;
       setIsAdmin(admin);
       setUserName(payload?.name || payload?.sub || '');

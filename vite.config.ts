@@ -15,14 +15,14 @@ export default defineConfig(({ mode }) => {
     server: {
       // 這裡新增 Proxy 設定！
       proxy: {
-        // 當前端請求 /api 開頭的路徑時，轉發給本機的 Nginx (Port 80)
+        // 當前端請求 /api 開頭的路徑時，轉發給本機的 FastAPI (Port 8000)
         '/api': {
-          target: 'http://127.0.0.1',
+          target: 'http://127.0.0.1:8000',
           changeOrigin: true,
         },
         // 登入的 /token 也要轉發
         '/token': {
-          target: 'http://127.0.0.1',
+          target: 'http://127.0.0.1:8000',
           changeOrigin: true,
         }
       }

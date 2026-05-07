@@ -9,6 +9,8 @@ services:
       - SECRET_KEY=super_secret_key_change_this
       - JWT_ALGORITHM=HS256
       - GOOGLE_CLIENT_ID=1028309845749-1hk8n1lub2re92gasb7v79devtfbdu86.apps.googleusercontent.com
+    ports:
+      - "8000:8000"
     depends_on:
       - db
       - redis
@@ -50,8 +52,11 @@ services:
     restart: always
     ports:
       - "80:80"
+      - "443:443"
     volumes:
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     depends_on:
       - app
     logging:
@@ -59,6 +64,14 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  certbot:
+    image: certbot/certbot
+    container_name: kstudy_certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
 
 volumes:
   postgres_data:
