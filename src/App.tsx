@@ -330,6 +330,13 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // 🏴 Easter egg console hint
+  useEffect(() => {
+    console.log("%c🔍 致好奇的你", "color:#00ff41;font-size:16px;font-weight:bold;");
+    console.log("%c如果你正在讀這段文字，也許你就是我們要找的人。", "color:#888;font-size:12px;");
+    console.log("%c→ GET /api/.easter-egg", "color:#0af;font-size:12px;");
+  }, []);
+
   const apiCall = async (endpoint: string, method = 'GET', body?: any) => {
     const headers: any = { 'Content-Type': 'application/json', 'X-KLib-Key': KLIB_KEY };
     if (token) headers['Authorization'] = `Bearer ${token}`;

@@ -93,7 +93,10 @@ docker exec -it kstudy_app python seed_user.py admin001 adminpass true
 # 建立學生
 docker exec -it kstudy_app python seed_user.py student001 pass123 false
 ```
-
+```Student ID: fssh_admin
+    - Password: Fssho77463i50
+    - Role: Admin
+```
 
 ---
 

@@ -6,11 +6,9 @@ services:
     environment:
       - DATABASE_URL=postgresql+psycopg://user:password@db:5432/kstudy
       - REDIS_URL=redis://redis:6379/0
-      - SECRET_KEY=super_secret_key_change_this
+      - SECRET_KEY=h3ll0_f3ngshan_seni0r_h1gh_sch001_2026
       - JWT_ALGORITHM=HS256
-      - GOOGLE_CLIENT_ID=1028309845749-1hk8n1lub2re92gasb7v79devtfbdu86.apps.googleusercontent.com
-    ports:
-      - "8000:8000"
+      - GOOGLE_CLIENT_ID=252589031268-5vna4g6l79lct8rdr4rtpmjlb16fm6vo.apps.googleusercontent.com
     depends_on:
       - db
       - redis

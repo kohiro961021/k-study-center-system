@@ -28,7 +28,7 @@ except ImportError:
 # --- Configuration ---
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://user:password@localhost/kstudy")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-SECRET_KEY = os.getenv("SECRET_KEY", "super_secret_key")
+SECRET_KEY = os.getenv("SECRET_KEY", "h3ll0_f3ngshan_seni0r_h1gh_sch001_2026")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -845,3 +845,65 @@ def admin_delete_announcement(ann_id: int, admin: User = Depends(get_admin_user)
     db.delete(ann)
     db.commit()
     return {"message": "公告已刪除"}
+
+
+# ═══════════════════
+#  🏴 彩蛋CTF
+# ═══════════════════
+import base64
+import hashlib
+from fastapi.responses import JSONResponse
+
+
+class EasterEggFlagRequest(BaseModel):
+    passphrase: str
+
+
+@app.get("/api/.easter-egg")
+def easter_egg_start():
+    """Layer 2:Return the Base64 encoded clue"""
+    hint = base64.b64encode(
+        "Welcome, curious one. You found the entrance.\n\n"
+        "next step: GET /api/.easter-egg/deeper\n"
+        "But the answer isn't in the response body...\n"
+        "Hint: HTTP response except body, what else?".encode("utf-8")
+    ).decode("utf-8")
+    return {"message": "Welcome, curious one. You found the entrance.", "data": hint}
+
+
+@app.get("/api/.easter-egg/deeper")
+def easter_egg_deeper():
+    """Layer 3:The clue is hidden in the Response Header"""
+    clue = base64.b64encode(
+        "final stage!！show your technical ability.\n\n"
+        "POST /api/.easter-egg/flag\n"
+        "Content-Type: application/json\n"
+        "Body: {\"passphrase\": \"<'fssh-kbook-2026' MD5 Hash>\"}\n\n"
+        "Hint: echo -n 'fssh-kbook-2026' | md5sum".encode("utf-8")
+    ).decode("utf-8")
+    response = JSONResponse(content={"message": "here nothing"})
+    response.headers["X-FSSH-Clue"] = clue
+    return response
+
+
+@app.post("/api/.easter-egg/flag")
+def easter_egg_flag(req: EasterEggFlagRequest):
+    """Layer 4:Verify the MD5 passphrase and return the final message"""
+    expected = hashlib.md5("fssh-kbook-2026".encode()).hexdigest()
+    if req.passphrase != expected:
+        return JSONResponse(
+            status_code=403,
+            content={"error": "The passphrase is incorrect, try again!"}
+        )
+    return {
+        "flag": "fsshFLAG{kstudy_system_the_f1na1_stage_cl3ar}",
+        "message": (
+            "🎉 Congratulation, you completed all the challenges!\n\n"
+            "如果你有興趣接手維護「K書中心的預約系統」，\n"
+            "請填寫這個表單：[https://forms.gle/3UwBZyx6v3eHzqgT9]\n"
+            "這個系統是我受主任之託寫的，\n"
+            "期待你成為下一代的維護者！\n"
+            "百十五級kohiro留\n"
+            "mymail：[kohiro961021@gmail.com]"
+        ),
+    }
