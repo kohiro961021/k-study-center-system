@@ -1,1 +1,162 @@
 @import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+@theme {
+  --color-card: #ffffff;
+  --color-card-alt: #f8fafc;
+  --color-page: #f5f3f0;
+  --color-page-alt: #eae8e5;
+  --color-nav: #ffffff;
+  --color-input: #ffffff;
+  --color-accent: #D4361C;
+  --color-accent-hover: #B82E17;
+  --color-accent-soft: #D4361C14;
+}
+
+:root {
+  --font-sans: 'Inter', 'Noto Sans TC', system-ui, sans-serif;
+  --accent: #D4361C;
+  --accent-glow: rgba(212,54,28,0.25);
+}
+
+/* ═══════ Dark Mode — carefully tuned palette ═══════ */
+[data-theme="dark"] {
+  --accent: #E8523A;
+  --accent-glow: rgba(232,82,58,0.3);
+  color-scheme: dark;
+
+  /* Semantic surface colors */
+  --color-card: #1c2333;
+  --color-card-alt: #151b28;
+  --color-page: #0d1117;
+  --color-page-alt: #141a24;
+  --color-nav: #131921ee;
+  --color-input: #1c2333;
+  --color-accent: #E8523A;
+  --color-accent-hover: #F0644E;
+  --color-accent-soft: #E8523A22;
+
+  /* Neutral grays — a refined blue-gray palette, NOT a simple inversion */
+  --color-slate-50: #151b28;
+  --color-slate-100: #1c2333;
+  --color-slate-200: #2a3344;
+  --color-slate-300: #3b4860;
+  --color-slate-400: #5a6a82;
+  --color-slate-500: #8494a7;
+  --color-slate-600: #a3b1c6;
+  --color-slate-700: #c8d3e0;
+  --color-slate-800: #dfe6ee;
+  --color-slate-900: #eef2f6;
+
+  /* White — leave untouched so text-white / bg-white on buttons stays correct.
+     Cards already use bg-card instead. */
+
+  /* Accent colors — subdued, rich tones for dark backgrounds */
+  --color-indigo-50: #171930;
+  --color-indigo-100: #1e2247;
+  --color-indigo-200: #2d3362;
+  --color-indigo-300: #4f5bc2;
+  --color-indigo-400: #6d78e0;
+  --color-indigo-500: #8b95f0;
+  --color-indigo-600: #a5aef5;
+  --color-indigo-700: #c7cdf9;
+  --color-sky-50: #101a28;
+
+  /* Success green */
+  --color-emerald-50: #0d1f1a;
+  --color-emerald-100: #112e24;
+  --color-emerald-200: #164430;
+  --color-emerald-400: #34d399;
+  --color-emerald-500: #4ade80;
+  --color-emerald-800: #bbf7d0;
+
+  /* Danger red */
+  --color-red-50: #231111;
+  --color-red-100: #3b1616;
+  --color-red-200: #541c1c;
+  --color-red-300: #dc2626;
+  --color-red-500: #fca5a5;
+  --color-red-600: #fecaca;
+
+  /* Warning amber/yellow */
+  --color-amber-50: #1f1608;
+  --color-amber-100: #332510;
+  --color-amber-200: #49360f;
+  --color-amber-300: #92400e;
+  --color-amber-400: #fbbf24;
+  --color-amber-500: #fcd34d;
+  --color-amber-600: #fde68a;
+  --color-amber-700: #fef3c7;
+  --color-amber-800: #fefce8;
+  --color-amber-900: #fefdf0;
+  --color-yellow-100: #2b2206;
+  --color-yellow-400: #facc15;
+  --color-yellow-700: #fef9c3;
+
+  /* Info blue */
+  --color-blue-50: #111827;
+  --color-blue-500: #93c5fd;
+  --color-blue-700: #bfdbfe;
+}
+
+/* ═══════ Base Transitions ═══════ */
+* { transition: background-color 0.35s ease, border-color 0.35s ease, color 0.2s ease, box-shadow 0.3s ease; }
+input, textarea, select, table, tr, td, th, svg, img { transition: none; }
+button, a { transition: background-color 0.15s, color 0.15s, transform 0.15s, box-shadow 0.15s, opacity 0.15s; }
+
+html { scroll-behavior: smooth; }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+
+/* ═══════ Scrollbar ═══════ */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 99px; }
+[data-theme="dark"] ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); }
+
+/* ═══════ Animations ═══════ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes pulse-glow {
+  0%,100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+  50% { box-shadow: 0 0 0 6px transparent; }
+}
+.animate-fade-in-up { animation: fadeInUp 0.4s ease-out both; }
+.animate-pulse-glow { animation: pulse-glow 2s ease-in-out infinite; }
+
+/* ═══════ Glassmorphism ═══════ */
+.glass-card {
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+}
+
+/* ═══════ Seat buttons ═══════ */
+.seat-btn { position: relative; overflow: hidden; }
+.seat-btn::after {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(circle, rgba(255,255,255,0.25) 0%, transparent 70%);
+  opacity: 0; transition: opacity 0.2s;
+}
+.seat-btn:hover::after { opacity: 1; }
+
+/* ═══════ Subtle grain texture ═══════ */
+.noise-bg::before {
+  content: ''; position: fixed; inset: 0; opacity: 0.012; pointer-events: none; z-index: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+[data-theme="dark"] .noise-bg::before { opacity: 0.025; }
+
+/* ═══════ Focus ring ═══════ */
+input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 1px;
+}
+
+/* ═══════ Theme toggle icon animation ═══════ */
+.theme-toggle-icon {
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.theme-toggle-icon:hover {
+  transform: rotate(30deg) scale(1.15);
+}

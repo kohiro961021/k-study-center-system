@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Shield, Calendar, LogOut, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Wrench, ArrowUpDown, Megaphone, Pin, Clock, KeyRound } from 'lucide-react';
+import { Sun, Moon, Calendar, LogOut, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Wrench, ArrowUpDown, Megaphone, Pin, Clock, KeyRound } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 
 const API_BASE = '';
-const KLIB_KEY = 'test';
+const KLIB_KEY = 'Fs2026-KLib-9xmP7nQr2vBs-FsSh';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
 type View = 'login' | 'register' | 'dashboard' | 'history' | 'reserve' | 'announcements' | 'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes' | 'admin-announcements';
@@ -330,6 +331,32 @@ export default function App() {
     return () => clearInterval(timer);
   }, []);
 
+  // ═══════════ Theme Management ═══════════
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const stored = localStorage.getItem('theme');
+    if (stored === 'dark' || stored === 'light') return stored;
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      if (!localStorage.getItem('theme')) setTheme(e.matches ? 'dark' : 'light');
+    };
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    localStorage.setItem('theme', next);
+  };
+
   // 🏴 Easter egg console hint
   useEffect(() => {
     console.log("%c🔍 致好奇的你", "color:#00ff41;font-size:16px;font-weight:bold;");
@@ -618,8 +645,8 @@ export default function App() {
   };
 
   const renderZone = (zoneKey: string, zone: { label: string; rows: number[][] }, isAdminView: boolean) => (
-    <div key={zoneKey} className="bg-white/70 backdrop-blur rounded-xl border border-slate-200 p-3 shadow-sm">
-      <div className="text-xs font-bold text-slate-600 mb-2 text-center border-b border-slate-100 pb-1">{zone.label}</div>
+    <div key={zoneKey} className="bg-card/70 glass-card rounded-xl border border-slate-200 p-3 shadow-sm">
+      <div className="text-xs font-bold text-slate-600 mb-2 text-center border-b border-slate-200 pb-1">{zone.label}</div>
       <div className="flex flex-col gap-1">
         {zone.rows.map((row, ri) => (
           <div key={ri} className="flex gap-1 justify-center">
@@ -653,7 +680,7 @@ export default function App() {
   );
 
   const renderOldDeskGroup = (zoneKey: string, zone: { label: string; rows: number[][] }, isAdminView: boolean) => (
-    <div key={zoneKey} className="bg-white/60 backdrop-blur rounded-lg border border-slate-200 p-1.5 shadow-sm">
+    <div key={zoneKey} className="bg-card/60 glass-card rounded-lg border border-slate-200 p-1.5 shadow-sm">
       {zone.label && <div className="text-[10px] font-bold text-slate-500 mb-1 text-center">{zone.label}</div>}
       <div className="flex flex-col gap-0.5">
         {zone.rows.map((row, ri) => (
@@ -828,21 +855,24 @@ export default function App() {
   // ═══════════ Login Page ═══════════
   if (!token) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-sky-50 p-4">
-        {/* Clock bar */}
-        <div className="text-center mb-6 pt-4">
-          <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur rounded-full px-6 py-2 shadow-sm border border-slate-100">
-            <Clock className="w-4 h-4 text-indigo-500" />
+      <div className="min-h-screen bg-page noise-bg p-4">
+        {/* Clock bar + theme toggle */}
+        <div className="flex justify-center items-center gap-3 mb-6 pt-4">
+          <div className="inline-flex items-center gap-2 bg-card/80 glass-card rounded-full px-6 py-2 shadow-sm border border-slate-200">
+            <Clock className="w-4 h-4 text-accent" />
             <span className="text-sm font-medium text-slate-700">{formatDate(currentTime)}</span>
-            <span className="text-lg font-bold text-indigo-600 font-mono">{formatTime(currentTime)}</span>
+            <span className="text-lg font-bold text-accent font-mono">{formatTime(currentTime)}</span>
           </div>
+          <button onClick={toggleTheme} className="p-2.5 rounded-full bg-card/80 glass-card border border-slate-200 shadow-sm text-slate-600 hover:text-accent transition" title={theme === 'dark' ? '切換淺色模式' : '切換深色模式'}>
+            {theme === 'dark' ? <Sun className="w-4 h-4 theme-toggle-icon" /> : <Moon className="w-4 h-4 theme-toggle-icon" />}
+          </button>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto items-start justify-center">
           {/* Login form */}
-          <div className="w-full max-w-md bg-white/80 backdrop-blur rounded-2xl shadow-xl p-8 border border-slate-100">
-            <div className="flex items-center gap-2 mb-8">
-              <Shield className="w-8 h-8 text-indigo-600" />
+          <div className="w-full max-w-md bg-card/80 glass-card rounded-2xl shadow-xl p-8 border border-slate-200">
+            <div className="flex items-center gap-3 mb-8">
+              <img src="/fssh-badge.png" alt="鳳山高中校徽" className="w-12 h-12 drop-shadow-md" />
               <h1 className="text-2xl font-bold text-slate-900">鳳山高中 K書中心</h1>
             </div>
 
@@ -859,18 +889,18 @@ export default function App() {
                 <label className="text-sm font-medium text-slate-700">學號</label>
                 <div className="relative">
                   <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} required placeholder="輸入學號" className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  <input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} required placeholder="輸入學號" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
                 </div>
               </div>
               <div className="space-y-1">
                 <label className="text-sm font-medium text-slate-700">密碼</label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="輸入密碼" className="w-full pl-10 pr-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="輸入密碼" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
                 </div>
               </div>
               {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{error}</div>}
-              <button type="submit" disabled={loading} className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg disabled:opacity-50 transition">
+              <button type="submit" disabled={loading} className="w-full bg-accent hover:bg-accent-hover text-[#fff] font-bold py-2.5 px-4 rounded-lg disabled:opacity-50 transition shadow-md hover:shadow-lg">
                 {loading ? '登入中...' : '登入'}
               </button>
             </form>
@@ -878,7 +908,7 @@ export default function App() {
 
           {/* Announcements on login page */}
           {announcements.length > 0 && (
-            <div className="w-full max-w-md bg-white/80 backdrop-blur rounded-2xl shadow-xl p-6 border border-slate-100">
+            <div className="w-full max-w-md bg-card/80 glass-card rounded-2xl shadow-xl p-6 border border-slate-200">
               <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
                 <Megaphone className="w-5 h-5 text-amber-500" />公告欄
               </h2>
@@ -903,19 +933,19 @@ export default function App() {
 
   // ═══════════ Main App ═══════════
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 font-sans">
+    <div className="min-h-screen bg-page noise-bg font-sans">
       {/* Nav */}
-      <nav className="bg-white/80 backdrop-blur border-b border-slate-200 sticky top-0 z-20">
+      <nav className="bg-nav/85 glass-card border-b border-slate-200 sticky top-0 z-20 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3 font-bold text-slate-900">
             <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-indigo-600" />
+              <img src="/fssh-badge.png" alt="校徽" className="w-7 h-7" />
               <span className="hidden sm:inline">K書中心{isAdmin ? '管理後台' : '預約系統'}</span>
             </div>
-            <div className="hidden md:flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-50 rounded-full px-3 py-1">
-              <Clock className="w-3.5 h-3.5 text-indigo-400" />
+            <div className="hidden md:flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-3 py-1">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
               <span>{formatDate(currentTime)}</span>
-              <span className="font-bold text-indigo-600 font-mono">{formatTime(currentTime)}</span>
+              <span className="font-bold text-accent font-mono">{formatTime(currentTime)}</span>
             </div>
           </div>
           <div className="flex items-center gap-1 text-sm">
@@ -932,7 +962,10 @@ export default function App() {
               <button onClick={() => setView('reserve')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'reserve' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>預約座位</button>
               <button onClick={() => setView('announcements')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'announcements' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}><Megaphone className="w-4 h-4 inline mr-1" />公告</button>
             </>)}
-            <button onClick={handleLogout} className="ml-1 text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition"><LogOut className="w-4 h-4" /></button>
+            <button onClick={toggleTheme} className="ml-1 p-1.5 rounded-lg hover:bg-slate-100 transition text-slate-600" title={theme === 'dark' ? '切換淺色模式' : '切換深色模式'}>
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button onClick={handleLogout} className="ml-1 text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition"><LogOut className="w-4 h-4" /></button>
           </div>
         </div>
       </nav>
@@ -952,7 +985,7 @@ export default function App() {
             </div>
             {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
             {/* Search bar */}
-            <div className="flex items-center gap-2 bg-white/80 backdrop-blur border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+            <div className="flex items-center gap-2 bg-card/80 glass-card border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
               <Search className="w-4 h-4 text-slate-400 shrink-0" />
               <input
                 type="text"
@@ -966,9 +999,9 @@ export default function App() {
               )}
             </div>
             {allReservations.length === 0 ? (
-              <div className="p-8 text-center bg-white/70 rounded-2xl border border-slate-200 text-slate-500">目前沒有任何預約紀錄</div>
+              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有任何預約紀錄</div>
             ) : (
-              <div className="bg-white/70 backdrop-blur rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
@@ -996,7 +1029,7 @@ export default function App() {
                       })
                       .sort((a, b) => { const av = (a as any)[sortKey] || ''; const bv = (b as any)[sortKey] || ''; return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av)); }).map(res => (
                       <tr key={res.id} className="hover:bg-slate-50 transition">
-                        <td className="px-4 py-3 font-medium text-indigo-700">{res.student_id}</td>
+                        <td className="px-4 py-3 text-accent font-medium">{res.student_id}</td>
                         <td className="px-4 py-3 text-slate-600">{res.student_name}</td>
                         <td className="px-4 py-3 font-bold">{res.seat_label}</td>
                         <td className="px-4 py-3 text-slate-600">{res.res_date}</td>
@@ -1038,8 +1071,8 @@ export default function App() {
 
             {/* Summary cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-white/70 backdrop-blur rounded-xl border border-slate-200 p-4 text-center">
-                <div className="text-2xl font-bold text-indigo-700">{attendanceList.length}</div>
+              <div className="bg-card/70 glass-card rounded-xl border border-slate-200 p-4 text-center">
+                <div className="text-2xl font-bold text-accent">{attendanceList.length}</div>
                 <div className="text-xs text-slate-500 mt-1">總預約人數</div>
               </div>
               <div className="bg-emerald-50/70 backdrop-blur rounded-xl border border-emerald-200 p-4 text-center">
@@ -1057,9 +1090,9 @@ export default function App() {
             </div>
 
             {attendanceList.length === 0 ? (
-              <div className="p-8 text-center bg-white/70 rounded-2xl border border-slate-200 text-slate-500">該日期沒有任何預約</div>
+              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">該日期沒有任何預約</div>
             ) : (
-              <div className="bg-white/70 backdrop-blur rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
@@ -1078,7 +1111,7 @@ export default function App() {
                         <td className="px-4 py-3 font-bold">{entry.seat_label}</td>
                         <td className="px-4 py-3 text-slate-600">{entry.zone}</td>
                         <td className="px-4 py-3 text-slate-600">{entry.building}</td>
-                        <td className="px-4 py-3 font-medium text-indigo-700">{entry.student_id}</td>
+                        <td className="px-4 py-3 text-accent font-medium">{entry.student_id}</td>
                         <td className="px-4 py-3 text-slate-600">{entry.student_name}</td>
                         <td className="px-4 py-3 text-center">
                           {entry.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
@@ -1110,9 +1143,9 @@ export default function App() {
             {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
 
             {notesList.length === 0 ? (
-              <div className="p-8 text-center bg-white/70 rounded-2xl border border-slate-200 text-slate-500">目前沒有任何座位有註記</div>
+              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有任何座位有註記</div>
             ) : (
-              <div className="bg-white/70 backdrop-blur rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm text-slate-600 font-medium">共 {notesList.length} 個座位有註記</div>
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
@@ -1127,7 +1160,7 @@ export default function App() {
                   <tbody className="divide-y divide-slate-100">
                     {notesList.map(n => (
                       <tr key={n.id} className="hover:bg-slate-50 transition">
-                        <td className="px-4 py-3 font-bold text-indigo-700">{n.seat_number}</td>
+                        <td className="px-4 py-3 font-bold text-accent">{n.seat_number}</td>
                         <td className="px-4 py-3 text-slate-600">{n.zone}</td>
                         <td className="px-4 py-3 text-slate-600">{n.building}</td>
                         <td className="px-4 py-3">
@@ -1158,8 +1191,8 @@ export default function App() {
             {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
             {renderLegend()}
             <div className="flex gap-2 mb-2">
-              <button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>新館</button>
-              <button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200 text-slate-600'}`}>舊館</button>
+              <button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>新館</button>
+              <button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>舊館</button>
             </div>
             <div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
               {selectedBuilding === '新館' ? renderNewBuilding(true) : renderOldBuilding(true)}
@@ -1172,7 +1205,7 @@ export default function App() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Users className="w-6 h-6 text-amber-600" />學生帳號管理</h2>
             {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
-            <div className="bg-white/70 backdrop-blur p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Key className="w-5 h-5 text-amber-600" /> 重設學生密碼</h3>
               <div className="flex flex-wrap gap-3 items-end">
                 <div className="flex-1 min-w-[180px] space-y-1"><label className="text-sm font-medium text-slate-600">學號</label><input type="text" value={resetStudentId} onChange={e => setResetStudentId(e.target.value)} placeholder="輸入學號" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" /></div>
@@ -1180,14 +1213,14 @@ export default function App() {
                 <button onClick={() => handleResetPassword()} className="bg-amber-500 hover:bg-amber-400 text-white font-bold px-6 py-2 rounded-lg transition"><Key className="w-4 h-4 inline mr-1" />重設</button>
               </div>
             </div>
-            <div className="bg-white/70 backdrop-blur rounded-2xl border border-slate-200 overflow-hidden">
+            <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
               <div className="p-4 border-b border-slate-200 flex items-center gap-3"><Search className="w-4 h-4 text-slate-400" /><input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="搜尋學號..." className="flex-1 outline-none text-sm bg-transparent" /></div>
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-4 py-3 text-left font-bold text-slate-700">學號</th><th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th><th className="px-4 py-3 text-right font-bold text-slate-700">操作</th></tr></thead>
                 <tbody className="divide-y divide-slate-100">
                   {allUsers.filter(u => u.student_id.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
                     <tr key={u.id} className="hover:bg-slate-50 transition">
-                      <td className="px-4 py-3 font-medium text-indigo-700">{u.student_id}</td>
+                      <td className="px-4 py-3 text-accent font-medium">{u.student_id}</td>
                       <td className="px-4 py-3 text-slate-600">{u.name || '未填寫'}</td>
                       <td className="px-4 py-3 text-right"><button onClick={() => handleResetPassword(u.student_id)} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Key className="w-3 h-3 inline mr-1" />重設密碼</button></td>
                     </tr>
@@ -1197,7 +1230,7 @@ export default function App() {
             </div>
 
             {/* Admin change own password */}
-            <div className="bg-white/70 backdrop-blur p-6 rounded-2xl border border-slate-200 shadow-sm">
+            <div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
               <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><KeyRound className="w-5 h-5 text-indigo-600" /> 修改管理員密碼</h3>
               <div className="flex flex-wrap gap-3 items-end">
                 <div className="flex-1 min-w-[160px] space-y-1">
@@ -1212,7 +1245,7 @@ export default function App() {
                   <label className="text-sm font-medium text-slate-600">確認新密碼</label>
                   <input type="password" value={adminConfirmPw} onChange={e => setAdminConfirmPw(e.target.value)} placeholder="再次輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
                 </div>
-                <button onClick={handleAdminChangePassword} className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-6 py-2 rounded-lg transition flex items-center gap-1"><KeyRound className="w-4 h-4" />修改密碼</button>
+                <button onClick={handleAdminChangePassword} className="bg-accent hover:bg-accent-hover text-[#fff] font-bold px-6 py-2 rounded-lg transition flex items-center gap-1"><KeyRound className="w-4 h-4" />修改密碼</button>
               </div>
               {adminNewPw && adminConfirmPw && adminNewPw !== adminConfirmPw && (
                 <div className="mt-2 text-sm text-red-500 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />兩次輸入的新密碼不一致</div>
@@ -1226,15 +1259,15 @@ export default function App() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900">我的預約紀錄</h2>
             {myReservations.length === 0 ? (
-              <div className="p-8 text-center bg-white/70 rounded-2xl border border-slate-200 text-slate-500">目前沒有預約，快去搶位子吧！</div>
+              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有預約，快去搶位子吧！</div>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 {myReservations.map(res => {
                   const seat = seats.find(s => s.id === res.seat_id);
                   return (
-                    <div key={res.id} className="bg-white/70 backdrop-blur p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-start">
+                    <div key={res.id} className="bg-card/70 glass-card p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-start">
                       <div>
-                        <div className="text-lg font-bold text-indigo-700 mb-1">座位 {seat?.label || `#${res.seat_id}`}</div>
+                        <div className="text-lg font-bold text-accent mb-1">座位 {seat?.label || `#${res.seat_id}`}</div>
                         {seat && <div className="text-xs text-slate-500 mb-2">{seat.building} · {seat.zone}</div>}
                         <div className="text-sm text-slate-600 flex items-center gap-1"><Calendar className="w-4 h-4" />{res.res_date}</div>
                       </div>
@@ -1253,9 +1286,9 @@ export default function App() {
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><History className="w-6 h-6 text-indigo-600" />歷史預約紀錄</h2>
             <p className="text-sm text-slate-500">以下為過去日期或當天已點名的預約，無法取消。</p>
             {myHistory.length === 0 ? (
-              <div className="p-8 text-center bg-white/70 rounded-2xl border border-slate-200 text-slate-500">目前沒有歷史紀錄</div>
+              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有歷史紀錄</div>
             ) : (
-              <div className="bg-white/70 backdrop-blur rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
@@ -1270,7 +1303,7 @@ export default function App() {
                     {myHistory.map(h => (
                       <tr key={h.id} className={`transition ${h.attendance_status === 'present' ? 'bg-emerald-50/30' : h.attendance_status === 'absent' ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
                         <td className="px-4 py-3 text-slate-600">{h.res_date}</td>
-                        <td className="px-4 py-3 font-bold text-indigo-700">{h.seat_label}</td>
+                        <td className="px-4 py-3 font-bold text-accent">{h.seat_label}</td>
                         <td className="px-4 py-3 text-slate-600">{h.seat_building}</td>
                         <td className="px-4 py-3 text-slate-600">{h.seat_zone}</td>
                         <td className="px-4 py-3 text-center">
@@ -1290,15 +1323,15 @@ export default function App() {
         {/* ===== Student: Reserve Seat ===== */}
         {view === 'reserve' && (
           <div className="space-y-4">
-            <div className="bg-white/70 backdrop-blur p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-3 items-end">
+            <div className="bg-card/70 glass-card p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-3 items-end">
               <div className="space-y-1 flex-1 min-w-[180px]">
                 <label className="text-sm font-bold text-slate-700">選擇日期</label>
-                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="block w-full px-3 py-2 bg-white border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
+                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="block w-full px-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
                 {isWeekend(selectedDate) && <div className="text-xs text-amber-600 font-medium mt-1">⚠️ 週六日僅開放舊館</div>}
               </div>
               <div className="flex gap-2">
-                <button onClick={() => setSelectedBuilding('新館')} disabled={isWeekend(selectedDate)} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isWeekend(selectedDate) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : selectedBuilding === '新館' ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200'}`}>{isWeekend(selectedDate) ? '新館（週末未開放）' : '新館'}</button>
-                <button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' || isWeekend(selectedDate) ? 'bg-indigo-600 text-white' : 'bg-white border border-slate-200'}`}>舊館</button>
+                <button onClick={() => setSelectedBuilding('新館')} disabled={isWeekend(selectedDate)} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isWeekend(selectedDate) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200'}`}>{isWeekend(selectedDate) ? '新館（週末未開放）' : '新館'}</button>
+                <button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' || isWeekend(selectedDate) ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200'}`}>舊館</button>
               </div>
               <button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
             </div>
@@ -1315,11 +1348,11 @@ export default function App() {
           <div className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Megaphone className="w-6 h-6 text-amber-500" />公告欄</h2>
             {announcements.length === 0 ? (
-              <div className="p-8 text-center bg-white/70 rounded-2xl border border-slate-200 text-slate-500">目前沒有公告</div>
+              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有公告</div>
             ) : (
               <div className="space-y-4">
                 {announcements.map(ann => (
-                  <div key={ann.id} className={`bg-white/70 backdrop-blur rounded-2xl border p-6 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
+                  <div key={ann.id} className={`bg-card/70 glass-card rounded-2xl border p-6 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
                     <div className="flex items-center gap-2 mb-2">
                       {ann.is_pinned && <Pin className="w-4 h-4 text-amber-500" />}
                       <h3 className="text-lg font-bold text-slate-900">{ann.title}</h3>
@@ -1340,12 +1373,12 @@ export default function App() {
             {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
 
             {/* Create / Edit form */}
-            <div className="bg-white/70 backdrop-blur rounded-2xl border border-slate-200 p-6 shadow-sm">
+            <div className="bg-card glass-card rounded-2xl border border-slate-200 p-6 shadow-sm">
               <h3 className="text-base font-bold text-slate-900 mb-3">{editingAnn ? `編輯公告 #${editingAnn.id}` : '發布新公告'}</h3>
               <div className="space-y-3">
                 <div>
                   <label className="text-sm font-medium text-slate-600">標題</label>
-                  <input type="text" value={annTitle} onChange={e => setAnnTitle(e.target.value)} placeholder="輸入公告標題" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-400" />
+                  <input type="text" value={annTitle} onChange={e => setAnnTitle(e.target.value)} placeholder="輸入公告標題" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-400 bg-input" />
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-600">內容（支援 Markdown 語法）</label>
@@ -1366,7 +1399,7 @@ export default function App() {
                     <button onClick={handleUpdateAnnouncement} className="bg-amber-500 hover:bg-amber-400 text-white px-5 py-2 rounded-lg font-bold text-sm transition">更新公告</button>
                     <button onClick={() => { setEditingAnn(null); setAnnTitle(''); setAnnContent(''); setAnnPinned(false); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium text-sm transition">取消</button>
                   </>) : (
-                    <button onClick={handleCreateAnnouncement} className="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-2 rounded-lg font-bold text-sm transition">發布公告</button>
+                    <button onClick={handleCreateAnnouncement} className="bg-accent hover:bg-accent-hover text-[#fff] px-5 py-2 rounded-lg font-bold text-sm transition">發布公告</button>
                   )}
                 </div>
               </div>
@@ -1377,7 +1410,7 @@ export default function App() {
               <div className="space-y-3">
                 <h3 className="text-base font-bold text-slate-700">已發布的公告</h3>
                 {announcements.map(ann => (
-                  <div key={ann.id} className={`bg-white/70 backdrop-blur rounded-2xl border p-5 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
+                  <div key={ann.id} className={`bg-card/70 glass-card rounded-2xl border p-5 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -1403,7 +1436,7 @@ export default function App() {
       {/* ===== Modals ===== */}
       {editingSeatNote && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Edit3 className="w-5 h-5 text-amber-600" />編輯座位 {editingSeatNote.label} 註記</h3>
             <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="輸入註記（如：靠窗、有插座、冷氣出風口等）" className="w-full border border-slate-200 rounded-lg p-3 text-sm h-24 outline-none focus:ring-2 focus:ring-amber-400" />
             <div className="flex gap-2 mt-4 justify-end">
@@ -1416,7 +1449,7 @@ export default function App() {
 
       {showAdminReserve && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-2xl">
+          <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
             <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" />代為預約座位 {(adminReserveSeatId && seats.find(s => s.id === adminReserveSeatId)?.label) || ''}</h3>
             <div className="space-y-3">
               <div><label className="text-sm font-medium text-slate-600">學號</label><input type="text" value={adminReserveStudentId} onChange={e => setAdminReserveStudentId(e.target.value)} placeholder="輸入學生學號" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400" /></div>

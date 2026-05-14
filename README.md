@@ -263,3 +263,29 @@ docker compose up -d --build
 ## 📄 License
 
 MIT License
+
+
+## 🚀 上線前你還需要在伺服器上做（3 步）
+
+### 第 1 步：在伺服器上建立 `.env.prod`
+```bash
+cd ~/你的專案/backend
+
+# 產生強密碼
+openssl rand -hex 32  # 複製輸出作為 SECRET_KEY
+
+cp .env.prod.example .env.prod
+nano .env.prod   # 填入 SECRET_KEY 和強密碼
+```
+
+### 第 2 步：重新 build 前端（因為 KLIB_KEY 改了）
+```bash
+cd ~/你的專案
+npm run build
+```
+
+### 第 3 步：重啟 Docker
+```bash
+cd ~/你的專案/backend
+docker compose down && docker compose up -d --build
+```

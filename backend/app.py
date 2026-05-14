@@ -1,4 +1,6 @@
 import os
+from dotenv import load_dotenv
+load_dotenv()
 import re
 import bcrypt
 from datetime import datetime, timedelta, timezone
@@ -14,7 +16,6 @@ from pydantic import BaseModel, field_validator
 import redis
 
 from models import Base, User, Seat, Reservation, Announcement
-from mail_service import MailService
 from seat_layout import SEAT_LAYOUT
 
 # Google Auth
@@ -102,12 +103,14 @@ async def get_admin_user(current_user: User = Depends(get_current_user)):
 
 
 # --- App Initialization ---
-app = FastAPI()
+app = FastAPI(docs_url=None, redoc_url=None)  # 生產環境關閉 API 文件
 app.add_middleware(
-    CORSMiddleware, allow_origins=["*"], allow_credentials=True,
-    allow_methods=["*"], allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=["https://kbook.fssh.khc.edu.tw"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
-mail_service = MailService()
 
 
 # ═══════════════════
@@ -162,7 +165,6 @@ class UserRegister(BaseModel):
     student_id: str
     password: str
     name: Optional[str] = None
-    verification_code: str
 
 
 class Token(BaseModel):
@@ -180,8 +182,6 @@ class ReservationRequest(BaseModel):
         return validate_date_format(v)
 
 
-class SendCodeRequest(BaseModel):
-    student_id: str
 
 
 class GoogleLoginRequest(BaseModel):
@@ -332,16 +332,8 @@ def _format_datetime(dt) -> Optional[str]:
 #  Auth Routes
 # ═══════════════════
 
-@app.post("/api/send-code")
-def send_code(req: SendCodeRequest):
-    mail_service.send_verification_email(req.student_id)
-    return {"message": "Verification code sent"}
-
-
 @app.post("/api/register")
 def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    if not mail_service.verify_code(user_data.student_id, user_data.verification_code):
-        raise HTTPException(status_code=400, detail="驗證碼無效或已過期")
     if db.query(User).filter(User.student_id == user_data.student_id).first():
         raise HTTPException(status_code=400, detail="此學號已經註冊過了")
     hashed_pw = get_password_hash(user_data.password)
@@ -372,8 +364,9 @@ def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
         idinfo = google_id_token.verify_oauth2_token(
             req.credential, google_requests.Request(), GOOGLE_CLIENT_ID
         )
-    except Exception:
-        raise HTTPException(status_code=400, detail="Google 帳號驗證失敗")
+    except Exception as e:
+        print(f"[Google Auth Error] {type(e).__name__}: {e}")
+        raise HTTPException(status_code=400, detail=f"Google 帳號驗證失敗: {e}")
 
     email = idinfo.get("email", "")
     if not email.endswith("@fssh.khc.edu.tw"):
