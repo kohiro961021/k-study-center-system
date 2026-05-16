@@ -29,7 +29,9 @@ except ImportError:
 # --- Configuration ---
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://user:password@localhost/kstudy")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-SECRET_KEY = os.getenv("SECRET_KEY", "h3ll0_f3ngshan_seni0r_h1gh_sch001_2026")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("❌ SECRET_KEY environment variable is required. Generate one with: openssl rand -hex 32")
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
@@ -161,10 +163,6 @@ def check_rate_limit(user_id: int):
 
 
 # --- Pydantic Models ---
-class UserRegister(BaseModel):
-    student_id: str
-    password: str
-    name: Optional[str] = None
 
 
 class Token(BaseModel):
@@ -332,18 +330,6 @@ def _format_datetime(dt) -> Optional[str]:
 #  Auth Routes
 # ═══════════════════
 
-@app.post("/api/register")
-def register(user_data: UserRegister, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.student_id == user_data.student_id).first():
-        raise HTTPException(status_code=400, detail="此學號已經註冊過了")
-    hashed_pw = get_password_hash(user_data.password)
-    new_user = User(
-        student_id=user_data.student_id, password_hash=hashed_pw,
-        name=user_data.name, email=f"{user_data.student_id}@fssh.khc.edu.tw"
-    )
-    db.add(new_user)
-    db.commit()
-    return {"message": "Registration successful"}
 
 
 @app.post("/token", response_model=Token)
@@ -366,7 +352,7 @@ def google_login(req: GoogleLoginRequest, db: Session = Depends(get_db)):
         )
     except Exception as e:
         print(f"[Google Auth Error] {type(e).__name__}: {e}")
-        raise HTTPException(status_code=400, detail=f"Google 帳號驗證失敗: {e}")
+        raise HTTPException(status_code=400, detail="Google 帳號驗證失敗，請稍後再試")
 
     email = idinfo.get("email", "")
     if not email.endswith("@fssh.khc.edu.tw"):

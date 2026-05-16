@@ -11,7 +11,7 @@
 ## ✨ 功能總覽
 
 ### 🎒 學生端
-- 帳號密碼登入 + 驗證碼註冊 / Google 學校帳號（`@fssh.khc.edu.tw`）一鍵登入
+- Google 學校帳號（`@fssh.khc.edu.tw`）一鍵登入 / 管理員帳號密碼登入
 - 新館 / 舊館視覺化座位地圖，依狀態即時上色（空位 / 已預約 / 維修中 / 工讀生）
 - 座位預約（每人每天限一座位，限 7 天內）
 - 週末自動限制：週六/日僅開放舊館
@@ -76,38 +76,20 @@ npm run dev
 
 - 前端開發入口：`http://localhost:3000`
 - 正式入口（Nginx）：`http://localhost`
-- API 文件：`http://localhost/docs`（需帶 `X-KLib-Key: test` Header）
+- API 文件：生產環境已關閉
 
 ---
 
-### 建立測試帳號
+### 建立管理員帳號
 
-使用內建腳本直接建立帳號，不需要走驗證碼流程：
+使用內建腳本建立管理員（學生透過 Google OAuth 自動建立帳號）：
 
 ```bash
 # 格式：python seed_user.py [學號] [密碼] [是否為管理員: true/false]
-
-# 建立管理員
-docker exec -it kstudy_app python seed_user.py admin001 adminpass true
-
-# 建立學生
-docker exec -it kstudy_app python seed_user.py student001 pass123 false
-```
-```Student ID: fssh_admin
-    - Password: Fssho77463i50
-    - Role: Admin
+docker exec -it kstudy_app python seed_user.py admin001 你的強密碼 true
 ```
 
----
-
-### 測試學生註冊（驗證碼）
-
-系統目前為 Mock 模式，驗證碼會印在後端 log：
-
-```bash
-docker logs kstudy_app | grep "MOCK EMAIL"
-# [MOCK EMAIL] To: student001@fssh.khc.edu.tw, Code: 123456
-```
+> ⚠️ 請勿在文件或 commit 中記錄管理員密碼
 
 ---
 
@@ -153,17 +135,15 @@ cloudflared:
 
 ## 📖 API 說明
 
-所有請求需帶 Header：`X-KLib-Key: test`
+所有 API 請求需帶 Header：`X-KLib-Key: <KLIB_KEY>`
 需要登入的請求另需帶：`Authorization: Bearer <JWT_TOKEN>`
 
 ### 身份驗證
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| POST | `/api/send-code` | 發送驗證碼至學號信箱 |
-| POST | `/api/register` | 學生註冊 |
-| POST | `/token` | 帳號密碼登入 |
-| POST | `/api/auth/google` | Google 帳號登入 |
+| POST | `/token` | 管理員帳號密碼登入 |
+| POST | `/api/auth/google` | Google 學校帳號登入 |
 
 ### 學生功能（需登入）
 
@@ -207,17 +187,20 @@ k-study-center-system/
 │   ├── app.py              # FastAPI 主程式，所有 API 路由
 │   ├── models.py           # SQLAlchemy 資料模型（User, Seat, Reservation, Announcement）
 │   ├── seat_layout.py      # 314 個座位的配置定義
-│   ├── mail_service.py     # 驗證碼（目前為 Mock，印在 log）
-│   ├── seed_user.py        # 快速建立測試帳號腳本
-│   ├── nginx.conf          # Nginx 反向代理 + 安全設定
-│   ├── docker-compose.yml  # 後端一鍵部署
+│   ├── seed_user.py        # 快速建立管理員帳號腳本
+│   ├── nginx.conf          # Nginx 反向代理 + 安全 Headers + 前端靜態檔案
+│   ├── docker-compose.yml  # 後端一鍵部署（含 CVE-2026-42945 修補）
 │   ├── Dockerfile          # FastAPI 容器定義
+│   ├── deploy.sh           # 一鍵部署腳本（含 SSL + 管理員設定）
+│   ├── init-ssl.sh         # Let's Encrypt SSL 憑證申請腳本
+│   ├── .dockerignore       # 防止 .env 等機密進入 image
 │   └── requirements.txt    # Python 依賴
 ├── src/
 │   ├── App.tsx             # 所有頁面 UI 與邏輯
 │   ├── main.tsx            # 前端入口
 │   └── index.css           # 全域樣式
-├── vite.config.ts          # Vite 設定（含 /api proxy → Nginx）
+├── dist/                   # 前端 build 產物（由 Nginx serve）
+├── vite.config.ts          # Vite 設定（含 /api proxy → 開發用）
 └── package.json
 ```
 
@@ -265,27 +248,205 @@ docker compose up -d --build
 MIT License
 
 
-## 🚀 上線前你還需要在伺服器上做（3 步）
+## 🚀 生產環境部署教程
 
-### 第 1 步：在伺服器上建立 `.env.prod`
+### 前置條件
+
+| 需求 | 說明 |
+|---|---|
+| 伺服器 | Ubuntu 22.04+ / Debian 12+（或任何支援 Docker 的 Linux） |
+| Docker | Docker Engine 24+ 含 Docker Compose V2 |
+| Node.js | 18+（在本地 build 前端用，伺服器可選） |
+| 網域 | 已將 `kbook.fssh.khc.edu.tw` DNS A 記錄指向伺服器 IP |
+| 防火牆 | 開放 **80**（HTTP）和 **443**（HTTPS） |
+| Google OAuth | 已在 Google Cloud Console 建立 OAuth Client ID |
+
+---
+
+### 方式一：一鍵部署（推薦）
+
 ```bash
-cd ~/你的專案/backend
+# 1. 將程式碼放到伺服器
+git clone <your-repo-url> ~/k-study-center-system
+cd ~/k-study-center-system
 
-# 產生強密碼
-openssl rand -hex 32  # 複製輸出作為 SECRET_KEY
-
-cp .env.prod.example .env.prod
-nano .env.prod   # 填入 SECRET_KEY 和強密碼
-```
-
-### 第 2 步：重新 build 前端（因為 KLIB_KEY 改了）
-```bash
-cd ~/你的專案
+# 2. 安裝前端依賴 & build
+npm install
 npm run build
+
+# 3. 執行一鍵部署腳本
+cd backend
+bash deploy.sh
 ```
 
-### 第 3 步：重啟 Docker
+腳本會自動完成：
+- ✅ 檢查 Docker / Docker Compose 是否安裝
+- ✅ 自動產生 `.env.prod`（含隨機 SECRET_KEY 和資料庫密碼）
+- ✅ 檢查 `dist/` 前端 build 是否存在
+- ✅ 用 Let's Encrypt 申請 SSL 憑證
+- ✅ 啟動所有 Docker 容器
+- ✅ 引導建立管理員帳號
+
+---
+
+### 方式二：手動逐步部署
+
+#### 第 1 步：安裝 Docker
+
 ```bash
-cd ~/你的專案/backend
-docker compose down && docker compose up -d --build
+# Ubuntu / Debian
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+# 登出重新登入讓 docker group 生效
+```
+
+#### 第 2 步：準備程式碼
+
+```bash
+git clone <your-repo-url> ~/k-study-center-system
+cd ~/k-study-center-system
+```
+
+#### 第 3 步：Build 前端
+
+```bash
+# 在有 Node.js 的環境（本機或伺服器）
+npm install
+npm run build
+# 確認 dist/index.html 存在
+ls dist/index.html
+```
+
+> 💡 如果伺服器沒有 Node.js，可以在本地 build 後用 `scp` 傳 `dist/` 到伺服器
+
+#### 第 4 步：建立 `.env.prod`
+
+```bash
+cd ~/k-study-center-system/backend
+
+# 產生隨機密鑰
+SECRET_KEY=$(openssl rand -hex 32)
+DB_PASSWORD=$(openssl rand -hex 16)
+
+# 從範本建立
+cp .env.prod.example .env.prod
+nano .env.prod
+```
+
+填入以下內容：
+```env
+SECRET_KEY=<上面產生的 SECRET_KEY>
+DATABASE_URL=postgresql+psycopg://kstudy_user:<DB_PASSWORD>@db:5432/kstudy
+REDIS_URL=redis://redis:6379/0
+GOOGLE_CLIENT_ID=<你的 Google OAuth Client ID>
+POSTGRES_USER=kstudy_user
+POSTGRES_PASSWORD=<和 DATABASE_URL 中的密碼一致>
+POSTGRES_DB=kstudy
+```
+
+#### 第 5 步：申請 SSL 憑證
+
+```bash
+cd ~/k-study-center-system/backend
+bash init-ssl.sh
+```
+
+此腳本會：
+1. 產生臨時自簽憑證讓 Nginx 能先啟動
+2. 透過 Nginx 的 `/.well-known/acme-challenge/` 路徑驗證網域
+3. 用 Let's Encrypt 簽發正式 SSL 憑證
+4. 自動 reload Nginx 套用新憑證
+
+#### 第 6 步：啟動所有服務
+
+```bash
+cd ~/k-study-center-system/backend
+docker compose up -d --build
+```
+
+#### 第 7 步：建立管理員帳號
+
+```bash
+docker exec -it kstudy_app python seed_user.py <管理員學號> <強密碼> true
+```
+
+#### 第 8 步：驗證部署
+
+```bash
+# 檢查所有容器是否正常運行
+docker compose ps
+
+# 檢查 Nginx logs
+docker compose logs nginx --tail=20
+
+# 測試 HTTPS
+curl -I https://kbook.fssh.khc.edu.tw
+```
+
+---
+
+### 🔐 SSL 憑證管理
+
+| 操作 | 指令 |
+|---|---|
+| 首次申請 | `bash init-ssl.sh` |
+| 手動續簽 | `docker compose run --rm certbot renew && docker compose exec nginx nginx -s reload` |
+| 查看到期日 | `openssl x509 -in ./certbot/conf/live/kbook.fssh.khc.edu.tw/fullchain.pem -enddate -noout` |
+| 自動續簽 | certbot 容器每 12 小時自動檢查，無需手動操作 |
+
+---
+
+### 🔄 更新部署
+
+```bash
+cd ~/k-study-center-system
+
+# 拉取最新程式碼
+git pull
+
+# 重新 build 前端
+npm run build
+
+# 重新 build & 啟動後端
+cd backend
+docker compose up -d --build
+```
+
+---
+
+### 🛠️ 維護常用指令
+
+```bash
+cd ~/k-study-center-system/backend
+
+# 查看所有容器狀態
+docker compose ps
+
+# 即時查看 logs
+docker compose logs -f
+
+# 只看某個服務的 logs
+docker compose logs -f app
+docker compose logs -f nginx
+
+# 重啟所有服務
+docker compose restart
+
+# 停止所有服務
+docker compose down
+
+# 停止並清除所有資料（⚠️ 會刪除資料庫）
+docker compose down -v
+
+# 進入 app 容器的 shell
+docker exec -it kstudy_app bash
+
+# 進入資料庫
+docker exec -it kstudy_db psql -U kstudy_user -d kstudy
+
+# 備份資料庫
+docker exec kstudy_db pg_dump -U kstudy_user kstudy > backup_$(date +%Y%m%d).sql
+
+# 還原資料庫
+cat backup.sql | docker exec -i kstudy_db psql -U kstudy_user -d kstudy
 ```
