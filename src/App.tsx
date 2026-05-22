@@ -1,30 +1,22 @@
-import { useState, useEffect, useRef } from 'react';
-import { Sun, Moon, Calendar, LogOut, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Wrench, ArrowUpDown, Megaphone, Pin, Clock, KeyRound } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import { useState, useEffect } from 'react';
+import { Sun, Moon, Calendar, LogOut, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Megaphone, Pin, Clock, KeyRound } from 'lucide-react';
+// import { motion, AnimatePresence } from 'motion/react';
+
+import { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, AttendanceEntry, NoteEntry, SortKey, SortDir } from './type';
 
 const API_BASE = '';
 const KLIB_KEY = 'Fs2026-KLib-9xmP7nQr2vBs-FsSh';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-type View = 'login' | 'register' | 'dashboard' | 'history' | 'reserve' | 'announcements' | 'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes' | 'admin-announcements';
-type AnnouncementData = { id: number; title: string; content: string; is_pinned: boolean; author_name: string; created_at: string | null; updated_at: string | null };
-type SeatData = { id: number; label: string; seat_number: number; zone: string; building: string; seat_type: string; note: string | null; status: string };
-type Reservation = { id: number; seat_id: number; res_date: string; user_id: number; attendance_status?: string | null; created_at?: string | null };
-type AdminReservation = Reservation & { student_id: string; student_name: string; seat_label: string; attendance_status: string | null; created_at: string | null; updated_at: string | null };
-type HistoryReservation = { id: number; seat_id: number; res_date: string; user_id: number; attendance_status: string | null; seat_label: string; seat_zone: string; seat_building: string; created_at: string | null };
-type StudentUser = { id: number; student_id: string; name: string | null; is_admin: boolean };
-type AttendanceEntry = { id: number; seat_label: string; seat_number: number; zone: string; building: string; student_id: string; student_name: string; attendance_status: string | null };
-type NoteEntry = { id: number; seat_number: number; label: string; zone: string; building: string; note: string };
-type SortKey = 'res_date' | 'student_id' | 'seat_label' | 'created_at' | 'updated_at';
-type SortDir = 'asc' | 'desc';
+
 
 function escapeHtml(str: string): string {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+	return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function isWeekend(dateStr: string): boolean {
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.getDay() === 0 || d.getDay() === 6;
+	const d = new Date(dateStr + 'T00:00:00');
+	return d.getDay() === 0 || d.getDay() === 6;
 }
 
 function decodeJwtPayload(token: string): any {
@@ -34,10 +26,10 @@ function decodeJwtPayload(token: string): any {
   } catch (_e) { return null; }
 }
 
-// ═══════════════════ Zone Layout Definitions ═══════════════════
+// ===== Zone Layout Definitions =====
 // Each zone defines rows of seat numbers matching the physical layout
 
-// ═══════════════════ Simple Markdown Renderer ═══════════════════
+// ===== Simple Markdown Renderer =====
 function renderMarkdown(md: string): string {
   let html = md
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
@@ -82,7 +74,7 @@ const NEW_BUILDING_ZONES: Record<string, { label: string; rows: number[][] }> = 
   "新8(317)": { label: "新8(317)", rows: [[127, 134], [128, 135], [129, 136], [130, 137], [131, 138], [132, 139], [133, 140]] },
 };
 
-// ═══════════════════ Old Building Zone Layout ═══════════════════
+// ===== Old Building Zone Layout =====
 // Based on the physical seat map (舊館座位表)
 // Layout is arranged as desk groups separated by walkways
 
@@ -324,14 +316,14 @@ export default function App() {
   const [adminNewPw, setAdminNewPw] = useState('');
   const [adminConfirmPw, setAdminConfirmPw] = useState('');
 
-  // Clock
+  // ===== Clock =====
   const [currentTime, setCurrentTime] = useState(new Date());
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
-  // ═══════════ Theme Management ═══════════
+  // ===== Theme Management =====
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     const stored = localStorage.getItem('theme');
     if (stored === 'dark' || stored === 'light') return stored;
@@ -423,6 +415,7 @@ export default function App() {
   // Google Sign-In: render official button into a container div
   useEffect(() => {
     if (token || !GOOGLE_CLIENT_ID) return;
+
     const w = window as any;
     const initGoogle = () => {
       if (!w.google?.accounts?.id) return;
