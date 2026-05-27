@@ -1,13 +1,13 @@
-function escapeHtml(str: string): string {
+export function escapeHtml(str: string): string {
 	return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-function isWeekend(dateStr: string): boolean {
+export function isWeekend(dateStr: string): boolean {
 	const d = new Date(dateStr + 'T00:00:00');
 	return d.getDay() === 0 || d.getDay() === 6;
 }
 
-function decodeJwtPayload(token: string): any {
+export function decodeJwtPayload(token: string): any {
   try {
     const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
     return JSON.parse(atob(base64));
@@ -15,7 +15,7 @@ function decodeJwtPayload(token: string): any {
 }
 
 // ===== Simple Markdown Renderer =====
-function renderMarkdown(md: string): string {
+export function renderMarkdown(md: string): string {
   let html = md
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
     // Headers
@@ -45,5 +45,3 @@ function renderMarkdown(md: string): string {
     .replace(/\n/g, '<br/>');
   return '<p class="my-1">' + html + '</p>';
 }
-
-export { escapeHtml, isWeekend, decodeJwtPayload, renderMarkdown };

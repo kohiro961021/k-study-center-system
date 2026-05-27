@@ -7,9 +7,6 @@ import { View, AnnouncementData, SeatData, Reservation, AdminReservation, Histor
 import SeatMap, { SeatLegend } from './components/SeatMap';
 
 import { escapeHtml, isWeekend, decodeJwtPayload, renderMarkdown } from './utils/helper';
-
-
-
 const API_BASE = '';
 const KLIB_KEY = 'Fs2026-KLib-9xmP7nQr2vBs-FsSh';
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
@@ -132,6 +129,7 @@ export default function App() {
 				handleLogout();
 				return;
 			}
+
 			const admin = payload?.admin === true;
 
 			setIsAdmin(admin);
@@ -172,7 +170,8 @@ export default function App() {
 			if (!res.ok) throw new Error(data.detail);
 			
 			localStorage.setItem('token', data.access_token); setToken(data.access_token);
-		} catch (err: any) { setError(err.message); } finally { setLoading(false); }
+		} catch (err: any) { setError(err.message); 
+		} finally { setLoading(false); }
 	};
 
 	// Google Sign-In: render official button into a container div
@@ -186,7 +185,8 @@ export default function App() {
 			w.google.accounts.id.initialize({
 				client_id: GOOGLE_CLIENT_ID,
 				callback: async (response: any) => {
-				setLoading(true); setError(null);
+					setLoading(true); setError(null);
+
 					try {
 						const data = await apiCall('/api/auth/google', 'POST', { credential: response.credential });
 						localStorage.setItem('token', data.access_token); setToken(data.access_token);
@@ -416,687 +416,773 @@ export default function App() {
 			} catch (err: any) { setAdminMessage(`無法取得出席名單: ${err.message}`); }
 	};
 
-  const handleSeatStatus = async (seatId: number, newStatus: 'maintenance' | 'available') => {
-    const action = newStatus === 'maintenance' ? '設為維修中（會自動取消該座位未來的所有預約）' : '恢復為可用';
-    if (!window.confirm(`確定要${action}嗎？`)) return;
-    try {
-      const result = await apiCall(`/api/admin/seats/${seatId}/status`, 'PUT', { status: newStatus });
+	const handleSeatStatus = async (seatId: number, newStatus: 'maintenance' | 'available') => {
+		const action = newStatus === 'maintenance' ? '設為維修中（會自動取消該座位未來的所有預約）' : '恢復為可用';
+		if (!window.confirm(`確定要${action}嗎？`)) return;
+		try {
+			const result = await apiCall(`/api/admin/seats/${seatId}/status`, 'PUT', { status: newStatus });
 
-      setAdminMessage(result.message);
-      fetchSeats();
-      fetchAvailability();
-      fetchAdminReservations();
-    } catch (err: any) { setAdminMessage(`操作失敗: ${err.message}`); }
-  };
+			setAdminMessage(result.message);
+			fetchSeats();
+			fetchAvailability();
+			fetchAdminReservations();
+		} catch (err: any) { setAdminMessage(`操作失敗: ${err.message}`); }
+	};
 
 
-  const formatTime = (d: Date) => d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-  const formatDate = (d: Date) => d.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' });
+  	const formatTime = (d: Date) => d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  	const formatDate = (d: Date) => d.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' });
 
-  // ═══════════ Login Page ═══════════
-  if (!token) {
-    return (
-      <div className="min-h-screen bg-page noise-bg p-4">
+  	// ═══════════ Login Page ═══════════
+	if (!token) {
+		return (
+			<div className="min-h-screen bg-page noise-bg p-4">
 
-        {/* Clock bar + theme toggle */}
-        <div className="flex justify-center items-center gap-3 mb-6 pt-4">
-          <div className="inline-flex items-center gap-2 bg-card/80 glass-card rounded-full px-6 py-2 shadow-sm border border-slate-200">
-            <Clock className="w-4 h-4 text-accent" />
-            <span className="text-sm font-medium text-slate-700">{formatDate(currentTime)}</span>
-            <span className="text-lg font-bold text-accent font-mono">{formatTime(currentTime)}</span>
-          </div>
-          <button onClick={toggleTheme} className="p-2.5 rounded-full bg-card/80 glass-card border border-slate-200 shadow-sm text-slate-600 hover:text-accent transition" title={theme === 'dark' ? '切換淺色模式' : '切換深色模式'}>
-            {theme === 'dark' ? <Sun className="w-4 h-4 theme-toggle-icon" /> : <Moon className="w-4 h-4 theme-toggle-icon" />}
-          </button>
-        </div>
+				{/* Clock bar + theme toggle */}
+				<div className="flex justify-center items-center gap-3 mb-6 pt-4">
+					<div className="inline-flex items-center gap-2 bg-card/80 glass-card rounded-full px-6 py-2 shadow-sm border border-slate-200">
+						<Clock className="w-4 h-4 text-accent" />
+						<span className="text-sm font-medium text-slate-700">{formatDate(currentTime)}</span>
+						<span className="text-lg font-bold text-accent font-mono">{formatTime(currentTime)}</span>
+					</div>
+					<button onClick={toggleTheme} className="p-2.5 rounded-full bg-card/80 glass-card border border-slate-200 shadow-sm text-slate-600 hover:text-accent transition" title={theme === 'dark' ? '切換淺色模式' : '切換深色模式'}>
+						{theme === 'dark' ? <Sun className="w-4 h-4 theme-toggle-icon" /> : <Moon className="w-4 h-4 theme-toggle-icon" />}
+					</button>
+				</div>
 
-		{/* Login form */}
-        <div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto items-start justify-center">
+				{/* Login form */}
+				<div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto items-start justify-center">
 
-          <div className="w-full max-w-md bg-card/80 glass-card rounded-2xl shadow-xl p-8 border border-slate-200">
-            <div className="flex items-center gap-3 mb-8">
-              <img src="/fssh-badge.png" alt="鳳山高中校徽" className="w-12 h-12 drop-shadow-md" />
-              <h1 className="text-2xl font-bold text-slate-900">鳳山高中 K書中心</h1>
-            </div>
+					<div className="w-full max-w-md bg-card/80 glass-card rounded-2xl shadow-xl p-8 border border-slate-200">
+						<div className="flex items-center gap-3 mb-8">
+							<img src="/fssh-badge.png" alt="鳳山高中校徽" className="w-12 h-12 drop-shadow-md" />
+							<h1 className="text-2xl font-bold text-slate-900">鳳山高中 K書中心</h1>
+						</div>
 
-            {GOOGLE_CLIENT_ID && (
-              <div className="mb-4">
-                <div id="google-signin-btn" className="flex justify-center" />
-              </div>
-            )}
+						{GOOGLE_CLIENT_ID && (
+							<div className="mb-4">
+								<div id="google-signin-btn" className="flex justify-center" />
+							</div>
+						)}
 
-            {GOOGLE_CLIENT_ID && <div className="text-center text-xs text-slate-400 mb-4">── 或使用帳號密碼 ──</div>}
+						{GOOGLE_CLIENT_ID && <div className="text-center text-xs text-slate-400 mb-4">── 或使用帳號密碼 ──</div>}
 
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">學號</label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} required placeholder="輸入學號" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
-                </div>
-              </div>
+						<form onSubmit={handleLogin} className="space-y-4">
+							<div className="space-y-1">
+								<label className="text-sm font-medium text-slate-700">學號</label>
+								<div className="relative">
+									<User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+									<input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} required placeholder="輸入學號" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
+								</div>
+							</div>
 
-              <div className="space-y-1">
-                <label className="text-sm font-medium text-slate-700">密碼</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="輸入密碼" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
-                </div>
-              </div>
+							<div className="space-y-1">
+								<label className="text-sm font-medium text-slate-700">密碼</label>
+								<div className="relative">
+									<Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+									<input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="輸入密碼" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
+								</div>
+							</div>
 
-              {error && <div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{error}</div>}
+							{error && 
+								<div className="p-3 bg-red-50 text-red-600 text-sm rounded-lg flex items-center gap-2">
+									<AlertCircle className="w-4 h-4" />{error}
+								</div>
+							}
 
-              <button type="submit" disabled={loading} className="w-full bg-accent hover:bg-accent-hover text-[#fff] font-bold py-2.5 px-4 rounded-lg disabled:opacity-50 transition shadow-md hover:shadow-lg">
-                {loading ? '登入中...' : '登入'}
-              </button>
-            </form>
+							<button type="submit" disabled={loading} className="w-full bg-accent hover:bg-accent-hover text-[#fff] font-bold py-2.5 px-4 rounded-lg disabled:opacity-50 transition shadow-md hover:shadow-lg">
+								{loading ? '登入中...' : '登入'}
+							</button>
+						</form>
 
-          </div>
+					</div>
 
-          {/* Announcements on login page */}
-          {announcements.length > 0 && (
-            <div className="w-full max-w-md bg-card/80 glass-card rounded-2xl shadow-xl p-6 border border-slate-200">
+					{/* Announcements on login page */}
+					{announcements.length > 0 && (
+						<div className="w-full max-w-md bg-card/80 glass-card rounded-2xl shadow-xl p-6 border border-slate-200">
 
-              <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
-                <Megaphone className="w-5 h-5 text-amber-500" />公告欄
-              </h2>
+							<h2 className="text-lg font-bold text-slate-900 flex items-center gap-2 mb-4">
+								<Megaphone className="w-5 h-5 text-amber-500" />公告欄
+							</h2>
 
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-                {announcements.slice(0, 5).map(ann => (
-                  <div key={ann.id} className={`rounded-xl p-4 border ${ann.is_pinned ? 'bg-amber-50/80 border-amber-200' : 'bg-slate-50/80 border-slate-200'}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      {ann.is_pinned && <Pin className="w-3.5 h-3.5 text-amber-500" />}
-                      <span className="font-bold text-sm text-slate-900">{ann.title}</span>
-                    </div>
-                    <div className="text-xs text-slate-500 mb-2">{ann.author_name} · {ann.created_at}</div>
-                    <div className="prose-sm text-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+							<div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
+								{announcements.slice(0, 5).map(ann => (
+									<div key={ann.id} className={`rounded-xl p-4 border ${ann.is_pinned ? 'bg-amber-50/80 border-amber-200' : 'bg-slate-50/80 border-slate-200'}`}>
+										<div className="flex items-center gap-2 mb-1">
+											{ann.is_pinned && <Pin className="w-3.5 h-3.5 text-amber-500" />}
+											<span className="font-bold text-sm text-slate-900">{ann.title}</span>
+										</div>
+										<div className="text-xs text-slate-500 mb-2">{ann.author_name} · {ann.created_at}</div>
+										<div className="prose-sm text-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
+									</div>
+								))}
+							</div>
+						</div>
+					)}
 
-        </div>
+				</div>
+			</div>
+		);
+	}
 
-      </div>
-    );
-  }
+  	// ═══════════ Main App ═══════════
+  	return (
+		<div className="min-h-screen bg-page noise-bg font-sans">
+		{/* Nav */}
+		<nav className="bg-nav/85 glass-card border-b border-slate-200 sticky top-0 z-20 shadow-sm">
+			<div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
 
-  // ═══════════ Main App ═══════════
-  return (
-    <div className="min-h-screen bg-page noise-bg font-sans">
-      {/* Nav */}
-      <nav className="bg-nav/85 glass-card border-b border-slate-200 sticky top-0 z-20 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3 font-bold text-slate-900">
-            <div className="flex items-center gap-2">
-              <img src="/fssh-badge.png" alt="校徽" className="w-7 h-7" />
-              <span className="hidden sm:inline">K書中心{isAdmin ? '管理後台' : '預約系統'}</span>
-            </div>
-            <div className="hidden md:flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-3 py-1">
-              <Clock className="w-3.5 h-3.5 text-slate-400" />
-              <span>{formatDate(currentTime)}</span>
-              <span className="font-bold text-accent font-mono">{formatTime(currentTime)}</span>
-            </div>
-          </div>
-          <div className="flex items-center gap-1 text-sm">
-            {isAdmin ? (<>
-              <button onClick={() => setView('admin-reservations')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-reservations' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><Calendar className="w-4 h-4 inline mr-1" />預約</button>
-              <button onClick={() => setView('admin-attendance')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-attendance' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><ClipboardList className="w-4 h-4 inline mr-1" />出席</button>
-              <button onClick={() => setView('admin-seats')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-seats' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><MessageSquare className="w-4 h-4 inline mr-1" />座位</button>
-              <button onClick={() => setView('admin-notes')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-notes' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><FileText className="w-4 h-4 inline mr-1" />註記</button>
-              <button onClick={() => setView('admin-users')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-users' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><Users className="w-4 h-4 inline mr-1" />學生</button>
-              <button onClick={() => setView('admin-announcements')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-announcements' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><Megaphone className="w-4 h-4 inline mr-1" />公告</button>
-            </>) : (<>
-              <button onClick={() => setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>我的預約</button>
-              <button onClick={() => setView('history')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'history' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}><History className="w-4 h-4 inline mr-1" />歷史紀錄</button>
-              <button onClick={() => setView('reserve')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'reserve' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>預約座位</button>
-              <button onClick={() => setView('announcements')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'announcements' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}><Megaphone className="w-4 h-4 inline mr-1" />公告</button>
-            </>)}
-            <button onClick={toggleTheme} className="ml-1 p-1.5 rounded-lg hover:bg-slate-100 transition text-slate-600" title={theme === 'dark' ? '切換淺色模式' : '切換深色模式'}>
-              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <button onClick={handleLogout} className="ml-1 text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition"><LogOut className="w-4 h-4" /></button>
-          </div>
-        </div>
-      </nav>
+				<div className="flex items-center gap-3 font-bold text-slate-900">
+					<div className="flex items-center gap-2">
+						<img src="/fssh-badge.png" alt="校徽" className="w-7 h-7" />
+						<span className="hidden sm:inline">K書中心{isAdmin ? '管理後台' : '預約系統'}</span>
+					</div>
 
-      <main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
+					<div className="hidden md:flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-3 py-1">
+						<Clock className="w-3.5 h-3.5 text-slate-400" />
+						<span>{formatDate(currentTime)}</span>
+						<span className="font-bold text-accent font-mono">{formatTime(currentTime)}</span>
+					</div>
+				</div>
 
-        {/* ===== Admin: Reservation Management ===== */}
-        {view === 'admin-reservations' && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Calendar className="w-6 h-6 text-amber-600" />全部預約紀錄</h2>
-              <div className="flex items-center gap-2">
-                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
-                <button onClick={handlePrintAttendance} className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><Printer className="w-4 h-4" />列印出席名單</button>
-                <button onClick={fetchAdminReservations} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
-              </div>
-            </div>
-            {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
-            {/* Search bar */}
-            <div className="flex items-center gap-2 bg-card/80 glass-card border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
-              <Search className="w-4 h-4 text-slate-400 shrink-0" />
-              <input
-                type="text"
-                value={reservationSearch}
-                onChange={e => setReservationSearch(e.target.value)}
-                placeholder="搜尋學號、姓名、座位、日期..."
-                className="flex-1 outline-none text-sm bg-transparent placeholder-slate-400"
-              />
-              {reservationSearch && (
-                <button onClick={() => setReservationSearch('')} className="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
-              )}
-            </div>
-            {allReservations.length === 0 ? (
-              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有任何預約紀錄</div>
-            ) : (
-              <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'student_id') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('student_id'); setSortDir('asc'); } }}>學號 {sortKey === 'student_id' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'seat_label') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('seat_label'); setSortDir('asc'); } }}>座位 {sortKey === 'seat_label' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'res_date') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('res_date'); setSortDir('desc'); } }}>日期 {sortKey === 'res_date' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                      <th className="px-4 py-3 text-center font-bold text-slate-700">出席</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'created_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('created_at'); setSortDir('desc'); } }}>建立時間 {sortKey === 'created_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'updated_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('updated_at'); setSortDir('desc'); } }}>最後修改 {sortKey === 'updated_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                      <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {[...allReservations]
-                      .filter(res => {
-                        if (!reservationSearch.trim()) return true;
-                        const q = reservationSearch.trim().toLowerCase();
-                        return (
-                          res.student_id.toLowerCase().includes(q) ||
-                          res.student_name.toLowerCase().includes(q) ||
-                          res.seat_label.toLowerCase().includes(q) ||
-                          res.res_date.includes(q)
-                        );
-                      })
-                      .sort((a, b) => { const av = (a as any)[sortKey] || ''; const bv = (b as any)[sortKey] || ''; return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av)); }).map(res => (
-                      <tr key={res.id} className="hover:bg-slate-50 transition">
-                        <td className="px-4 py-3 text-accent font-medium">{res.student_id}</td>
-                        <td className="px-4 py-3 text-slate-600">{res.student_name}</td>
-                        <td className="px-4 py-3 font-bold">{res.seat_label}</td>
-                        <td className="px-4 py-3 text-slate-600">{res.res_date}</td>
-                        <td className="px-4 py-3 text-center">
-                          {res.attendance_status === 'present' && <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
-                          {res.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 text-red-500 font-bold text-xs"><XCircle className="w-3.5 h-3.5" />未到</span>}
-                          {!res.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
-                        </td>
-                        <td className="px-4 py-3 text-slate-500 text-xs">{res.created_at || '-'}</td>
-                        <td className="px-4 py-3 text-slate-500 text-xs">{res.updated_at || '-'}</td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center gap-1 justify-end">
-                            <button onClick={() => handleUpdateAttendance(res.id, 'present')} className="text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 text-xs font-bold transition" title="有到"><CheckCircle className="w-3 h-3" /></button>
-                            <button onClick={() => handleUpdateAttendance(res.id, 'absent')} className="text-orange-500 hover:bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 text-xs font-bold transition" title="未到"><XCircle className="w-3 h-3" /></button>
-                            <button onClick={() => handleAdminCancelReservation(res.id)} className="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg border border-red-200 text-xs font-bold transition" title="取消預約"><Trash2 className="w-3 h-3" /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+				<div className="flex items-center gap-1 text-sm">
+					{isAdmin ? (
+						<>
+							<button onClick={() => setView('admin-reservations')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-reservations' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><Calendar className="w-4 h-4 inline mr-1" />預約</button>
+							<button onClick={() => setView('admin-attendance')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-attendance' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><ClipboardList className="w-4 h-4 inline mr-1" />出席</button>
+							<button onClick={() => setView('admin-seats')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-seats' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><MessageSquare className="w-4 h-4 inline mr-1" />座位</button>
+							<button onClick={() => setView('admin-notes')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-notes' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><FileText className="w-4 h-4 inline mr-1" />註記</button>
+							<button onClick={() => setView('admin-users')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-users' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><Users className="w-4 h-4 inline mr-1" />學生</button>
+							<button onClick={() => setView('admin-announcements')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'admin-announcements' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}><Megaphone className="w-4 h-4 inline mr-1" />公告</button>
+						</>
+					) : (
+						<>
+							<button onClick={() => setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'dashboard' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>我的預約</button>
+							<button onClick={() => setView('history')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'history' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}><History className="w-4 h-4 inline mr-1" />歷史紀錄</button>
+							<button onClick={() => setView('reserve')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'reserve' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>預約座位</button>
+							<button onClick={() => setView('announcements')} className={`px-3 py-1.5 rounded-lg font-medium transition ${view === 'announcements' ? 'bg-slate-100 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}><Megaphone className="w-4 h-4 inline mr-1" />公告</button>
+						</>
+					)}
 
-        {/* ===== Admin: Daily Attendance ===== */}
-        {view === 'admin-attendance' && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><ClipboardList className="w-6 h-6 text-amber-600" />每日出席狀況</h2>
-              <div className="flex items-center gap-2">
-                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
-                <button onClick={handlePrintAttendance} className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><Printer className="w-4 h-4" />列印</button>
-                <button onClick={fetchAttendanceList} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
-              </div>
-            </div>
-            {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
+					<button onClick={toggleTheme} className="ml-1 p-1.5 rounded-lg hover:bg-slate-100 transition text-slate-600" title={theme === 'dark' ? '切換淺色模式' : '切換深色模式'}>
+						{theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+					</button>
 
-            {/* Summary cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="bg-card/70 glass-card rounded-xl border border-slate-200 p-4 text-center">
-                <div className="text-2xl font-bold text-accent">{attendanceList.length}</div>
-                <div className="text-xs text-slate-500 mt-1">總預約人數</div>
-              </div>
-              <div className="bg-emerald-50/70 backdrop-blur rounded-xl border border-emerald-200 p-4 text-center">
-                <div className="text-2xl font-bold text-emerald-600">{attendanceList.filter(a => a.attendance_status === 'present').length}</div>
-                <div className="text-xs text-emerald-600 mt-1">✅ 有到</div>
-              </div>
-              <div className="bg-red-50/70 backdrop-blur rounded-xl border border-red-200 p-4 text-center">
-                <div className="text-2xl font-bold text-red-500">{attendanceList.filter(a => a.attendance_status === 'absent').length}</div>
-                <div className="text-xs text-red-500 mt-1">❌ 未到</div>
-              </div>
-              <div className="bg-slate-50/70 backdrop-blur rounded-xl border border-slate-200 p-4 text-center">
-                <div className="text-2xl font-bold text-slate-500">{attendanceList.filter(a => !a.attendance_status).length}</div>
-                <div className="text-xs text-slate-500 mt-1">⏳ 未點名</div>
-              </div>
-            </div>
+					<button onClick={handleLogout} className="ml-1 text-red-500 hover:bg-red-50 p-1.5 rounded-lg transition"><LogOut className="w-4 h-4" /></button>
+				</div>
+			</div>
+		</nav>
 
-            {attendanceList.length === 0 ? (
-              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">該日期沒有任何預約</div>
-            ) : (
-              <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">學號</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
-                      <th className="px-4 py-3 text-center font-bold text-slate-700">出席狀態</th>
-                      <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {attendanceList.map(entry => (
-                      <tr key={entry.id} className={`transition ${entry.attendance_status === 'present' ? 'bg-emerald-50/30' : entry.attendance_status === 'absent' ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
-                        <td className="px-4 py-3 font-bold">{entry.seat_label}</td>
-                        <td className="px-4 py-3 text-slate-600">{entry.zone}</td>
-                        <td className="px-4 py-3 text-slate-600">{entry.building}</td>
-                        <td className="px-4 py-3 text-accent font-medium">{entry.student_id}</td>
-                        <td className="px-4 py-3 text-slate-600">{entry.student_name}</td>
-                        <td className="px-4 py-3 text-center">
-                          {entry.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
-                          {entry.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold"><XCircle className="w-3.5 h-3.5" />未到</span>}
-                          {!entry.attendance_status && <span className="text-slate-400 text-xs">⏳ 未點名</span>}
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <div className="flex items-center gap-1 justify-end">
-                            <button onClick={() => handleUpdateAttendance(entry.id, 'present')} className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${entry.attendance_status === 'present' ? 'bg-emerald-500 text-white' : 'text-emerald-600 hover:bg-emerald-50 border border-emerald-200'}`}><CheckCircle className="w-3 h-3" />有到</button>
-                            <button onClick={() => handleUpdateAttendance(entry.id, 'absent')} className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${entry.attendance_status === 'absent' ? 'bg-red-500 text-white' : 'text-red-500 hover:bg-red-50 border border-red-200'}`}><XCircle className="w-3 h-3" />未到</button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+		<main className="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-        {/* ===== Admin: Notes List ===== */}
-        {view === 'admin-notes' && (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><FileText className="w-6 h-6 text-amber-600" />座位註記總覽</h2>
-              <button onClick={fetchNotesList} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
-            </div>
-            {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
+			{/* ===== Admin: Reservation Management ===== */}
+			{view === 'admin-reservations' && (
+				<div className="space-y-4">
+					<div className="flex flex-wrap items-center justify-between gap-3">
+						<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Calendar className="w-6 h-6 text-amber-600" />全部預約紀錄</h2>
+						<div className="flex items-center gap-2">
+							<input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
+							<button onClick={handlePrintAttendance} className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><Printer className="w-4 h-4" />列印出席名單</button>
+							<button onClick={fetchAdminReservations} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+						</div>
+					</div>
 
-            {notesList.length === 0 ? (
-              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有任何座位有註記</div>
-            ) : (
-              <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
-                <div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm text-slate-600 font-medium">共 {notesList.length} 個座位有註記</div>
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">座位號碼</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">註記內容</th>
-                      <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {notesList.map(n => (
-                      <tr key={n.id} className="hover:bg-slate-50 transition">
-                        <td className="px-4 py-3 font-bold text-accent">{n.seat_number}</td>
-                        <td className="px-4 py-3 text-slate-600">{n.zone}</td>
-                        <td className="px-4 py-3 text-slate-600">{n.building}</td>
-                        <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs"><MessageSquare className="w-3 h-3" />{n.note}</span>
-                        </td>
-                        <td className="px-4 py-3 text-right">
-                          <button onClick={() => { const seat = seats.find(s => s.id === n.id); if (seat) { setEditingSeatNote(seat); setNoteText(seat.note || ''); } }} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Edit3 className="w-3 h-3 inline mr-1" />編輯</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+					{adminMessage && 
+						<div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
+							<span>{adminMessage}</span>
+							<button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button>
+						</div>
+					}
 
-        {/* ===== Admin: Seat Map with Notes ===== */}
-        {view === 'admin-seats' && (
-          <div className="space-y-4">
+					{/* Search bar */}
+					<div className="flex items-center gap-2 bg-card/80 glass-card border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
+						<Search className="w-4 h-4 text-slate-400 shrink-0" />
+						<input
+							type="text"
+							value={reservationSearch}
+							onChange={e => setReservationSearch(e.target.value)}
+							placeholder="搜尋學號、姓名、座位、日期..."
+							className="flex-1 outline-none text-sm bg-transparent placeholder-slate-400"
+						/>
+						{reservationSearch && (
+							<button onClick={() => setReservationSearch('')} className="text-slate-400 hover:text-slate-600 text-xs font-bold">✕</button>
+						)}
+					</div>
 
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              
-			  <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><MessageSquare className="w-6 h-6 text-amber-600" />座位地圖管理</h2>
-              <div className="flex items-center gap-2">
-                <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
-                <button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
-              </div>
-            </div>
+					{allReservations.length === 0 ? (
+						<div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有任何預約紀錄</div>
+					) : (
+						<div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
+							<table className="w-full text-sm">
+								<thead className="bg-slate-50 border-b border-slate-200">
+									<tr>
+										<th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'student_id') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('student_id'); setSortDir('asc'); } }}>學號 {sortKey === 'student_id' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+										<th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
+										<th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'seat_label') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('seat_label'); setSortDir('asc'); } }}>座位 {sortKey === 'seat_label' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+										<th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'res_date') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('res_date'); setSortDir('desc'); } }}>日期 {sortKey === 'res_date' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+										<th className="px-4 py-3 text-center font-bold text-slate-700">出席</th>
+										<th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'created_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('created_at'); setSortDir('desc'); } }}>建立時間 {sortKey === 'created_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+										<th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'updated_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('updated_at'); setSortDir('desc'); } }}>最後修改 {sortKey === 'updated_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+										<th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
+									</tr>
+								</thead>
+			
+								<tbody className="divide-y divide-slate-100">
+									{[...allReservations].filter(res => {
+										if (!reservationSearch.trim()) return true;
 
-			{adminMessage && (
-				<div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
-					<span>{adminMessage}</span>
-					<button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button>
+										const q = reservationSearch.trim().toLowerCase();
+
+										return (
+											res.student_id.toLowerCase().includes(q) ||
+											res.student_name.toLowerCase().includes(q) ||
+											res.seat_label.toLowerCase().includes(q) ||
+											res.res_date.includes(q)
+										);
+									}).sort((a, b) => { 
+										const av = (a as any)[sortKey] || ''; 
+										const bv = (b as any)[sortKey] || '';
+
+										return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av)); 
+									}).map(res => (
+										<tr key={res.id} className="hover:bg-slate-50 transition">
+											<td className="px-4 py-3 text-accent font-medium">{res.student_id}</td>
+											<td className="px-4 py-3 text-slate-600">{res.student_name}</td>
+											<td className="px-4 py-3 font-bold">{res.seat_label}</td>
+											<td className="px-4 py-3 text-slate-600">{res.res_date}</td>
+											<td className="px-4 py-3 text-center">
+												{res.attendance_status === 'present' && <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
+												{res.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 text-red-500 font-bold text-xs"><XCircle className="w-3.5 h-3.5" />未到</span>}
+												{!res.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
+											</td>
+
+											<td className="px-4 py-3 text-slate-500 text-xs">{res.created_at || '-'}</td>
+											<td className="px-4 py-3 text-slate-500 text-xs">{res.updated_at || '-'}</td>
+
+											<td className="px-4 py-3 text-right">
+												<div className="flex items-center gap-1 justify-end">
+													<button onClick={() => handleUpdateAttendance(res.id, 'present')} className="text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 text-xs font-bold transition" title="有到"><CheckCircle className="w-3 h-3" /></button>
+													<button onClick={() => handleUpdateAttendance(res.id, 'absent')} className="text-orange-500 hover:bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 text-xs font-bold transition" title="未到"><XCircle className="w-3 h-3" /></button>
+													<button onClick={() => handleAdminCancelReservation(res.id)} className="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg border border-red-200 text-xs font-bold transition" title="取消預約"><Trash2 className="w-3 h-3" /></button>
+												</div>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					)}
 				</div>
 			)}
 
-			<SeatLegend />
+			{/* ===== Admin: Daily Attendance ===== */}
+			{view === 'admin-attendance' && (
+				<div className="space-y-4">
+					<div className="flex flex-wrap items-center justify-between gap-3">
+						<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+							<ClipboardList className="w-6 h-6 text-amber-600" />每日出席狀況
+						</h2>
 
-            <div className="flex gap-2 mb-2">
-              <button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>新館</button>
-              <button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>舊館</button>
-            </div>
+						<div className="flex items-center gap-2">
+							<input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
+							<button onClick={handlePrintAttendance} className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><Printer className="w-4 h-4" />列印</button>
+							<button onClick={fetchAttendanceList} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+						</div>
+					</div>
 
-            <div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
-                <SeatMap
-					isAdminView={true}
-					selectedBuilding={selectedBuilding}
-					seats={seats}
-					bookedSeatIds={bookedSeatIds}
-					selectedDate={selectedDate}
-					allReservations={allReservations}
-					setEditingSeatNote={setEditingSeatNote}
-					setNoteText={setNoteText}
-					setAdminReserveSeatId={setAdminReserveSeatId}
-					setAdminReserveStudentId={setAdminReserveStudentId}
-					setAdminReserveDate={setAdminReserveDate}
-					setShowAdminReserve={setShowAdminReserve}
-					handleUpdateAttendance={handleUpdateAttendance}
-					handleSeatStatus={handleSeatStatus}
-					handleReserve={handleReserve}
-              	/>
-            </div>
+					{adminMessage && 
+						<div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
+							<span>{adminMessage}</span>
+							<button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button>
+						</div>
+					}
 
-          </div>
-        )}
+					{/* Summary cards */}
+					<div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+						<div className="bg-card/70 glass-card rounded-xl border border-slate-200 p-4 text-center">
+							<div className="text-2xl font-bold text-accent">{attendanceList.length}</div>
+							<div className="text-xs text-slate-500 mt-1">總預約人數</div>
+						</div>
+						<div className="bg-emerald-50/70 backdrop-blur rounded-xl border border-emerald-200 p-4 text-center">
+							<div className="text-2xl font-bold text-emerald-600">{attendanceList.filter(a => a.attendance_status === 'present').length}</div>
+							<div className="text-xs text-emerald-600 mt-1">✅ 有到</div>
+						</div>
+						<div className="bg-red-50/70 backdrop-blur rounded-xl border border-red-200 p-4 text-center">
+							<div className="text-2xl font-bold text-red-500">{attendanceList.filter(a => a.attendance_status === 'absent').length}</div>
+							<div className="text-xs text-red-500 mt-1">❌ 未到</div>
+						</div>
+						<div className="bg-slate-50/70 backdrop-blur rounded-xl border border-slate-200 p-4 text-center">
+							<div className="text-2xl font-bold text-slate-500">{attendanceList.filter(a => !a.attendance_status).length}</div>
+							<div className="text-xs text-slate-500 mt-1">⏳ 未點名</div>
+						</div>
+					</div>
 
-        {/* ===== Admin: User Management ===== */}
-        {view === 'admin-users' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Users className="w-6 h-6 text-amber-600" />學生帳號管理</h2>
-            {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
-            <div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Key className="w-5 h-5 text-amber-600" /> 重設學生密碼</h3>
-              <div className="flex flex-wrap gap-3 items-end">
-                <div className="flex-1 min-w-[180px] space-y-1"><label className="text-sm font-medium text-slate-600">學號</label><input type="text" value={resetStudentId} onChange={e => setResetStudentId(e.target.value)} placeholder="輸入學號" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" /></div>
-                <div className="flex-1 min-w-[180px] space-y-1"><label className="text-sm font-medium text-slate-600">新密碼</label><input type="text" value={resetNewPassword} onChange={e => setResetNewPassword(e.target.value)} placeholder="輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" /></div>
-                <button onClick={() => handleResetPassword()} className="bg-amber-500 hover:bg-amber-400 text-white font-bold px-6 py-2 rounded-lg transition"><Key className="w-4 h-4 inline mr-1" />重設</button>
-              </div>
-            </div>
-            <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
-              <div className="p-4 border-b border-slate-200 flex items-center gap-3"><Search className="w-4 h-4 text-slate-400" /><input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="搜尋學號..." className="flex-1 outline-none text-sm bg-transparent" /></div>
-              <table className="w-full text-sm">
-                <thead className="bg-slate-50 border-b border-slate-200"><tr><th className="px-4 py-3 text-left font-bold text-slate-700">學號</th><th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th><th className="px-4 py-3 text-right font-bold text-slate-700">操作</th></tr></thead>
-                <tbody className="divide-y divide-slate-100">
-                  {allUsers.filter(u => u.student_id.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
-                    <tr key={u.id} className="hover:bg-slate-50 transition">
-                      <td className="px-4 py-3 text-accent font-medium">{u.student_id}</td>
-                      <td className="px-4 py-3 text-slate-600">{u.name || '未填寫'}</td>
-                      <td className="px-4 py-3 text-right"><button onClick={() => handleResetPassword(u.student_id)} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Key className="w-3 h-3 inline mr-1" />重設密碼</button></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+					{attendanceList.length === 0 ? (
+						<div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">該日期沒有任何預約</div>
+					) : (
+						<div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
+							<table className="w-full text-sm">
+								<thead className="bg-slate-50 border-b border-slate-200">
+									<tr>
+										<th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
+										<th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
+										<th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
+										<th className="px-4 py-3 text-left font-bold text-slate-700">學號</th>
+										<th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
+										<th className="px-4 py-3 text-center font-bold text-slate-700">出席狀態</th>
+										<th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
+									</tr>
+								</thead>
+								<tbody className="divide-y divide-slate-100">
+									{attendanceList.map(entry => (
+										<tr key={entry.id} className={`transition ${entry.attendance_status === 'present' ? 'bg-emerald-50/30' : entry.attendance_status === 'absent' ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
+											<td className="px-4 py-3 font-bold">{entry.seat_label}</td>
+											<td className="px-4 py-3 text-slate-600">{entry.zone}</td>
+											<td className="px-4 py-3 text-slate-600">{entry.building}</td>
+											<td className="px-4 py-3 text-accent font-medium">{entry.student_id}</td>
+											<td className="px-4 py-3 text-slate-600">{entry.student_name}</td>
+											<td className="px-4 py-3 text-center">
+												{entry.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
+												{entry.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold"><XCircle className="w-3.5 h-3.5" />未到</span>}
+												{!entry.attendance_status && <span className="text-slate-400 text-xs">⏳ 未點名</span>}
+											</td>
+											<td className="px-4 py-3 text-right">
 
-            {/* Admin change own password */}
-            <div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
-              <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><KeyRound className="w-5 h-5 text-indigo-600" /> 修改管理員密碼</h3>
-              <div className="flex flex-wrap gap-3 items-end">
-                <div className="flex-1 min-w-[160px] space-y-1">
-                  <label className="text-sm font-medium text-slate-600">舊密碼</label>
-                  <input type="password" value={adminOldPw} onChange={e => setAdminOldPw(e.target.value)} placeholder="輸入目前密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
-                </div>
-                <div className="flex-1 min-w-[160px] space-y-1">
-                  <label className="text-sm font-medium text-slate-600">新密碼</label>
-                  <input type="password" value={adminNewPw} onChange={e => setAdminNewPw(e.target.value)} placeholder="輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
-                </div>
-                <div className="flex-1 min-w-[160px] space-y-1">
-                  <label className="text-sm font-medium text-slate-600">確認新密碼</label>
-                  <input type="password" value={adminConfirmPw} onChange={e => setAdminConfirmPw(e.target.value)} placeholder="再次輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
-                </div>
-                <button onClick={handleAdminChangePassword} className="bg-accent hover:bg-accent-hover text-[#fff] font-bold px-6 py-2 rounded-lg transition flex items-center gap-1"><KeyRound className="w-4 h-4" />修改密碼</button>
-              </div>
-              {adminNewPw && adminConfirmPw && adminNewPw !== adminConfirmPw && (
-                <div className="mt-2 text-sm text-red-500 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />兩次輸入的新密碼不一致</div>
-              )}
-            </div>
-          </div>
-        )}
+											<div className="flex items-center gap-1 justify-end">
+												<button onClick={() => handleUpdateAttendance(entry.id, 'present')} className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${entry.attendance_status === 'present' ? 'bg-emerald-500 text-white' : 'text-emerald-600 hover:bg-emerald-50 border border-emerald-200'}`}><CheckCircle className="w-3 h-3" />有到</button>
+												<button onClick={() => handleUpdateAttendance(entry.id, 'absent')} className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${entry.attendance_status === 'absent' ? 'bg-red-500 text-white' : 'text-red-500 hover:bg-red-50 border border-red-200'}`}><XCircle className="w-3 h-3" />未到</button>
+											</div>
+											</td>
+										</tr>
+									))}
+								</tbody>
+							</table>
+						</div>
+					)}
+				</div>
+			)}
 
-        {/* ===== Student: Dashboard ===== */}
-        {view === 'dashboard' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900">我的預約紀錄</h2>
-            {myReservations.length === 0 ? (
-              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有預約，快去搶位子吧！</div>
-            ) : (
-              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {myReservations.map(res => {
-                  const seat = seats.find(s => s.id === res.seat_id);
-                  return (
-                    <div key={res.id} className="bg-card/70 glass-card p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-start">
-                      <div>
-                        <div className="text-lg font-bold text-accent mb-1">座位 {seat?.label || `#${res.seat_id}`}</div>
-                        {seat && <div className="text-xs text-slate-500 mb-2">{seat.building} · {seat.zone}</div>}
-                        <div className="text-sm text-slate-600 flex items-center gap-1"><Calendar className="w-4 h-4" />{res.res_date}</div>
-                      </div>
-                      <button onClick={() => handleCancel(res.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg border border-transparent hover:border-red-200 text-sm font-bold transition">取消</button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        )}
+			{/* ===== Admin: Notes List ===== */}
+			{view === 'admin-notes' && (
+				<div className="space-y-4">
 
-        {/* ===== Student: History ===== */}
-        {view === 'history' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><History className="w-6 h-6 text-indigo-600" />歷史預約紀錄</h2>
-            <p className="text-sm text-slate-500">以下為過去日期或當天已點名的預約，無法取消。</p>
-            {myHistory.length === 0 ? (
-              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有歷史紀錄</div>
-            ) : (
-              <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-50 border-b border-slate-200">
-                    <tr>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">日期</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
-                      <th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
-                      <th className="px-4 py-3 text-center font-bold text-slate-700">出席狀態</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {myHistory.map(h => (
-                      <tr key={h.id} className={`transition ${h.attendance_status === 'present' ? 'bg-emerald-50/30' : h.attendance_status === 'absent' ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
-                        <td className="px-4 py-3 text-slate-600">{h.res_date}</td>
-                        <td className="px-4 py-3 font-bold text-accent">{h.seat_label}</td>
-                        <td className="px-4 py-3 text-slate-600">{h.seat_building}</td>
-                        <td className="px-4 py-3 text-slate-600">{h.seat_zone}</td>
-                        <td className="px-4 py-3 text-center">
-                          {h.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
-                          {h.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold"><XCircle className="w-3.5 h-3.5" />未到</span>}
-                          {!h.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        )}
+					<div className="flex flex-wrap items-center justify-between gap-3">
+						<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><FileText className="w-6 h-6 text-amber-600" />座位註記總覽</h2>
+						<button onClick={fetchNotesList} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+					</div>
 
-        {/* ===== Student: Reserve Seat ===== */}
-        {view === 'reserve' && (
-          <div className="space-y-4">
+					{adminMessage && 
+						<div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
+							<span>{adminMessage}</span>
+							<button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button>
+						</div>
+					}
 
-            <div className="bg-card/70 glass-card p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-3 items-end">
-              
-				<div className="space-y-1 flex-1 min-w-[180px]">
-					<label className="text-sm font-bold text-slate-700">選擇日期</label>
-					<input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="block w-full px-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
-					{isWeekend(selectedDate) && <div className="text-xs text-amber-600 font-medium mt-1">⚠️ 週六日僅開放舊館</div>}
+					{notesList.length === 0 ? (
+						<div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有任何座位有註記</div>
+					) : (
+						<div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
+							<div className="px-4 py-3 bg-slate-50 border-b border-slate-200 text-sm text-slate-600 font-medium">共 {notesList.length} 個座位有註記</div>
+								<table className="w-full text-sm">
+									<thead className="bg-slate-50 border-b border-slate-200">
+										<tr>
+											<th className="px-4 py-3 text-left font-bold text-slate-700">座位號碼</th>
+											<th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
+											<th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
+											<th className="px-4 py-3 text-left font-bold text-slate-700">註記內容</th>
+											<th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
+										</tr>
+									</thead>
+									<tbody className="divide-y divide-slate-100">
+										{notesList.map(n => (
+											<tr key={n.id} className="hover:bg-slate-50 transition">
+												<td className="px-4 py-3 font-bold text-accent">{n.seat_number}</td>
+												<td className="px-4 py-3 text-slate-600">{n.zone}</td>
+												<td className="px-4 py-3 text-slate-600">{n.building}</td>
+												<td className="px-4 py-3">
+													<span className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-xs"><MessageSquare className="w-3 h-3" />{n.note}</span>
+												</td>
+												<td className="px-4 py-3 text-right">
+													<button onClick={() => { const seat = seats.find(s => s.id === n.id); if (seat) { setEditingSeatNote(seat); setNoteText(seat.note || ''); } }} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Edit3 className="w-3 h-3 inline mr-1" />編輯</button>
+												</td>
+											</tr>
+										))}
+									</tbody>
+								</table>
+						</div>
+					)}
+				</div>
+			)}
+
+			{/* ===== Admin: Seat Map with Notes ===== */}
+			{view === 'admin-seats' && (
+			<div className="space-y-4">
+
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><MessageSquare className="w-6 h-6 text-amber-600" />座位地圖管理</h2>
+
+					<div className="flex items-center gap-2">
+						<input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
+						<button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+					</div>
 				</div>
 
-				<div className="flex gap-2">
-					<button onClick={() => setSelectedBuilding('新館')} disabled={isWeekend(selectedDate)} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isWeekend(selectedDate) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200'}`}>{isWeekend(selectedDate) ? '新館（週末未開放）' : '新館'}</button>
-					<button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' || isWeekend(selectedDate) ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200'}`}>舊館</button>
+				{adminMessage && (
+					<div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
+						<span>{adminMessage}</span>
+						<button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button>
+					</div>
+				)}
+
+				<SeatLegend />
+
+				<div className="flex gap-2 mb-2">
+					<button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>新館</button>
+					<button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>舊館</button>
 				</div>
 
-              	<button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
-            </div>
+				<div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
+					<SeatMap
+						isAdminView={true}
+						selectedBuilding={selectedBuilding}
+						seats={seats}
+						bookedSeatIds={bookedSeatIds}
+						selectedDate={selectedDate}
+						allReservations={allReservations}
+						setEditingSeatNote={setEditingSeatNote}
+						setNoteText={setNoteText}
+						setAdminReserveSeatId={setAdminReserveSeatId}
+						setAdminReserveStudentId={setAdminReserveStudentId}
+						setAdminReserveDate={setAdminReserveDate}
+						setShowAdminReserve={setShowAdminReserve}
+						handleUpdateAttendance={handleUpdateAttendance}
+						handleSeatStatus={handleSeatStatus}
+						handleReserve={handleReserve}
+					/>
+				</div>
 
-            <SeatLegend />
+			</div>
+			)}
 
-            <div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
-              	<h3 className="text-lg font-bold text-slate-900 mb-4 text-center">
-					📍 {isWeekend(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}座位圖 — 點擊空位即可預約
-				</h3>
+			{/* ===== Admin: User Management ===== */}
+			{view === 'admin-users' && (
+				<div className="space-y-4">
+					<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Users className="w-6 h-6 text-amber-600" />學生帳號管理</h2>
 
-				<SeatMap
-					isAdminView={false}
-					selectedBuilding={isWeekend(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}
-					seats={seats}
-					bookedSeatIds={bookedSeatIds}
-					selectedDate={selectedDate}
-					handleReserve={handleReserve}
-				/>
-            </div>
-          </div>
-        )}
+					{adminMessage && 
+						<div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
+							<span>{adminMessage}</span>
+							<button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button>
+						</div>
+					}
+					<div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
+						<h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Key className="w-5 h-5 text-amber-600" /> 重設學生密碼</h3>
 
-        {/* ===== Student: Announcements ===== */}
-        {view === 'announcements' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Megaphone className="w-6 h-6 text-amber-500" />公告欄</h2>
-            {announcements.length === 0 ? (
-              <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有公告</div>
-            ) : (
-              <div className="space-y-4">
-                {announcements.map(ann => (
-                  <div key={ann.id} className={`bg-card/70 glass-card rounded-2xl border p-6 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
-                    <div className="flex items-center gap-2 mb-2">
-                      {ann.is_pinned && <Pin className="w-4 h-4 text-amber-500" />}
-                      <h3 className="text-lg font-bold text-slate-900">{ann.title}</h3>
-                    </div>
-                    <div className="text-xs text-slate-500 mb-3">由 {ann.author_name} 發布 · {ann.created_at}{ann.updated_at !== ann.created_at ? ` · 最後更新 ${ann.updated_at}` : ''}</div>
-                    <div className="prose-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+						<div className="flex flex-wrap gap-3 items-end">
+							<div className="flex-1 min-w-[180px] space-y-1">
+								<label className="text-sm font-medium text-slate-600">學號</label>
+								<input type="text" value={resetStudentId} onChange={e => setResetStudentId(e.target.value)} placeholder="輸入學號" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" />
+							</div>
+							<div className="flex-1 min-w-[180px] space-y-1">
+								<label className="text-sm font-medium text-slate-600">新密碼</label>
+								<input type="text" value={resetNewPassword} onChange={e => setResetNewPassword(e.target.value)} placeholder="輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" />
+							</div>
+							<button onClick={() => handleResetPassword()} className="bg-amber-500 hover:bg-amber-400 text-white font-bold px-6 py-2 rounded-lg transition"><Key className="w-4 h-4 inline mr-1" />重設</button>
+						</div>
+					</div>
 
-        {/* ===== Admin: Announcement Management ===== */}
-        {view === 'admin-announcements' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Megaphone className="w-6 h-6 text-amber-600" />公告管理</h2>
-            {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
+					<div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
+						<div className="p-4 border-b border-slate-200 flex items-center gap-3"><Search className="w-4 h-4 text-slate-400" />
+							<input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="搜尋學號..." className="flex-1 outline-none text-sm bg-transparent" />
+						</div>
 
-            {/* Create / Edit form */}
-            <div className="bg-card glass-card rounded-2xl border border-slate-200 p-6 shadow-sm">
-              <h3 className="text-base font-bold text-slate-900 mb-3">{editingAnn ? `編輯公告 #${editingAnn.id}` : '發布新公告'}</h3>
-              <div className="space-y-3">
-                <div>
-                  <label className="text-sm font-medium text-slate-600">標題</label>
-                  <input type="text" value={annTitle} onChange={e => setAnnTitle(e.target.value)} placeholder="輸入公告標題" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-400 bg-input" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-slate-600">內容（支援 Markdown 語法）</label>
-                  <textarea value={annContent} onChange={e => setAnnContent(e.target.value)} placeholder="支援 **粗體**、*斜體*、# 標題、- 列表、> 引用、[連結](URL) 等語法" rows={6} className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-400 font-mono text-sm" />
-                </div>
-                {annContent && (
-                  <div>
-                    <label className="text-sm font-medium text-slate-600">預覽</label>
-                    <div className="mt-1 bg-slate-50 rounded-lg border border-slate-200 p-4 prose-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(annContent) }} />
-                  </div>
-                )}
-                <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={annPinned} onChange={e => setAnnPinned(e.target.checked)} className="rounded border-slate-300" />
-                  <Pin className="w-3.5 h-3.5 text-amber-500" /> 置頂此公告
-                </label>
-                <div className="flex gap-2">
-                  {editingAnn ? (<>
-                    <button onClick={handleUpdateAnnouncement} className="bg-amber-500 hover:bg-amber-400 text-white px-5 py-2 rounded-lg font-bold text-sm transition">更新公告</button>
-                    <button onClick={() => { setEditingAnn(null); setAnnTitle(''); setAnnContent(''); setAnnPinned(false); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium text-sm transition">取消</button>
-                  </>) : (
-                    <button onClick={handleCreateAnnouncement} className="bg-accent hover:bg-accent-hover text-[#fff] px-5 py-2 rounded-lg font-bold text-sm transition">發布公告</button>
-                  )}
-                </div>
-              </div>
-            </div>
+						<table className="w-full text-sm">
+							<thead className="bg-slate-50 border-b border-slate-200">
+								<tr>
+									<th className="px-4 py-3 text-left font-bold text-slate-700">學號</th>
+									<th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
+									<th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
+								</tr>
+							</thead>
+							<tbody className="divide-y divide-slate-100">
+								{allUsers.filter(u => u.student_id.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
+									<tr key={u.id} className="hover:bg-slate-50 transition">
+									<td className="px-4 py-3 text-accent font-medium">{u.student_id}</td>
+									<td className="px-4 py-3 text-slate-600">{u.name || '未填寫'}</td>
+									<td className="px-4 py-3 text-right"><button onClick={() => handleResetPassword(u.student_id)} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Key className="w-3 h-3 inline mr-1" />重設密碼</button></td>
+									</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
 
-            {/* Existing announcements */}
-            {announcements.length > 0 && (
-              <div className="space-y-3">
-                <h3 className="text-base font-bold text-slate-700">已發布的公告</h3>
-                {announcements.map(ann => (
-                  <div key={ann.id} className={`bg-card/70 glass-card rounded-2xl border p-5 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          {ann.is_pinned && <Pin className="w-4 h-4 text-amber-500" />}
-                          <span className="font-bold text-slate-900">{ann.title}</span>
-                        </div>
-                        <div className="text-xs text-slate-500 mb-2">{ann.author_name} · {ann.created_at}</div>
-                        <div className="prose-sm text-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button onClick={() => { setEditingAnn(ann); setAnnTitle(ann.title); setAnnContent(ann.content); setAnnPinned(ann.is_pinned); }} className="text-amber-600 hover:bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Edit3 className="w-3 h-3" /></button>
-                        <button onClick={() => handleDeleteAnnouncement(ann.id)} className="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg border border-red-200 text-xs font-bold transition"><Trash2 className="w-3 h-3" /></button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+					{/* Admin change own password */}
+					<div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
+					<h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><KeyRound className="w-5 h-5 text-indigo-600" /> 修改管理員密碼</h3>
+					<div className="flex flex-wrap gap-3 items-end">
+						<div className="flex-1 min-w-[160px] space-y-1">
+						<label className="text-sm font-medium text-slate-600">舊密碼</label>
+						<input type="password" value={adminOldPw} onChange={e => setAdminOldPw(e.target.value)} placeholder="輸入目前密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+						</div>
+						<div className="flex-1 min-w-[160px] space-y-1">
+						<label className="text-sm font-medium text-slate-600">新密碼</label>
+						<input type="password" value={adminNewPw} onChange={e => setAdminNewPw(e.target.value)} placeholder="輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+						</div>
+						<div className="flex-1 min-w-[160px] space-y-1">
+						<label className="text-sm font-medium text-slate-600">確認新密碼</label>
+						<input type="password" value={adminConfirmPw} onChange={e => setAdminConfirmPw(e.target.value)} placeholder="再次輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+						</div>
+						<button onClick={handleAdminChangePassword} className="bg-accent hover:bg-accent-hover text-[#fff] font-bold px-6 py-2 rounded-lg transition flex items-center gap-1"><KeyRound className="w-4 h-4" />修改密碼</button>
+					</div>
+					{adminNewPw && adminConfirmPw && adminNewPw !== adminConfirmPw && (
+						<div className="mt-2 text-sm text-red-500 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />兩次輸入的新密碼不一致</div>
+					)}
+					</div>
+				</div>
+			)}
 
-      {/* ===== Modals ===== */}
-      {editingSeatNote && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Edit3 className="w-5 h-5 text-amber-600" />編輯座位 {editingSeatNote.label} 註記</h3>
-            <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="輸入註記（如：靠窗、有插座、冷氣出風口等）" className="w-full border border-slate-200 rounded-lg p-3 text-sm h-24 outline-none focus:ring-2 focus:ring-amber-400" />
-            <div className="flex gap-2 mt-4 justify-end">
-              <button onClick={() => setEditingSeatNote(null)} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm">取消</button>
-              <button onClick={handleSaveSeatNote} className="px-4 py-2 rounded-lg bg-amber-500 text-white font-bold text-sm hover:bg-amber-400 transition">儲存</button>
-            </div>
-          </div>
-        </div>
-      )}
+			{/* ===== Student: Dashboard ===== */}
+			{view === 'dashboard' && (
+			<div className="space-y-4">
+				<h2 className="text-xl font-bold text-slate-900">我的預約紀錄</h2>
+				{myReservations.length === 0 ? (
+					<div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有預約，快去搶位子吧！</div>
+				) : (
+					<div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+						{myReservations.map(res => {
+							const seat = seats.find(s => s.id === res.seat_id);
 
-      {showAdminReserve && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
-            <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" />代為預約座位 {(adminReserveSeatId && seats.find(s => s.id === adminReserveSeatId)?.label) || ''}</h3>
-            <div className="space-y-3">
-              <div><label className="text-sm font-medium text-slate-600">學號</label><input type="text" value={adminReserveStudentId} onChange={e => setAdminReserveStudentId(e.target.value)} placeholder="輸入學生學號" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400" /></div>
-              <div><label className="text-sm font-medium text-slate-600">日期</label><input type="date" value={adminReserveDate} onChange={e => setAdminReserveDate(e.target.value)} className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400" /></div>
-            </div>
-            <div className="flex gap-2 mt-4 justify-end">
-              <button onClick={() => setShowAdminReserve(false)} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm">取消</button>
-              <button onClick={handleAdminReserve} className="px-4 py-2 rounded-lg bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-400 transition">確認預約</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+							return (
+								<div key={res.id} className="bg-card/70 glass-card p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-start">
+									<div>
+										<div className="text-lg font-bold text-accent mb-1">座位 {seat?.label || `#${res.seat_id}`}</div>
+										{seat && <div className="text-xs text-slate-500 mb-2">{seat.building} · {seat.zone}</div>}
+										<div className="text-sm text-slate-600 flex items-center gap-1"><Calendar className="w-4 h-4" />{res.res_date}</div>
+									</div>
+
+									<button onClick={() => handleCancel(res.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg border border-transparent hover:border-red-200 text-sm font-bold transition">取消</button>
+								</div>
+							);
+						})}
+					</div>
+				)}
+			</div>
+			)}
+
+			{/* ===== Student: History ===== */}
+			{view === 'history' && (
+			<div className="space-y-4">
+				<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><History className="w-6 h-6 text-indigo-600" />歷史預約紀錄</h2>
+				<p className="text-sm text-slate-500">以下為過去日期或當天已點名的預約，無法取消。</p>
+
+				{myHistory.length === 0 ? (
+					<div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有歷史紀錄</div>
+				) : (
+					<div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
+						<table className="w-full text-sm">
+							<thead className="bg-slate-50 border-b border-slate-200">
+								<tr>
+								<th className="px-4 py-3 text-left font-bold text-slate-700">日期</th>
+								<th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
+								<th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
+								<th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
+								<th className="px-4 py-3 text-center font-bold text-slate-700">出席狀態</th>
+								</tr>
+							</thead>
+
+							<tbody className="divide-y divide-slate-100">
+								{myHistory.map(h => (
+								<tr key={h.id} className={`transition ${h.attendance_status === 'present' ? 'bg-emerald-50/30' : h.attendance_status === 'absent' ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
+									<td className="px-4 py-3 text-slate-600">{h.res_date}</td>
+									<td className="px-4 py-3 font-bold text-accent">{h.seat_label}</td>
+									<td className="px-4 py-3 text-slate-600">{h.seat_building}</td>
+									<td className="px-4 py-3 text-slate-600">{h.seat_zone}</td>
+									<td className="px-4 py-3 text-center">
+
+									{h.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
+									{h.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold"><XCircle className="w-3.5 h-3.5" />未到</span>}
+									{!h.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
+									</td>
+								</tr>
+								))}
+							</tbody>
+						</table>
+					</div>
+				)}
+			</div>
+			)}
+
+			{/* ===== Student: Reserve Seat ===== */}
+			{view === 'reserve' && (
+			<div className="space-y-4">
+
+				<div className="bg-card/70 glass-card p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap gap-3 items-end">
+				
+					<div className="space-y-1 flex-1 min-w-[180px]">
+						<label className="text-sm font-bold text-slate-700">選擇日期</label>
+						<input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} min={new Date().toISOString().split('T')[0]} className="block w-full px-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
+						{isWeekend(selectedDate) && <div className="text-xs text-amber-600 font-medium mt-1">⚠️ 週六日僅開放舊館</div>}
+					</div>
+
+					<div className="flex gap-2">
+						<button onClick={() => setSelectedBuilding('新館')} disabled={isWeekend(selectedDate)} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${isWeekend(selectedDate) ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200'}`}>{isWeekend(selectedDate) ? '新館（週末未開放）' : '新館'}</button>
+						<button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' || isWeekend(selectedDate) ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200'}`}>舊館</button>
+					</div>
+
+					<button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-2 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+				</div>
+
+				<SeatLegend />
+
+				<div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
+					<h3 className="text-lg font-bold text-slate-900 mb-4 text-center">
+						📍 {isWeekend(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}座位圖 — 點擊空位即可預約
+					</h3>
+
+					<SeatMap
+						isAdminView={false}
+						selectedBuilding={isWeekend(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}
+						seats={seats}
+						bookedSeatIds={bookedSeatIds}
+						selectedDate={selectedDate}
+						handleReserve={handleReserve}
+					/>
+				</div>
+			</div>
+			)}
+
+			{/* ===== Student: Announcements ===== */}
+			{view === 'announcements' && (
+			<div className="space-y-4">
+				<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Megaphone className="w-6 h-6 text-amber-500" />公告欄</h2>
+				{announcements.length === 0 ? (
+				<div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有公告</div>
+				) : (
+				<div className="space-y-4">
+					{announcements.map(ann => (
+					<div key={ann.id} className={`bg-card/70 glass-card rounded-2xl border p-6 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
+						<div className="flex items-center gap-2 mb-2">
+						{ann.is_pinned && <Pin className="w-4 h-4 text-amber-500" />}
+						<h3 className="text-lg font-bold text-slate-900">{ann.title}</h3>
+						</div>
+						<div className="text-xs text-slate-500 mb-3">由 {ann.author_name} 發布 · {ann.created_at}{ann.updated_at !== ann.created_at ? ` · 最後更新 ${ann.updated_at}` : ''}</div>
+						<div className="prose-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
+					</div>
+					))}
+				</div>
+				)}
+			</div>
+			)}
+
+			{/* ===== Admin: Announcement Management ===== */}
+			{view === 'admin-announcements' && (
+			<div className="space-y-4">
+				<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Megaphone className="w-6 h-6 text-amber-600" />公告管理</h2>
+				{adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
+
+				{/* Create / Edit form */}
+				<div className="bg-card glass-card rounded-2xl border border-slate-200 p-6 shadow-sm">
+				<h3 className="text-base font-bold text-slate-900 mb-3">{editingAnn ? `編輯公告 #${editingAnn.id}` : '發布新公告'}</h3>
+				<div className="space-y-3">
+					<div>
+						<label className="text-sm font-medium text-slate-600">標題</label>
+						<input type="text" value={annTitle} onChange={e => setAnnTitle(e.target.value)} placeholder="輸入公告標題" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-400 bg-input" />
+					</div>
+
+					<div>
+						<label className="text-sm font-medium text-slate-600">內容（支援 Markdown 語法）</label>
+						<textarea value={annContent} onChange={e => setAnnContent(e.target.value)} placeholder="支援 **粗體**、*斜體*、# 標題、- 列表、> 引用、[連結](URL) 等語法" rows={6} className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-amber-400 font-mono text-sm" />
+					</div>
+
+					{annContent && (
+					<div>
+						<label className="text-sm font-medium text-slate-600">預覽</label>
+						<div className="mt-1 bg-slate-50 rounded-lg border border-slate-200 p-4 prose-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(annContent) }} />
+					</div>
+					)}
+
+					<label className="flex items-center gap-2 text-sm">
+						<input type="checkbox" checked={annPinned} onChange={e => setAnnPinned(e.target.checked)} className="rounded border-slate-300" />
+						<Pin className="w-3.5 h-3.5 text-amber-500" /> 置頂此公告
+					</label>
+
+					<div className="flex gap-2">
+						{editingAnn ? (
+							<>
+								<button onClick={handleUpdateAnnouncement} className="bg-amber-500 hover:bg-amber-400 text-white px-5 py-2 rounded-lg font-bold text-sm transition">更新公告</button>
+								<button onClick={() => { setEditingAnn(null); setAnnTitle(''); setAnnContent(''); setAnnPinned(false); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-lg font-medium text-sm transition">取消</button>
+							</>
+						) : (
+							<button onClick={handleCreateAnnouncement} className="bg-accent hover:bg-accent-hover text-[#fff] px-5 py-2 rounded-lg font-bold text-sm transition">發布公告</button>
+						)}
+					</div>
+				</div>
+				</div>
+
+				{/* Existing announcements */}
+				{announcements.length > 0 && (
+				<div className="space-y-3">
+					<h3 className="text-base font-bold text-slate-700">已發布的公告</h3>
+					{announcements.map(ann => (
+					<div key={ann.id} className={`bg-card/70 glass-card rounded-2xl border p-5 shadow-sm ${ann.is_pinned ? 'border-amber-300 bg-amber-50/50' : 'border-slate-200'}`}>
+						<div className="flex items-start justify-between gap-3">
+							<div className="flex-1">
+								<div className="flex items-center gap-2 mb-1">
+									{ann.is_pinned && <Pin className="w-4 h-4 text-amber-500" />}
+									<span className="font-bold text-slate-900">{ann.title}</span>
+								</div>
+
+								<div className="text-xs text-slate-500 mb-2">{ann.author_name} · {ann.created_at}</div>
+								<div className="prose-sm text-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
+							</div>
+							<div className="flex items-center gap-1 shrink-0">
+								<button onClick={() => { setEditingAnn(ann); setAnnTitle(ann.title); setAnnContent(ann.content); setAnnPinned(ann.is_pinned); }} className="text-amber-600 hover:bg-amber-50 px-2 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Edit3 className="w-3 h-3" /></button>
+								<button onClick={() => handleDeleteAnnouncement(ann.id)} className="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg border border-red-200 text-xs font-bold transition"><Trash2 className="w-3 h-3" /></button>
+							</div>
+						</div>
+					</div>
+					))}
+				</div>
+				)}
+			</div>
+			)}
+		</main>
+
+		{/* ===== Modals ===== */}
+		{editingSeatNote && (
+			<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+				<div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
+					<h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Edit3 className="w-5 h-5 text-amber-600" />編輯座位 {editingSeatNote.label} 註記</h3>
+					<textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="輸入註記（如：靠窗、有插座、冷氣出風口等）" className="w-full border border-slate-200 rounded-lg p-3 text-sm h-24 outline-none focus:ring-2 focus:ring-amber-400" />
+					<div className="flex gap-2 mt-4 justify-end">
+						<button onClick={() => setEditingSeatNote(null)} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm">取消</button>
+						<button onClick={handleSaveSeatNote} className="px-4 py-2 rounded-lg bg-amber-500 text-white font-bold text-sm hover:bg-amber-400 transition">儲存</button>
+					</div>
+				</div>
+			</div>
+		)}
+
+		{showAdminReserve && (
+			<div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+				<div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
+					<h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" />代為預約座位 {(adminReserveSeatId && seats.find(s => s.id === adminReserveSeatId)?.label) || ''}</h3>
+					<div className="space-y-3">
+						<div>
+							<label className="text-sm font-medium text-slate-600">學號</label>
+							<input type="text" value={adminReserveStudentId} onChange={e => setAdminReserveStudentId(e.target.value)} placeholder="輸入學生學號" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400" />
+						</div>
+						<div>
+							<label className="text-sm font-medium text-slate-600">日期</label>
+							<input type="date" value={adminReserveDate} onChange={e => setAdminReserveDate(e.target.value)} className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400" />
+						</div>
+					</div>
+					<div className="flex gap-2 mt-4 justify-end">
+						<button onClick={() => setShowAdminReserve(false)} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm">取消</button>
+						<button onClick={handleAdminReserve} className="px-4 py-2 rounded-lg bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-400 transition">確認預約</button>
+					</div>
+				</div>
+			</div>
+		)}
+		</div>
+	);
 }
