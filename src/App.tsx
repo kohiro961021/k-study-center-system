@@ -7,9 +7,13 @@ import { View, AnnouncementData, SeatData, Reservation, AdminReservation, Histor
 import SeatMap, { SeatLegend } from './components/SeatMap';
 
 import { escapeHtml, isWeekend, decodeJwtPayload, renderMarkdown } from './utils/helper';
+import { useCurrentTime } from './hooks/useCurrentTime';
+
+
+
 const API_BASE = '';
 const KLIB_KEY = 'Fs2026-KLib-9xmP7nQr2vBs-FsSh';
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'www';
 
 export default function App() {
 	const [view, setView] = useState<View>('login');
@@ -63,11 +67,7 @@ export default function App() {
 	const [adminConfirmPw, setAdminConfirmPw] = useState('');
 
 	// ===== Clock =====
-	const [currentTime, setCurrentTime] = useState(new Date());
-	useEffect(() => {
-		const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-		return () => clearInterval(timer);
-	}, []);
+	const { timeString, dateString } = useCurrentTime();
 
 	// ===== Theme Management =====
 	const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -95,13 +95,6 @@ export default function App() {
 		localStorage.setItem('theme', next);
 	};
 
-	// 🏴 Easter egg console hint
-	useEffect(() => {
-		console.log("%c🔍 致好奇的你", "color:#00ff41;font-size:16px;font-weight:bold;");
-		console.log("%c如果你正在讀這段文字，也許你就是我們要找的人。", "color:#888;font-size:12px;");
-		console.log("%c→ GET /api/.easter-egg", "color:#0af;font-size:12px;");
-	}, []);
-
 	const apiCall = async (endpoint: string, method = 'GET', body?: any) => {
 		const headers: any = { 'Content-Type': 'application/json', 'X-KLib-Key': KLIB_KEY };
 		if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -119,6 +112,13 @@ export default function App() {
 			return data;
 		} catch (err: any) { setError(err.message); throw err; }
 	};
+
+	// 🏴 Easter egg console hint
+	useEffect(() => {
+		console.log("%c🔍 致好奇的你", "color:#00ff41;font-size:16px;font-weight:bold;");
+		console.log("%c如果你正在讀這段文字，也許你就是我們要找的人。", "color:#888;font-size:12px;");
+		console.log("%c→ GET /api/.easter-egg", "color:#0af;font-size:12px;");
+	}, []);
 
 	useEffect(() => {
 		fetchAnnouncements();
@@ -157,7 +157,8 @@ export default function App() {
 		e.preventDefault(); setLoading(true); setError(null);
 		try {
 			const formData = new URLSearchParams();
-			formData.append('username', studentId); formData.append('password', password);
+			formData.append('username', studentId);
+			formData.append('password', password);
 
 			const res = await fetch(`${API_BASE}/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-KLib-Key': KLIB_KEY }, body: formData });
 			const text = await res.text();
@@ -169,7 +170,8 @@ export default function App() {
 
 			if (!res.ok) throw new Error(data.detail);
 			
-			localStorage.setItem('token', data.access_token); setToken(data.access_token);
+			localStorage.setItem('token', data.access_token); 
+			setToken(data.access_token);
 		} catch (err: any) { setError(err.message); 
 		} finally { setLoading(false); }
 	};
@@ -185,7 +187,8 @@ export default function App() {
 			w.google.accounts.id.initialize({
 				client_id: GOOGLE_CLIENT_ID,
 				callback: async (response: any) => {
-					setLoading(true); setError(null);
+					setLoading(true); 
+					setError(null);
 
 					try {
 						const data = await apiCall('/api/auth/google', 'POST', { credential: response.credential });
@@ -209,7 +212,8 @@ export default function App() {
 			}
 		};
 		// SDK might not be loaded yet (async script), so retry
-		if (w.google?.accounts?.id) { initGoogle();
+		if (w.google?.accounts?.id) { 
+			initGoogle();
 		} else { 
 			const timer = setInterval(() => { 
 				if (w.google?.accounts?.id) { 
@@ -244,6 +248,7 @@ export default function App() {
 			setAnnouncements(data);
 		} catch {}
 	};
+
 	const handleCreateAnnouncement = async () => {
 		if (!annTitle.trim() || !annContent.trim()) { setAdminMessage('標題和內容不能為空'); return; }
 
@@ -252,6 +257,7 @@ export default function App() {
 			setAdminMessage('公告已發布'); setAnnTitle(''); setAnnContent(''); setAnnPinned(false); fetchAnnouncements();
 		} catch (err: any) { setAdminMessage(`發布失敗: ${err.message}`); }
 	};
+
 	const handleUpdateAnnouncement = async () => {
 		if (!editingAnn) return;
 
@@ -260,6 +266,7 @@ export default function App() {
 			setAdminMessage('公告已更新'); setEditingAnn(null); setAnnTitle(''); setAnnContent(''); setAnnPinned(false); fetchAnnouncements();
 		} catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
 	};
+
 	const handleDeleteAnnouncement = async (id: number) => {
 		if (!window.confirm('確定要刪除這則公告嗎？')) return;
 
@@ -430,9 +437,6 @@ export default function App() {
 	};
 
 
-  	const formatTime = (d: Date) => d.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-  	const formatDate = (d: Date) => d.toLocaleDateString('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' });
-
   	// ═══════════ Login Page ═══════════
 	if (!token) {
 		return (
@@ -442,8 +446,8 @@ export default function App() {
 				<div className="flex justify-center items-center gap-3 mb-6 pt-4">
 					<div className="inline-flex items-center gap-2 bg-card/80 glass-card rounded-full px-6 py-2 shadow-sm border border-slate-200">
 						<Clock className="w-4 h-4 text-accent" />
-						<span className="text-sm font-medium text-slate-700">{formatDate(currentTime)}</span>
-						<span className="text-lg font-bold text-accent font-mono">{formatTime(currentTime)}</span>
+						<span className="text-sm font-medium text-slate-700">{dateString}</span>
+						<span className="text-lg font-bold text-accent font-mono">{timeString}</span>
 					</div>
 					<button onClick={toggleTheme} className="p-2.5 rounded-full bg-card/80 glass-card border border-slate-200 shadow-sm text-slate-600 hover:text-accent transition" title={theme === 'dark' ? '切換淺色模式' : '切換深色模式'}>
 						{theme === 'dark' ? <Sun className="w-4 h-4 theme-toggle-icon" /> : <Moon className="w-4 h-4 theme-toggle-icon" />}
@@ -453,19 +457,20 @@ export default function App() {
 				{/* Login form */}
 				<div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto items-start justify-center">
 
-					<div className="w-full max-w-md bg-card/80 glass-card rounded-2xl shadow-xl p-8 border border-slate-200">
+					<div className="w-full max-w-md bg-card/80 glass-card rounded-4xl shadow-xl p-8 border border-slate-200">
 						<div className="flex items-center gap-3 mb-8">
-							<img src="/fssh-badge.png" alt="鳳山高中校徽" className="w-12 h-12 drop-shadow-md" />
+							<img src="/fssh-badge.png" alt="鳳山高中校徽" className="w-12 h-12 drop-shadow-md rounded-4xl" />
 							<h1 className="text-2xl font-bold text-slate-900">鳳山高中 K書中心</h1>
 						</div>
 
 						{GOOGLE_CLIENT_ID && (
-							<div className="mb-4">
-								<div id="google-signin-btn" className="flex justify-center" />
-							</div>
+							<>
+								<div className="mb-4">
+									<div id="google-signin-btn" className="flex justify-center" />
+								</div>
+								<div className="text-center text-xs text-slate-400 mb-4">── 或使用帳號密碼 ──</div>
+							</>
 						)}
-
-						{GOOGLE_CLIENT_ID && <div className="text-center text-xs text-slate-400 mb-4">── 或使用帳號密碼 ──</div>}
 
 						<form onSubmit={handleLogin} className="space-y-4">
 							<div className="space-y-1">
@@ -540,8 +545,8 @@ export default function App() {
 
 					<div className="hidden md:flex items-center gap-1.5 text-xs font-medium text-slate-500 bg-slate-100 rounded-full px-3 py-1">
 						<Clock className="w-3.5 h-3.5 text-slate-400" />
-						<span>{formatDate(currentTime)}</span>
-						<span className="font-bold text-accent font-mono">{formatTime(currentTime)}</span>
+						<span>{dateString}</span>
+						<span className="font-bold text-accent font-mono">{timeString}</span>
 					</div>
 				</div>
 
