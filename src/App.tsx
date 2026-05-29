@@ -14,8 +14,8 @@ import { API_BASE, KLIB_KEY, GOOGLE_CLIENT_ID } from './constants';
 
 
 export default function App() {
-	const { token, isAdmin, userName, handleLogin, handleLogout } = useAuth();
-	const { loading, setLoading, error, setError } = useUIState();
+	const { token, isAdmin, userName, handleLogin, handleLogout, loading, error } = useAuth();
+	const { loading: uiLoading, setLoading, error: uiError, setError } = useUIState();
 
 	const [view, setView] = useState<View>('login');
 
