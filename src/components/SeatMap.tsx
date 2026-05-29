@@ -1,5 +1,5 @@
 import { SeatData, AdminReservation } from '../type';
-import { NEW_BUILDING_ZONES, OLD_BUILDING_ZONES, OLD_STAFF_ZONES } from '../constants';
+import { NEW_BUILDING_ZONES, OLD_BUILDING_ZONES, OLD_STAFF_ZONES } from '../constants/seats';
 
 interface BaseSeatMapProps {
 	selectedBuilding: '新館' | '舊館';

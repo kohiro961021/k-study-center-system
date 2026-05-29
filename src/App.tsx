@@ -7,23 +7,17 @@ import { View, AnnouncementData, SeatData, Reservation, AdminReservation, Histor
 import SeatMap, { SeatLegend } from './components/SeatMap';
 
 import { escapeHtml, isWeekend, decodeJwtPayload, renderMarkdown } from './utils/helper';
-import { useCurrentTime } from './hooks/useCurrentTime';
 
+import { useAuth, useUIState, useCurrentTime } from './hooks';
 
+import { API_BASE, KLIB_KEY, GOOGLE_CLIENT_ID } from './constants';
 
-const API_BASE = '';
-const KLIB_KEY = 'Fs2026-KLib-9xmP7nQr2vBs-FsSh';
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || 'www';
 
 export default function App() {
+	const { token, isAdmin, userName, handleLogin, handleLogout } = useAuth();
+	const { loading, setLoading, error, setError } = useUIState();
+
 	const [view, setView] = useState<View>('login');
-	const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-	const [isAdmin, setIsAdmin] = useState(false);
-	const [userName, setUserName] = useState('');
-	const [loading, setLoading] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const [studentId, setStudentId] = useState('');
-	const [password, setPassword] = useState('');
 
 	const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
 	const [selectedBuilding, setSelectedBuilding] = useState<'新館' | '舊館'>('新館');
@@ -122,24 +116,17 @@ export default function App() {
 
 	useEffect(() => {
 		fetchAnnouncements();
+	}, []);
+
+	useEffect(() => {
 		if (token) {
-			const payload = decodeJwtPayload(token);
-			// Check if token is expired
-			if (!payload || (payload.exp && payload.exp * 1000 < Date.now())) {
-				handleLogout();
-				return;
-			}
-
-			const admin = payload?.admin === true;
-
-			setIsAdmin(admin);
-			setUserName(payload?.name || payload?.sub || '');
-			setView(admin ? 'admin-reservations' : 'dashboard');
+			setView(isAdmin ? 'admin-reservations' : 'dashboard');
 			fetchSeats();
-
-			if (!admin) fetchMyReservations();
+			if (!isAdmin) fetchMyReservations();
+		} else {
+			setView('login');
 		}
-	}, [token]);
+	}, [token, isAdmin]);
 
 	// View change effects
 	useEffect(() => {
@@ -153,83 +140,7 @@ export default function App() {
 		if (view === 'announcements' || view === 'admin-announcements') fetchAnnouncements();
 	}, [view, selectedDate]);
 
-	const handleLogin = async (e: any) => {
-		e.preventDefault(); setLoading(true); setError(null);
-		try {
-			const formData = new URLSearchParams();
-			formData.append('username', studentId);
-			formData.append('password', password);
 
-			const res = await fetch(`${API_BASE}/token`, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-KLib-Key': KLIB_KEY }, body: formData });
-			const text = await res.text();
-
-			let data: any;
-
-			try { data = JSON.parse(text); } 
-			catch { throw new Error(`伺服器錯誤 (${res.status})`); }
-
-			if (!res.ok) throw new Error(data.detail);
-			
-			localStorage.setItem('token', data.access_token); 
-			setToken(data.access_token);
-		} catch (err: any) { setError(err.message); 
-		} finally { setLoading(false); }
-	};
-
-	// Google Sign-In: render official button into a container div
-	useEffect(() => {
-		if (token || !GOOGLE_CLIENT_ID) return;
-
-		const w = window as any;
-		const initGoogle = () => {
-			if (!w.google?.accounts?.id) return;
-
-			w.google.accounts.id.initialize({
-				client_id: GOOGLE_CLIENT_ID,
-				callback: async (response: any) => {
-					setLoading(true); 
-					setError(null);
-
-					try {
-						const data = await apiCall('/api/auth/google', 'POST', { credential: response.credential });
-						localStorage.setItem('token', data.access_token); setToken(data.access_token);
-					} catch (err: any) { setError(err.message); 
-					} finally { setLoading(false); }
-				},
-				hd: 'fssh.khc.edu.tw',
-			});
-
-			const container = document.getElementById('google-signin-btn');
-
-			if (container) {
-				w.google.accounts.id.renderButton(container, {
-					theme: 'outline',
-					size: 'large',
-					width: 380,
-					text: 'signin_with',
-					locale: 'zh-TW',
-				});
-			}
-		};
-		// SDK might not be loaded yet (async script), so retry
-		if (w.google?.accounts?.id) { 
-			initGoogle();
-		} else { 
-			const timer = setInterval(() => { 
-				if (w.google?.accounts?.id) { 
-					clearInterval(timer);
-					initGoogle();
-				} 
-			}, 200); 
-
-			return () => clearInterval(timer); 
-		}
-	}, [token]);
-
-	const handleLogout = () => {
-		localStorage.removeItem('token'); setToken(null); setIsAdmin(false);
-		setStudentId(''); setPassword(''); setView('login');
-	};
 
 	const fetchSeats = async () => { try { setSeats(await apiCall('/api/seats')); } catch { } };
 	const fetchAvailability = async () => { try { setBookedSeatIds(await apiCall(`/api/availability?res_date=${selectedDate}`)); } catch { } };
@@ -477,7 +388,7 @@ export default function App() {
 								<label className="text-sm font-medium text-slate-700">學號</label>
 								<div className="relative">
 									<User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-									<input type="text" value={studentId} onChange={e => setStudentId(e.target.value)} required placeholder="輸入學號" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
+									<input type="text" name="studentId" required placeholder="輸入學號" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
 								</div>
 							</div>
 
@@ -485,7 +396,7 @@ export default function App() {
 								<label className="text-sm font-medium text-slate-700">密碼</label>
 								<div className="relative">
 									<Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-									<input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="輸入密碼" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
+									<input type="password" name="password" required placeholder="輸入密碼" className="w-full pl-10 pr-3 py-2 bg-input border border-slate-200 rounded-lg outline-none" />
 								</div>
 							</div>
 
@@ -821,52 +732,52 @@ export default function App() {
 
 			{/* ===== Admin: Seat Map with Notes ===== */}
 			{view === 'admin-seats' && (
-			<div className="space-y-4">
+				<div className="space-y-4">
 
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><MessageSquare className="w-6 h-6 text-amber-600" />座位地圖管理</h2>
+					<div className="flex flex-wrap items-center justify-between gap-3">
+						<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><MessageSquare className="w-6 h-6 text-amber-600" />座位地圖管理</h2>
 
-					<div className="flex items-center gap-2">
-						<input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
-						<button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+						<div className="flex items-center gap-2">
+							<input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
+							<button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+						</div>
 					</div>
-				</div>
 
-				{adminMessage && (
-					<div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
-						<span>{adminMessage}</span>
-						<button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button>
+					{adminMessage && (
+						<div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between">
+							<span>{adminMessage}</span>
+							<button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button>
+						</div>
+					)}
+
+					<SeatLegend />
+
+					<div className="flex gap-2 mb-2">
+						<button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>新館</button>
+						<button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>舊館</button>
 					</div>
-				)}
 
-				<SeatLegend />
+					<div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
+						<SeatMap
+							isAdminView={true}
+							selectedBuilding={selectedBuilding}
+							seats={seats}
+							bookedSeatIds={bookedSeatIds}
+							selectedDate={selectedDate}
+							allReservations={allReservations}
+							setEditingSeatNote={setEditingSeatNote}
+							setNoteText={setNoteText}
+							setAdminReserveSeatId={setAdminReserveSeatId}
+							setAdminReserveStudentId={setAdminReserveStudentId}
+							setAdminReserveDate={setAdminReserveDate}
+							setShowAdminReserve={setShowAdminReserve}
+							handleUpdateAttendance={handleUpdateAttendance}
+							handleSeatStatus={handleSeatStatus}
+							handleReserve={handleReserve}
+						/>
+					</div>
 
-				<div className="flex gap-2 mb-2">
-					<button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>新館</button>
-					<button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>舊館</button>
 				</div>
-
-				<div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
-					<SeatMap
-						isAdminView={true}
-						selectedBuilding={selectedBuilding}
-						seats={seats}
-						bookedSeatIds={bookedSeatIds}
-						selectedDate={selectedDate}
-						allReservations={allReservations}
-						setEditingSeatNote={setEditingSeatNote}
-						setNoteText={setNoteText}
-						setAdminReserveSeatId={setAdminReserveSeatId}
-						setAdminReserveStudentId={setAdminReserveStudentId}
-						setAdminReserveDate={setAdminReserveDate}
-						setShowAdminReserve={setShowAdminReserve}
-						handleUpdateAttendance={handleUpdateAttendance}
-						handleSeatStatus={handleSeatStatus}
-						handleReserve={handleReserve}
-					/>
-				</div>
-
-			</div>
 			)}
 
 			{/* ===== Admin: User Management ===== */}
