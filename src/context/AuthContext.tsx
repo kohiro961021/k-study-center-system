@@ -1,13 +1,22 @@
-import { useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { decodeJwtPayload } from '../utils/helper';
-
-import { useUIState } from './useUIState';
-
+import { useUIState } from '../hooks/useUIState';
 import { API_BASE, KLIB_KEY, GOOGLE_CLIENT_ID } from '../constants';
 
-export const useAuth = () => {
-	const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+interface AuthContextType {
+	token: string | null;
+	isAdmin: boolean;
+	userName: string;
+	loading: boolean;
+	error: string | null;
+	handleLogin: (e: React.FormEvent<HTMLFormElement>) => Promise<void>;
+	handleLogout: () => void;
+}
 
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+	const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
 	const { loading, setLoading, error, setError } = useUIState();
 
 	// Derived state from token
@@ -24,11 +33,10 @@ export const useAuth = () => {
 
 	// Token expiration check
 	useEffect(() => {
-		if (token && !isTokenValid) {
-			handleLogout();
-		}
+		if (token && !isTokenValid) handleLogout();
 	}, [token, isTokenValid]);
 
+    // Standard Login Handler
 	const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault(); 
 		setLoading(true); 
@@ -48,24 +56,27 @@ export const useAuth = () => {
 				headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-KLib-Key': KLIB_KEY }, 
 				body: formData 
 			});
+
 			const text = await res.text();
 
 			let data: any;
-			try { data = JSON.parse(text); } 
-			catch { throw new Error(`伺服器錯誤 (${res.status})`); }
+			try { 
+				data = JSON.parse(text); 
+			} catch { 
+				throw new Error(`伺服器錯誤 (${res.status})`); 
+			}
 
 			if (!res.ok) throw new Error(data.detail);
 			
 			localStorage.setItem('token', data.access_token); 
 			setToken(data.access_token);
-		} catch (err: any) { 
-			setError(err.message); 
-		} finally { 
-			setLoading(false); 
+
+		} catch (err: any) { setError(err.message); 
+		} finally { setLoading(false); 
 		}
 	};
 
-	// Google Sign-In
+	// Google Login
 	useEffect(() => {
 		if (token || !GOOGLE_CLIENT_ID) return;
 
@@ -90,15 +101,21 @@ export const useAuth = () => {
 						const text = await res.text();
 						let data: any;
 
-						try { data = JSON.parse(text);	
-						} catch { throw new Error(`伺服器錯誤 (${res.status})`); }
+						try { 
+							data = JSON.parse(text);	
+						} catch { 
+							throw new Error(`伺服器錯誤 (${res.status})`); 
+						}
 
 						if (!res.ok) throw new Error(data.detail || '請求失敗');
 
 						localStorage.setItem('token', data.access_token); 
 						setToken(data.access_token);
-					} catch (err: any) { setError(err.message); 
-					} finally { setLoading(false); }
+					} catch (err: any) { 
+						setError(err.message); 
+					} finally { 
+						setLoading(false); 
+					}
 				},
 				hd: 'fssh.khc.edu.tw',
 			});
@@ -106,12 +123,13 @@ export const useAuth = () => {
 			const container = document.getElementById('google-signin-btn');
 
 			if (container) w.google.accounts.id.renderButton(container, {
-					theme: 'outline',
-					size: 'large',
-					width: 380,
-					text: 'signin_with',
-					locale: 'zh-TW',
-				});
+				theme: 'filled_black',
+				size: 'large',
+				width: 200,
+				shape: 'pill',
+				text: 'signin_with',
+				locale: 'zh-TW',
+			});
 		};
 		
 		if (w.google?.accounts?.id) { 
@@ -127,13 +145,17 @@ export const useAuth = () => {
 		}
 	}, [token]);
 
-	return {
-		token,
-		isAdmin,
-		userName,
-		handleLogin,
-		handleLogout,
-		loading,
-		error,
-	};
-};
+	return (
+		<AuthContext.Provider value={{ token, isAdmin, userName, loading, error, handleLogin, handleLogout }}>
+			{children}
+		</AuthContext.Provider>
+	);
+}
+
+// Auth Hook
+export function useAuth() {
+	const context = useContext(AuthContext);
+	if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
+
+	return context;
+}
