@@ -48,6 +48,7 @@ export function SystemProvider({ children }: { children: ReactNode }) {
 	const [bookedSeatIds, setBookedSeatIds] = useState<number[]>([]);
 	const [adminMessage, setAdminMessage] = useState<string | null>(null);
 
+	// Clear global error and admin message on view change or when setGlobalError changes
 	useEffect(() => {
 		setGlobalError(null);
 		setAdminMessage(null);
@@ -65,11 +66,12 @@ export function SystemProvider({ children }: { children: ReactNode }) {
 				headers, 
 				body: body ? JSON.stringify(body) : undefined 
 			});
+
 			const text = await res.text();
 			let data: any;
 
-			try { data = JSON.parse(text); } 
-			catch { throw new Error(res.ok ? text : `伺服器錯誤 (${res.status})`); }
+			try { data = JSON.parse(text);
+			} catch { throw new Error(res.ok ? text : `伺服器錯誤 (${res.status})`); }
 
 			if (!res.ok) throw new Error(data.detail || '請求失敗');
 

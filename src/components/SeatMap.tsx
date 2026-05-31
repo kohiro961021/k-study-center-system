@@ -42,7 +42,7 @@ export const SeatLegend = () => (
   </div>
 );
 
-export default function SeatMap(props: SeatMapProps) {
+export const SeatMap = (props: SeatMapProps) => {
 	const {
 		isAdminView,
 		selectedBuilding,

@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { decodeJwtPayload } from '../utils/helper';
 import { useUIState } from '../hooks/useUIState';
 import { API_BASE, KLIB_KEY, GOOGLE_CLIENT_ID } from '../constants';
+
+function decodeJwtPayload(token: string): any {
+  try {
+    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
+    return JSON.parse(atob(base64));
+  } catch (_e) { return null; }
+}
 
 interface AuthContextType {
 	token: string | null;
@@ -145,8 +151,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		}
 	}, [token]);
 
+	const value: AuthContextType = {
+		token,
+		isAdmin,
+		userName,
+		loading,
+		error,
+		handleLogin,
+		handleLogout
+	};
+
 	return (
-		<AuthContext.Provider value={{ token, isAdmin, userName, loading, error, handleLogin, handleLogout }}>
+		<AuthContext.Provider value={value}>
 			{children}
 		</AuthContext.Provider>
 	);

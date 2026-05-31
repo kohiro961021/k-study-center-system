@@ -7,13 +7,6 @@ export function isWeekend(dateStr: string): boolean {
 	return d.getDay() === 0 || d.getDay() === 6;
 }
 
-export function decodeJwtPayload(token: string): any {
-  try {
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(base64));
-  } catch (_e) { return null; }
-}
-
 // ===== Simple Markdown Renderer =====
 export function renderMarkdown(md: string): string {
   let html = md

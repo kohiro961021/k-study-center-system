@@ -1,17 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useSystem } from './context/SystemContext';
-import { Sun, Moon, Calendar, LogOut, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Megaphone, Pin, Clock, KeyRound, BookText } from 'lucide-react';
+import { Sun, Moon, Calendar, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Megaphone, Pin, Clock, KeyRound, BookText } from 'lucide-react';
 // import { motion, AnimatePresence } from 'motion/react';
 
-import { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, AttendanceEntry, NoteEntry, SortKey, SortDir } from './type';
+import { AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, AttendanceEntry, NoteEntry, SortKey, SortDir } from './type';
 
 import { useAuth } from './context/AuthContext';
 
-import SeatMap, { SeatLegend } from './components/SeatMap';
-import Navbar from './components/layout/Navbar';
-import BottomNav from './components/layout/BottomNav';
+import { Navbar, BottomNav, SeatMap, SeatLegend } from './components';
 
-import { escapeHtml, isWeekend, decodeJwtPayload, renderMarkdown } from './utils/helper';
+import { escapeHtml, isWeekend, renderMarkdown } from './utils/helper';
 
 import { useUIState, useCurrentTime } from './hooks';
 
@@ -19,7 +17,7 @@ import { API_BASE, KLIB_KEY, GOOGLE_CLIENT_ID } from './constants';
 
 
 export default function App() {
-	const { token, isAdmin, userName, handleLogin, handleLogout, loading, error } = useAuth();
+	const { token, isAdmin, userName, handleLogin, loading, error } = useAuth();
 	const { setLoading } = useUIState();
 	const {
 		view, setView,
@@ -347,11 +345,14 @@ export default function App() {
 
 				{/* Clock bar + theme toggle */}
 				<div className="flex justify-center items-center gap-3 mb-6 pt-4">
+					{/* Clock */}
 					<div className="inline-flex items-center gap-2 bg-card/80 glass-card rounded-full px-6 py-2 shadow-sm border border-slate-200">
 						<Clock className="w-4 h-4 text-accent" />
 						<span className="text-sm font-medium text-slate-700">{dateString}</span>
 						<span className="text-lg font-bold text-accent font-mono">{timeString}</span>
 					</div>
+
+					{/* Theme toggle button */}
 					<button onClick={toggleTheme} className="p-2.5 rounded-full bg-card/80 glass-card border border-slate-200 shadow-sm text-slate-600 hover:text-accent transition" title={theme === 'dark' ? '切換淺色模式' : '切換深色模式'}>
 						{theme === 'dark' ? <Sun className="w-4 h-4 theme-toggle-icon" /> : <Moon className="w-4 h-4 theme-toggle-icon" />}
 					</button>
@@ -360,13 +361,16 @@ export default function App() {
 				{/* Login form */}
 				<div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto items-start justify-center">
 
+					{/* Login card */}
 					<div className="w-full max-w-md bg-card/80 glass-card rounded-4xl shadow-xl p-8 border border-slate-200">
+
+						{/* Header */}
 						<div className="flex items-center gap-3 mb-8">
 							<img src="/fssh-badge.png" alt="鳳山高中校徽" className="w-12 h-12 drop-shadow-md rounded-4xl" />
 							<h1 className="text-2xl font-bold text-slate-900">鳳山高中 K書中心</h1>
 						</div>
 
-
+						{/* Login form */}
 						<form onSubmit={handleLogin} className="space-y-4">
 							<div className="space-y-1">
 								<label className="text-sm font-medium text-slate-700">學號</label>
@@ -405,8 +409,6 @@ export default function App() {
 							)}
 
 						</form>
-
-						
 
 					</div>
 
@@ -463,12 +465,11 @@ export default function App() {
   	return (
 		<div className="min-h-screen bg-page noise-bg font-sans">
 
-			{/* Nav */}
 			<Navbar theme={theme} toggleTheme={toggleTheme} />
 
 			<main className="max-w-7xl mx-auto px-4 py-6 pb-24 md:pb-6 space-y-6">
 
-				{/* 全域 API 錯誤提示橫幅 */}
+				{/* Global Error Banner */}
 				{globalError && (
 					<div className="p-4 bg-red-50 text-red-800 text-sm rounded-xl border border-red-200 flex items-center justify-between shadow-sm">
 						<div className="flex items-center gap-2">
@@ -723,6 +724,7 @@ export default function App() {
 				{view === 'admin-seats' && (
 					<div className="space-y-4">
 
+						{/* Header with date selector and refresh button */}
 						<div className="flex flex-wrap items-center justify-between gap-3">
 							<h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><MessageSquare className="w-6 h-6 text-amber-600" />座位地圖管理</h2>
 
@@ -741,6 +743,7 @@ export default function App() {
 
 						<SeatLegend />
 
+						{/* Building selector */}
 						<div className="flex gap-2 mb-2">
 							<button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>新館</button>
 							<button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>舊館</button>
@@ -780,6 +783,8 @@ export default function App() {
 								<button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button>
 							</div>
 						}
+
+						{/* Reset student password form */}
 						<div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
 							<h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Key className="w-5 h-5 text-amber-600" /> 重設學生密碼</h3>
 
@@ -796,6 +801,7 @@ export default function App() {
 							</div>
 						</div>
 
+						{/* User list with search */}
 						<div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
 							<div className="p-4 border-b border-slate-200 flex items-center gap-3"><Search className="w-4 h-4 text-slate-400" />
 								<input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="搜尋學號..." className="flex-1 outline-none text-sm bg-transparent" />
@@ -823,26 +829,32 @@ export default function App() {
 
 						{/* Admin change own password */}
 						<div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
-						<h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><KeyRound className="w-5 h-5 text-indigo-600" /> 修改管理員密碼</h3>
-						<div className="flex flex-wrap gap-3 items-end">
-							<div className="flex-1 min-w-[160px] space-y-1">
-							<label className="text-sm font-medium text-slate-600">舊密碼</label>
-							<input type="password" value={adminOldPw} onChange={e => setAdminOldPw(e.target.value)} placeholder="輸入目前密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+							<h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><KeyRound className="w-5 h-5 text-indigo-600" /> 修改管理員密碼</h3>
+
+							<div className="flex flex-wrap gap-3 items-end">
+								<div className="flex-1 min-w-[160px] space-y-1">
+									<label className="text-sm font-medium text-slate-600">舊密碼</label>
+									<input type="password" value={adminOldPw} onChange={e => setAdminOldPw(e.target.value)} placeholder="輸入目前密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+								</div>
+
+								<div className="flex-1 min-w-[160px] space-y-1">
+									<label className="text-sm font-medium text-slate-600">新密碼</label>
+									<input type="password" value={adminNewPw} onChange={e => setAdminNewPw(e.target.value)} placeholder="輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+								</div>
+
+								<div className="flex-1 min-w-[160px] space-y-1">
+									<label className="text-sm font-medium text-slate-600">確認新密碼</label>
+									<input type="password" value={adminConfirmPw} onChange={e => setAdminConfirmPw(e.target.value)} placeholder="再次輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
+								</div>
+
+								<button onClick={handleAdminChangePassword} className="bg-accent hover:bg-accent-hover text-[#fff] font-bold px-6 py-2 rounded-lg transition flex items-center gap-1"><KeyRound className="w-4 h-4" />修改密碼</button>
 							</div>
-							<div className="flex-1 min-w-[160px] space-y-1">
-							<label className="text-sm font-medium text-slate-600">新密碼</label>
-							<input type="password" value={adminNewPw} onChange={e => setAdminNewPw(e.target.value)} placeholder="輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
-							</div>
-							<div className="flex-1 min-w-[160px] space-y-1">
-							<label className="text-sm font-medium text-slate-600">確認新密碼</label>
-							<input type="password" value={adminConfirmPw} onChange={e => setAdminConfirmPw(e.target.value)} placeholder="再次輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-400 outline-none" />
-							</div>
-							<button onClick={handleAdminChangePassword} className="bg-accent hover:bg-accent-hover text-[#fff] font-bold px-6 py-2 rounded-lg transition flex items-center gap-1"><KeyRound className="w-4 h-4" />修改密碼</button>
+
+							{adminNewPw && adminConfirmPw && adminNewPw !== adminConfirmPw && (
+								<div className="mt-2 text-sm text-red-500 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />兩次輸入的新密碼不一致</div>
+							)}
 						</div>
-						{adminNewPw && adminConfirmPw && adminNewPw !== adminConfirmPw && (
-							<div className="mt-2 text-sm text-red-500 flex items-center gap-1"><AlertCircle className="w-3.5 h-3.5" />兩次輸入的新密碼不一致</div>
-						)}
-						</div>
+
 					</div>
 				)}
 
@@ -1089,58 +1101,7 @@ export default function App() {
 				</div>
 			)}
 
-			{/* Mobile Bottom Navigation */}
-			<div className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-card/90 backdrop-blur-lg border-t border-slate-200/80 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] px-2 py-2 safe-bottom">
-				<div className="flex items-center justify-around">
-					{isAdmin ? (
-						<>
-							<button onClick={() => setView('admin-reservations')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-reservations' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
-								<Calendar className="w-5 h-5" />
-								<span className="text-[10px] mt-1">預約</span>
-							</button>
-							<button onClick={() => setView('admin-attendance')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-attendance' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
-								<ClipboardList className="w-5 h-5" />
-								<span className="text-[10px] mt-1">出席</span>
-							</button>
-							<button onClick={() => setView('admin-seats')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-seats' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
-								<MessageSquare className="w-5 h-5" />
-								<span className="text-[10px] mt-1">座位</span>
-							</button>
-							<button onClick={() => setView('admin-notes')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-notes' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
-								<FileText className="w-5 h-5" />
-								<span className="text-[10px] mt-1">註記</span>
-							</button>
-							<button onClick={() => setView('admin-users')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-users' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
-								<Users className="w-5 h-5" />
-								<span className="text-[10px] mt-1">學生</span>
-							</button>
-							<button onClick={() => setView('admin-announcements')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-announcements' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
-								<Megaphone className="w-5 h-5" />
-								<span className="text-[10px] mt-1">公告</span>
-							</button>
-						</>
-					) : (
-						<>
-							<button onClick={() => setView('dashboard')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'dashboard' ? 'text-accent font-bold' : 'text-slate-500'}`}>
-								<User className="w-5 h-5" />
-								<span className="text-[10px] mt-1">預約</span>
-							</button>
-							<button onClick={() => setView('history')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'history' ? 'text-accent font-bold' : 'text-slate-500'}`}>
-								<History className="w-5 h-5" />
-								<span className="text-[10px] mt-1">歷史</span>
-							</button>
-							<button onClick={() => setView('reserve')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'reserve' ? 'text-accent font-bold' : 'text-slate-500'}`}>
-								<BookText className="w-5 h-5" />
-								<span className="text-[10px] mt-1">預約座位</span>
-							</button>
-							<button onClick={() => setView('announcements')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'announcements' ? 'text-accent font-bold' : 'text-slate-500'}`}>
-								<Megaphone className="w-5 h-5" />
-								<span className="text-[10px] mt-1">公告</span>
-							</button>
-						</>
-					)}
-				</div>
-			</div>
+			<BottomNav />
 		</div>
 	);
 }

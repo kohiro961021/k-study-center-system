@@ -1,1 +1,1 @@
-export { escapeHtml, isWeekend, decodeJwtPayload, renderMarkdown } from './helper';
+export { escapeHtml, isWeekend, renderMarkdown } from './helper';
