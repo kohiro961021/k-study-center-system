@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSystem } from './context/SystemContext';
+import { useUI, useSeats, useAnnouncements } from './context';
 import { Sun, Moon, Calendar, User, Lock, AlertCircle, RefreshCw, Users, Key, Trash2, Search, Printer, Edit3, Plus, MessageSquare, CheckCircle, XCircle, FileText, ClipboardList, History, Megaphone, Pin, Clock, KeyRound, BookText } from 'lucide-react';
 // import { motion, AnimatePresence } from 'motion/react';
 
@@ -12,26 +12,26 @@ import { Navbar, BottomNav, SeatMap, SeatLegend } from './components';
 import { escapeHtml, isWeekend, renderMarkdown } from './utils/helper';
 import { LoginView } from './views/LoginView';
 
-import { useUIState, useCurrentTime } from './hooks';
-
-import { API_BASE, KLIB_KEY, GOOGLE_CLIENT_ID } from './constants';
-
+import { useApi } from './hooks';
 
 export default function App() {
-	const { token, isAdmin, userName, handleLogin, loading, error } = useAuth();
-	const { setLoading } = useUIState();
+	const { token, isAdmin } = useAuth();
+	const [loading, setLoading] = useState(false);
 	const {
 		theme, toggleTheme,
 		view, setView,
+		adminMessage, setAdminMessage,
+		globalError, setGlobalError
+	} = useUI();
 
+	const {
 		selectedDate, setSelectedDate,
 		selectedBuilding, setSelectedBuilding,
 		seats, setSeats,
-		bookedSeatIds, setBookedSeatIds,
+		bookedSeatIds, setBookedSeatIds
+	} = useSeats();
 
-		adminMessage, setAdminMessage,
-		globalError, setGlobalError,
-		
+	const {
 		announcements,
 		annTitle, setAnnTitle,
 		annContent, setAnnContent,
@@ -39,10 +39,10 @@ export default function App() {
 		editingAnn, setEditingAnn,
 		handleCreateAnnouncement,
 		handleUpdateAnnouncement,
-		handleDeleteAnnouncement,
+		handleDeleteAnnouncement
+	} = useAnnouncements();
 
-		apiCall
-	} = useSystem();
+	const apiCall = useApi();
 	
 	const [myReservations, setMyReservations] = useState<Reservation[]>([]);
 	const [myHistory, setMyHistory] = useState<HistoryReservation[]>([]);

@@ -1,8 +1,8 @@
 import { Calendar, ClipboardList, MessageSquare, FileText, Users, Megaphone, User, History, BookText } from 'lucide-react';
-import { useSystem, useAuth } from '../context';
+import { useUI, useAuth } from '../context';
 
 export const BottomNav = () => {
-	const { view, setView } = useSystem();
+	const { view, setView } = useUI();
 	const { isAdmin } = useAuth();
 
 	return (

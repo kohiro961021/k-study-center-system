@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useUIState } from '../hooks/useUIState';
+
 import { API_BASE, KLIB_KEY, GOOGLE_CLIENT_ID } from '../constants';
 
 function decodeJwtPayload(token: string): any {
@@ -23,7 +23,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 	const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
-	const { loading, setLoading, error, setError } = useUIState();
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
 
 	// Derived state from token
 	const payload = token ? decodeJwtPayload(token) : null;
@@ -155,17 +156,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 		token,
 		isAdmin,
 		userName,
-		loading,
-		error,
-		handleLogin,
-		handleLogout
+		loading, error,
+		handleLogin, handleLogout
 	};
 
-	return (
-		<AuthContext.Provider value={value}>
-			{children}
-		</AuthContext.Provider>
-	);
+	return	<AuthContext.Provider value={value}> {children} </AuthContext.Provider>
 }
 
 // Auth Hook

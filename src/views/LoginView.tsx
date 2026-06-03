@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Clock, Sun, Moon, User, Lock, AlertCircle, Megaphone, Pin } from 'lucide-react'
 
-import { useAuth, useSystem } from '../context';
+import { useAuth, useUI, useAnnouncements } from '../context';
 
 import { GOOGLE_CLIENT_ID } from '../constants';
 
@@ -13,7 +13,8 @@ import { renderMarkdown } from '../utils';
 
 export const LoginView = () => {
     const { handleLogin, error, loading } = useAuth();
-    const { theme, toggleTheme, announcements, fetchAnnouncements } = useSystem();
+    const { theme, toggleTheme } = useUI();
+    const { announcements, fetchAnnouncements } = useAnnouncements();
     const { dateString, timeString } = useCurrentTime();
 
     useEffect(() => {
