@@ -202,7 +202,7 @@ k-study-center-system/
 │   ├── hooks/           # React Hooks
 │   ├── views/           # 頁面元件
 │   │    ├── admin/         # 管理員專屬頁面 (Attendance, SeatView, etc.)
-│   │    ├── user/          # 學生專屬頁面 (Dashboard, ReserveView, etc.)
+│   │    ├── user/          # 學生專屬頁面 (MyReserveView, ReserveView, etc.)
 │   │    └── LoginView.tsx
 │   ├── type.ts          # TypeScript 型別定義
 │   ├── utils.ts         # 通用函式

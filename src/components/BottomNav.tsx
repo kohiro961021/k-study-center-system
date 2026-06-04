@@ -37,17 +37,17 @@ export const BottomNav = () => {
 					</>
 				) : (
 					<>
-						<button onClick={() => setView('dashboard')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'dashboard' ? 'text-accent font-bold' : 'text-slate-500'}`}>
+						<button onClick={() => setView('myreserve')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'myreserve' ? 'text-accent font-bold' : 'text-slate-500'}`}>
 							<User className="w-5 h-5" />
 							<span className="text-[10px] mt-1">預約</span>
-						</button>
-						<button onClick={() => setView('history')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'history' ? 'text-accent font-bold' : 'text-slate-500'}`}>
-							<History className="w-5 h-5" />
-							<span className="text-[10px] mt-1">歷史</span>
 						</button>
 						<button onClick={() => setView('reserve')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'reserve' ? 'text-accent font-bold' : 'text-slate-500'}`}>
 							<BookText className="w-5 h-5" />
 							<span className="text-[10px] mt-1">預約座位</span>
+						</button>
+						<button onClick={() => setView('history')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'history' ? 'text-accent font-bold' : 'text-slate-500'}`}>
+							<History className="w-5 h-5" />
+							<span className="text-[10px] mt-1">歷史</span>
 						</button>
 						<button onClick={() => setView('announcements')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'announcements' ? 'text-accent font-bold' : 'text-slate-500'}`}>
 							<Megaphone className="w-5 h-5" />

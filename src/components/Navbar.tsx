@@ -57,14 +57,14 @@ export const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
 							</>
 						) : (
 							<>
-								<button onClick={() => setView('dashboard')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'dashboard' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+								<button onClick={() => setView('myreserve')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'myreserve' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<User className="w-4 h-4 inline mr-1" />我的預約
-								</button>
-								<button onClick={() => setView('history')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'history' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
-									<History className="w-4 h-4 inline mr-1" />歷史紀錄
 								</button>
 								<button onClick={() => setView('reserve')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'reserve' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<Plus className="w-4 h-4 inline mr-1" />預約座位
+								</button>
+								<button onClick={() => setView('history')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'history' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+									<History className="w-4 h-4 inline mr-1" />歷史紀錄
 								</button>
 								<button onClick={() => setView('announcements')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'announcements' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<Megaphone className="w-4 h-4 inline mr-1" />公告

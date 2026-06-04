@@ -7,7 +7,7 @@ import { Navbar, BottomNav } from './components';
 
 import { 
 	LoginView, 
-	DashboardView, HistoryView, ReserveView, AnnouncementView, 
+	MyReserveView, HistoryView, ReserveView, AnnouncementView, 
 	AdminAnnouncementView, AttendanceView, NoteView, ResManageView, SeatView, UserManageView
 } from './views';
 
@@ -28,7 +28,7 @@ export default function App() {
 
 	useEffect(() => {
 		if (token) {
-			setView(isAdmin ? 'admin-reservations' : 'dashboard');
+			setView(isAdmin ? 'admin-reservations' : 'myreserve');
 		} else {
 			setView('login');
 		}
@@ -63,7 +63,7 @@ export default function App() {
 				{view === 'admin-announcements' && <AdminAnnouncementView />}
 
 				{/* Student Views */}
-				{view === 'dashboard' && <DashboardView />}
+				{view === 'myreserve' && <MyReserveView />}
 				{view === 'history' && <HistoryView />}
 				{view === 'reserve' && <ReserveView />}
 				{view === 'announcements' && <AnnouncementView />}

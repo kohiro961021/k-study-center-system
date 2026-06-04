@@ -4,7 +4,7 @@ import { useSeats } from '../../context';
 import { useApi } from '../../hooks';
 import { Reservation } from '../../type';
 
-export function DashboardView() {
+export function MyReserveView() {
     const apiCall = useApi();
     const { seats, setSeats } = useSeats();
     const [myReservations, setMyReservations] = useState<Reservation[]>([]);
@@ -37,10 +37,10 @@ export function DashboardView() {
                     {myReservations.map(res => {
                         const seat = seats.find(s => s.id === res.seat_id);
                         return (
-                            <div key={res.id} className="bg-card/70 glass-card p-5 rounded-xl border border-slate-200 shadow-sm flex justify-between items-start">
+                            <div key={res.id} className={` bg-card/70 glass-card p-5 rounded-xl border-2 ${res.res_date === new Date().toISOString().split('T')[0] ? ' border-accent' : 'border-slate-200' } shadow-sm flex justify-between items-start`}>
                                 <div>
                                     <div className="text-lg font-bold text-accent mb-1">座位 {seat?.label || `#${res.seat_id}`}</div>
-                                    {seat && <div className="text-xs text-slate-500 mb-2">{seat.building} · {seat.zone}</div>}
+                                        {seat && <div className="text-ms text-slate-500 mb-2">{seat.building} · {seat.zone}</div>}
                                     <div className="text-sm text-slate-600 flex items-center gap-1"><Calendar className="w-4 h-4" />{res.res_date}</div>
                                 </div>
                                 <button onClick={() => handleCancel(res.id)} className="text-red-500 hover:bg-red-50 p-2 rounded-lg border border-transparent hover:border-red-200 text-sm font-bold transition">取消</button>

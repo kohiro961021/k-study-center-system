@@ -1,7 +1,7 @@
 type View = 
     'login' |
     'register' |
-    'dashboard' |
+    'myreserve' |
     'history' |
     'reserve' |
     'announcements' |
