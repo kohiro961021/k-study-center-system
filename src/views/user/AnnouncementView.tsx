@@ -1,6 +1,6 @@
 import { Megaphone, Pin } from 'lucide-react';
 import { useAnnouncements } from '../../context';
-import { renderMarkdown } from '../../utils/helper';
+import { renderMarkdown } from '../../utils';
 
 export function AnnouncementView() {
     const { announcements } = useAnnouncements();

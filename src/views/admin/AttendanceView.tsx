@@ -3,7 +3,7 @@ import { ClipboardList, Printer, RefreshCw, CheckCircle, XCircle } from 'lucide-
 import { useApi } from '../../hooks';
 import { useUI, useSeats } from '../../context';
 import { AttendanceEntry } from '../../type';
-import { escapeHtml } from '../../utils/helper';
+import { escapeHtml } from '../../utils';
 
 export function AttendanceView() {
     const apiCall = useApi();

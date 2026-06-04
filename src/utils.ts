@@ -2,11 +2,6 @@ export function escapeHtml(str: string): string {
 	return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
-export function isWeekend(dateStr: string): boolean {
-	const d = new Date(dateStr + 'T00:00:00');
-	return d.getDay() === 0 || d.getDay() === 6;
-}
-
 // ===== Simple Markdown Renderer =====
 export function renderMarkdown(md: string): string {
   let html = md

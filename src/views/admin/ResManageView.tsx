@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, Printer, RefreshCw, Search, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { useApi } from '../../hooks';
 import { useUI, useSeats } from '../../context';
-import { escapeHtml } from '../../utils/helper';
+import { escapeHtml } from '../../utils';
 import { AdminReservation, SortKey, SortDir, AttendanceEntry } from '../../type';
 
 export function ResManageView() {

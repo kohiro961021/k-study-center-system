@@ -2,8 +2,12 @@ import { useState, useEffect } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { useSeats } from '../../context';
 import { useApi } from '../../hooks';
-import { isWeekend } from '../../utils/helper';
 import { SeatLegend, SeatMap } from '../../components';
+
+function isWeekend(dateStr: string): boolean {
+	const d = new Date(dateStr + 'T00:00:00');
+	return d.getDay() === 0 || d.getDay() === 6;
+}
 
 export function ReserveView() {
     const apiCall = useApi();

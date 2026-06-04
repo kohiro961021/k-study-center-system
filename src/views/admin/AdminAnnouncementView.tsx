@@ -1,6 +1,6 @@
 import { Megaphone, Pin, Edit3, Trash2 } from 'lucide-react';
 import { useUI, useAnnouncements } from '../../context';
-import { renderMarkdown } from '../../utils/helper';
+import { renderMarkdown } from '../../utils';
 
 export function AdminAnnouncementView() {
     const { adminMessage, setAdminMessage } = useUI();
