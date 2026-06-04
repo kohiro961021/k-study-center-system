@@ -196,9 +196,17 @@ k-study-center-system/
 │   ├── .dockerignore       # 防止 .env 等機密進入 image
 │   └── requirements.txt    # Python 依賴
 ├── src/
-│   ├── App.tsx             # 所有頁面 UI 與邏輯
-│   ├── main.tsx            # 前端入口
-│   └── index.css           # 全域樣式
+│   ├── components/      # UI 元件 (Navbar, SeatMap, BottomNav)
+│   ├── constants/       # 全域常數與靜態設定
+│   ├── context/         # 全域狀態管理 (Context Providers)
+│   ├── hooks/           # React Hooks
+│   ├── utils/           # 純邏輯工具函式 (helper)
+│   ├── views/           # 頁面元件
+│   │    ├── admin/       # 管理員專屬頁面 (Attendance, SeatView, etc.)
+│   │    ├── user/        # 學生專屬頁面 (Dashboard, ReserveView, etc.)
+│   │    └── LoginView.tsx
+│   ├── type.ts          # TypeScript 型別定義
+│   └── App.tsx          # 主程式 (僅負責組合)
 ├── dist/                   # 前端 build 產物（由 Nginx serve）
 ├── vite.config.ts          # Vite 設定（含 /api proxy → 開發用）
 └── package.json

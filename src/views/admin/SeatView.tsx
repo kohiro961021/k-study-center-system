@@ -1,0 +1,162 @@
+import { useState, useEffect } from 'react';
+import { MessageSquare, RefreshCw, Plus, Edit3 } from 'lucide-react';
+import { useApi } from '../../hooks';
+import { useUI, useSeats } from '../../context';
+import { SeatLegend, SeatMap } from '../../components';
+import { AdminReservation, SeatData } from '../../type';
+
+export function SeatView() {
+    const apiCall = useApi();
+    const { setAdminMessage } = useUI();
+    const { 
+        selectedDate, setSelectedDate,
+        selectedBuilding, setSelectedBuilding,
+        seats, setSeats,
+        bookedSeatIds, setBookedSeatIds 
+    } = useSeats();
+    
+    const [allReservations, setAllReservations] = useState<AdminReservation[]>([]);
+    
+    const [editingSeatNote, setEditingSeatNote] = useState<SeatData | null>(null);
+    const [noteText, setNoteText] = useState('');
+
+    const [showAdminReserve, setShowAdminReserve] = useState(false);
+    const [adminReserveSeatId, setAdminReserveSeatId] = useState<number | null>(null);
+    const [adminReserveStudentId, setAdminReserveStudentId] = useState('');
+    const [adminReserveDate, setAdminReserveDate] = useState(new Date().toISOString().split('T')[0]);
+
+    const fetchSeats = async () => { try { setSeats(await apiCall('/api/seats')); } catch { } };
+    const fetchAvailability = async () => { try { setBookedSeatIds(await apiCall(`/api/availability?res_date=${selectedDate}`)); } catch { } };
+    const fetchAdminReservations = async () => { try { setAllReservations(await apiCall('/api/admin/reservations')); } catch { } };
+
+    useEffect(() => {
+        fetchSeats();
+        fetchAvailability();
+        fetchAdminReservations();
+    }, [selectedDate]);
+
+    const handleUpdateAttendance = async (reservationId: number, status: 'present' | 'absent') => {
+        try {
+            const result = await apiCall(`/api/admin/reservations/${reservationId}/attendance`, 'PUT', { status });
+            setAdminMessage(result.message);
+            fetchAdminReservations();
+        } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
+    };
+
+    const handleSeatStatus = async (seatId: number, newStatus: 'maintenance' | 'available') => {
+        const action = newStatus === 'maintenance' ? '設為維修中（會自動取消該座位未來的所有預約）' : '恢復為可用';
+        if (!window.confirm(`確定要${action}嗎？`)) return;
+        try {
+            const result = await apiCall(`/api/admin/seats/${seatId}/status`, 'PUT', { status: newStatus });
+            setAdminMessage(result.message);
+            fetchSeats();
+            fetchAvailability();
+            fetchAdminReservations();
+        } catch (err: any) { setAdminMessage(`操作失敗: ${err.message}`); }
+    };
+
+    const handleReserve = async (seatId: number) => {
+        if (!window.confirm('確定要預約這個座位嗎？')) return;
+        try { 
+            await apiCall('/api/reserve', 'POST', { seat_id: seatId, res_date: selectedDate }); 
+            alert('預約成功！'); 
+            fetchAvailability(); 
+            fetchAdminReservations(); 
+        } catch (err: any) { alert(`預約失敗: ${err.message}`); }
+    };
+
+    const handleSaveSeatNote = async () => {
+        if (!editingSeatNote) return;
+        try { 
+            await apiCall(`/api/admin/seats/${editingSeatNote.id}/note`, 'PUT', { note: noteText });
+            setEditingSeatNote(null); 
+            fetchSeats(); 
+            setAdminMessage('註記已更新'); 
+        } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
+    };
+
+    const handleAdminReserve = async () => {
+        if (!adminReserveSeatId || !adminReserveStudentId) return;
+        try { 
+            const result = await apiCall('/api/admin/reserve', 'POST', { student_id: adminReserveStudentId, seat_id: adminReserveSeatId, res_date: adminReserveDate }); 
+            setAdminMessage(result.message);
+            setShowAdminReserve(false);
+            fetchAvailability();
+            fetchAdminReservations();
+        } catch (err: any) { setAdminMessage(`預約失敗: ${err.message}`); }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><MessageSquare className="w-6 h-6 text-amber-600" />座位地圖管理</h2>
+                <div className="flex items-center gap-2">
+                    <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
+                    <button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+                </div>
+            </div>
+
+            <SeatLegend />
+
+            <div className="flex gap-2 mb-2">
+                <button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>新館</button>
+                <button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>舊館</button>
+            </div>
+
+            <div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
+                <SeatMap
+                    isAdminView={true}
+                    selectedBuilding={selectedBuilding}
+                    seats={seats}
+                    bookedSeatIds={bookedSeatIds}
+                    selectedDate={selectedDate}
+                    allReservations={allReservations}
+                    setEditingSeatNote={setEditingSeatNote}
+                    setNoteText={setNoteText}
+                    setAdminReserveSeatId={setAdminReserveSeatId}
+                    setAdminReserveStudentId={setAdminReserveStudentId}
+                    setAdminReserveDate={setAdminReserveDate}
+                    setShowAdminReserve={setShowAdminReserve}
+                    handleUpdateAttendance={handleUpdateAttendance}
+                    handleSeatStatus={handleSeatStatus}
+                    handleReserve={handleReserve}
+                />
+            </div>
+
+            {editingSeatNote && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Edit3 className="w-5 h-5 text-amber-600" />編輯座位 {editingSeatNote.label} 註記</h3>
+                        <textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="輸入註記（如：靠窗、有插座、冷氣出風口等）" className="w-full border border-slate-200 rounded-lg p-3 text-sm h-24 outline-none focus:ring-2 focus:ring-amber-400" />
+                        <div className="flex gap-2 mt-4 justify-end">
+                            <button onClick={() => setEditingSeatNote(null)} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm">取消</button>
+                            <button onClick={handleSaveSeatNote} className="px-4 py-2 rounded-lg bg-amber-500 text-white font-bold text-sm hover:bg-amber-400 transition">儲存</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showAdminReserve && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-card rounded-2xl p-6 w-full max-w-md shadow-2xl border border-slate-200">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Plus className="w-5 h-5 text-emerald-600" />代為預約座位 {(adminReserveSeatId && seats.find(s => s.id === adminReserveSeatId)?.label) || ''}</h3>
+                        <div className="space-y-3">
+                            <div>
+                                <label className="text-sm font-medium text-slate-600">學號</label>
+                                <input type="text" value={adminReserveStudentId} onChange={e => setAdminReserveStudentId(e.target.value)} placeholder="輸入學生學號" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400" />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium text-slate-600">日期</label>
+                                <input type="date" value={adminReserveDate} onChange={e => setAdminReserveDate(e.target.value)} className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400" />
+                            </div>
+                        </div>
+                        <div className="flex gap-2 mt-4 justify-end">
+                            <button onClick={() => setShowAdminReserve(false)} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm">取消</button>
+                            <button onClick={handleAdminReserve} className="px-4 py-2 rounded-lg bg-emerald-500 text-white font-bold text-sm hover:bg-emerald-400 transition">確認預約</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
