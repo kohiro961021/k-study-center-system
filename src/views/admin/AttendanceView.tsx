@@ -97,19 +97,19 @@ export function AttendanceView() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div className="bg-card/70 glass-card rounded-xl border border-slate-200 p-4 text-center">
                     <div className="text-2xl font-bold text-accent">{attendanceList.length}</div>
-                    <div className="text-xs text-slate-500 mt-1">總預約人數</div>
-                </div>
-                <div className="bg-emerald-50/70 backdrop-blur rounded-xl border border-emerald-200 p-4 text-center">
-                    <div className="text-2xl font-bold text-emerald-600">{attendanceList.filter(a => a.attendance_status === 'present').length}</div>
-                    <div className="text-xs text-emerald-600 mt-1">✅ 有到</div>
-                </div>
-                <div className="bg-red-50/70 backdrop-blur rounded-xl border border-red-200 p-4 text-center">
-                    <div className="text-2xl font-bold text-red-500">{attendanceList.filter(a => a.attendance_status === 'absent').length}</div>
-                    <div className="text-xs text-red-500 mt-1">❌ 未到</div>
+                    <div className="text-ms text-slate-500 mt-1">總預約人數</div>
                 </div>
                 <div className="bg-slate-50/70 backdrop-blur rounded-xl border border-slate-200 p-4 text-center">
                     <div className="text-2xl font-bold text-slate-500">{attendanceList.filter(a => !a.attendance_status).length}</div>
-                    <div className="text-xs text-slate-500 mt-1">⏳ 未點名</div>
+                    <div className="text-ms text-slate-500 mt-1">未點名</div>
+                </div>
+                <div className="bg-emerald-50/70 backdrop-blur rounded-xl border border-emerald-200 p-4 text-center">
+                    <div className="text-2xl font-bold text-emerald-600">{attendanceList.filter(a => a.attendance_status === 'present').length}</div>
+                    <div className="text-ms text-emerald-600 mt-1">有到</div>
+                </div>
+                <div className="bg-red-50/70 backdrop-blur rounded-xl border border-red-200 p-4 text-center">
+                    <div className="text-2xl font-bold text-red-500">{attendanceList.filter(a => a.attendance_status === 'absent').length}</div>
+                    <div className="text-ms text-red-500 mt-1">未到</div>
                 </div>
             </div>
 
@@ -117,22 +117,30 @@ export function AttendanceView() {
             {attendanceList.length === 0 ? (
                 <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">該日期沒有任何預約</div>
             ) : (
-                <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
+                <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden overflow-x-auto">
                     <table className="w-full text-sm">
+
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
+                                <th className="px-4 py-3 text-left font-bold text-slate-700">操作</th>
                                 <th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
                                 <th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
                                 <th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
                                 <th className="px-4 py-3 text-left font-bold text-slate-700">學號</th>
                                 <th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
                                 <th className="px-4 py-3 text-center font-bold text-slate-700">出席狀態</th>
-                                <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
                             </tr>
                         </thead>
+
                         <tbody className="divide-y divide-slate-100">
                             {attendanceList.map(entry => (
                                 <tr key={entry.id} className={`transition ${entry.attendance_status === 'present' ? 'bg-emerald-50/30' : entry.attendance_status === 'absent' ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
+                                    <td className="px-4 py-3 text-right">
+                                        <div className="flex items-center gap-1">
+                                            <button onClick={() => handleUpdateAttendance(entry.id, 'present')} className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${entry.attendance_status === 'present' ? 'bg-emerald-500 text-white' : 'text-emerald-600 hover:bg-emerald-50 border border-emerald-200'}`}><CheckCircle className="w-3 h-3" />有到</button>
+                                            <button onClick={() => handleUpdateAttendance(entry.id, 'absent')} className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${entry.attendance_status === 'absent' ? 'bg-red-500 text-white' : 'text-red-500 hover:bg-red-50 border border-red-200'}`}><XCircle className="w-3 h-3" />未到</button>
+                                        </div>
+                                    </td>
                                     <td className="px-4 py-3 font-bold">{entry.seat_label}</td>
                                     <td className="px-4 py-3 text-slate-600">{entry.zone}</td>
                                     <td className="px-4 py-3 text-slate-600">{entry.building}</td>
@@ -141,13 +149,7 @@ export function AttendanceView() {
                                     <td className="px-4 py-3 text-center">
                                         {entry.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
                                         {entry.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold"><XCircle className="w-3.5 h-3.5" />未到</span>}
-                                        {!entry.attendance_status && <span className="text-slate-400 text-xs">⏳ 未點名</span>}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                    <div className="flex items-center gap-1 justify-end">
-                                        <button onClick={() => handleUpdateAttendance(entry.id, 'present')} className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${entry.attendance_status === 'present' ? 'bg-emerald-500 text-white' : 'text-emerald-600 hover:bg-emerald-50 border border-emerald-200'}`}><CheckCircle className="w-3 h-3" />有到</button>
-                                        <button onClick={() => handleUpdateAttendance(entry.id, 'absent')} className={`px-3 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1 ${entry.attendance_status === 'absent' ? 'bg-red-500 text-white' : 'text-red-500 hover:bg-red-50 border border-red-200'}`}><XCircle className="w-3 h-3" />未到</button>
-                                    </div>
+                                        {!entry.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
                                     </td>
                                 </tr>
                             ))}

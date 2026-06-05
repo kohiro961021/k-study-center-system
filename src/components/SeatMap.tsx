@@ -29,7 +29,7 @@ interface AdminSeatMapProps extends BaseSeatMapProps {
 type SeatMapProps = StudentSeatMapProps | AdminSeatMapProps;
 
 export const SeatLegend = () => (
-  <div className="flex flex-wrap gap-3 text-xs">
+  <div className="flex gap-3 text-xs mb-4">
     <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-emerald-100 border-2 border-emerald-400 inline-block" /> 空位</span>
     <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-red-100 border-2 border-red-300 inline-block" /> 已預約</span>
     <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-amber-100 border-2 border-amber-400 inline-block" /> 工讀生</span>
@@ -83,21 +83,32 @@ export const SeatMap = (props: SeatMapProps) => {
 
 				const statusText = isMaint ? '維修中' : isBooked ? '已預約' : isStaff ? '工讀生' : '空位';
 				const action = window.prompt(`座位 ${seat.label}\n${seat.note ? `註記: ${seat.note}\n` : ''}狀態: ${statusText}\n\n輸入操作：\n1 = 編輯註記\n2 = 代為預約\n3 = 有到\n4 = 未到\n5 = 設為維修中\n6 = 恢復可用\n取消 = 關閉`);
-				
-				if (action === '1') { setEditingSeatNote(seat); setNoteText(seat.note || ''); 
-				} else if (action === '2') { 
-					setAdminReserveSeatId(seat.id);
-					setAdminReserveStudentId('');
-					setAdminReserveDate(selectedDate);
-					setShowAdminReserve(true); 
-				} else if (action === '3' || action === '4') {
-					const targetRes = allReservations.find(r => r.seat_id === seat.id && r.res_date === selectedDate);
 
-					if (!targetRes) { alert('該座位在這個日期沒有預約'); return; }
-					handleUpdateAttendance(targetRes.id, action === '3' ? 'present' : 'absent');
+				switch (action) {
+					case '1':
+						setEditingSeatNote(seat);
+						setNoteText(seat.note || '');
+						break;
+					case '2':
+						setAdminReserveSeatId(seat.id);
+						setAdminReserveStudentId('');
+						setAdminReserveDate(selectedDate);
+						setShowAdminReserve(true);
+						break;
+					case '3':
+					case '4':
+						const targetRes = allReservations.find(r => r.seat_id === seat.id && r.res_date === selectedDate);
 
-				} else if (action === '5') { handleSeatStatus(seat.id, 'maintenance'); 
-				} else if (action === '6') { handleSeatStatus(seat.id, 'available'); }
+						if (!targetRes) { alert('該座位在這個日期沒有預約'); return; }
+						handleUpdateAttendance(targetRes.id, action === '3' ? 'present' : 'absent');
+						break;
+					case '5':
+						handleSeatStatus(seat.id, 'maintenance');
+						break;
+					case '6':
+						handleSeatStatus(seat.id, 'available');
+						break;
+				}
 			} else {
 				if (!disabled) handleReserve(seat.id);
 			}

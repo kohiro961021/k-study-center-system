@@ -28,7 +28,7 @@ export default function App() {
 
 	useEffect(() => {
 		if (token) {
-			setView(isAdmin ? 'admin-reservations' : 'myreserve');
+			setView(isAdmin ? 'admin-attendance' : 'announcements');
 		} else {
 			setView('login');
 		}

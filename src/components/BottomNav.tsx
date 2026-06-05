@@ -10,13 +10,13 @@ export const BottomNav = () => {
 			<div className="flex items-center justify-around">
 				{isAdmin ? (
 					<>
-						<button onClick={() => setView('admin-reservations')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-reservations' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
-							<Calendar className="w-5 h-5" />
-							<span className="text-[10px] mt-1">預約</span>
-						</button>
 						<button onClick={() => setView('admin-attendance')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-attendance' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
 							<ClipboardList className="w-5 h-5" />
 							<span className="text-[10px] mt-1">出席</span>
+						</button>
+						<button onClick={() => setView('admin-reservations')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-reservations' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
+							<Calendar className="w-5 h-5" />
+							<span className="text-[10px] mt-1">預約</span>
 						</button>
 						<button onClick={() => setView('admin-seats')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-seats' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
 							<MessageSquare className="w-5 h-5" />

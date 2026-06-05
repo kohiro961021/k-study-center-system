@@ -36,27 +36,30 @@ export const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
 					<div className="hidden md:flex">
 						{isAdmin ? (
 							<>
-								<button onClick={() => setView('admin-reservations')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-reservations' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}>
-									<Calendar className="w-4 h-4 inline mr-1" />預約
-								</button>
-								<button onClick={() => setView('admin-attendance')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-attendance' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+								<button onClick={() => setView('admin-attendance')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-attendance' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<ClipboardList className="w-4 h-4 inline mr-1" />出席
 								</button>
-								<button onClick={() => setView('admin-seats')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-seats' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+								<button onClick={() => setView('admin-reservations')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-reservations' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+									<Calendar className="w-4 h-4 inline mr-1" />預約
+								</button>
+								<button onClick={() => setView('admin-seats')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-seats' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<MessageSquare className="w-4 h-4 inline mr-1" />座位
 								</button>
-								<button onClick={() => setView('admin-notes')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-notes' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+								<button onClick={() => setView('admin-notes')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-notes' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<FileText className="w-4 h-4 inline mr-1" />註記
 								</button>
-								<button onClick={() => setView('admin-users')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-users' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+								<button onClick={() => setView('admin-users')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-users' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<Users className="w-4 h-4 inline mr-1" />學生
 								</button>
-								<button onClick={() => setView('admin-announcements')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-announcements' ? 'bg-amber-100 text-amber-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+								<button onClick={() => setView('admin-announcements')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-announcements' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<Megaphone className="w-4 h-4 inline mr-1" />公告
 								</button>
 							</>
 						) : (
 							<>
+								<button onClick={() => setView('announcements')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'announcements' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+									<Megaphone className="w-4 h-4 inline mr-1" />公告
+								</button>
 								<button onClick={() => setView('myreserve')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'myreserve' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<User className="w-4 h-4 inline mr-1" />我的預約
 								</button>
@@ -65,9 +68,6 @@ export const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
 								</button>
 								<button onClick={() => setView('history')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'history' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<History className="w-4 h-4 inline mr-1" />歷史紀錄
-								</button>
-								<button onClick={() => setView('announcements')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'announcements' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
-									<Megaphone className="w-4 h-4 inline mr-1" />公告
 								</button>
 							</>
 						)}
