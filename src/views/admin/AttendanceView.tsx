@@ -4,6 +4,7 @@ import { useApi } from '../../hooks';
 import { useUI, useSeats } from '../../context';
 import { AttendanceEntry } from '../../type';
 import { escapeHtml } from '../../utils';
+import { DatePicker } from '../../components';
 
 export function AttendanceView() {
     const apiCall = useApi();
@@ -80,16 +81,19 @@ export function AttendanceView() {
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <ClipboardList className="w-6 h-6 text-amber-600" />每日出席狀況
                 </h2>
 
-                <div className="flex items-center gap-2">
-                    <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
+                <div className="flex items-center gap-4">
+                    <DatePicker value={selectedDate} onChange={setSelectedDate} />
+
                     <button onClick={handlePrintAttendance} className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><Printer className="w-4 h-4" />列印</button>
-                    <button onClick={fetchAttendanceList} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+                     
+                    {/* Refresh Button */}
+                    < button onClick={() => { fetchAttendanceList(); }} className="bg-card-alt hover:opacity-80 text-slate-700 px-3 py-2 rounded-full font-bold text-sm flex items-center gap-1 transition border border-slate-200"><RefreshCw className="w-4 h-4" /></button>
                 </div>
             </div>
 
@@ -154,6 +158,7 @@ export function AttendanceView() {
                                 </tr>
                             ))}
                         </tbody>
+
                     </table>
                 </div>
             )}

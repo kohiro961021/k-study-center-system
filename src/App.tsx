@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { useUI } from './context';
 import { AlertCircle } from 'lucide-react';
-
 import { useAuth } from './context/AuthContext';
 import { Navbar, BottomNav } from './components';
 
@@ -14,7 +13,6 @@ import {
 export default function App() {
 	const { token, isAdmin } = useAuth();
 	const {
-		theme, toggleTheme,
 		view, setView,
 		globalError, setGlobalError
 	} = useUI();
@@ -40,7 +38,7 @@ export default function App() {
   	// === Main App ===
   	return (
 		<div className="min-h-screen bg-page noise-bg font-sans">
-			<Navbar theme={theme} toggleTheme={toggleTheme} />
+			<Navbar />
 
 			<main className="max-w-7xl mx-auto px-4 py-6 pb-24 md:pb-6 space-y-6">
 				{/* Global Error Banner */}

@@ -103,12 +103,15 @@ export const LoginView = () => {
 
                         <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
                             {announcements.slice(0, 5).map(ann => (
-                                <div key={ann.id} className={`rounded-xl p-4 border ${ann.is_pinned ? 'bg-amber-50/80 border-amber-200' : 'bg-slate-50/80 border-slate-200'}`}>
+                                <div key={ann.id} className={`rounded-xl p-4 border-2 ${ann.is_pinned ? 'bg-amber-50/80 border-amber-200' : 'bg-slate-50/80 border-slate-200'}`}>
+
                                     <div className="flex items-center gap-2 mb-1">
                                         {ann.is_pinned && <Pin className="w-3.5 h-3.5 text-amber-500" />}
-                                        <span className="font-bold text-sm text-slate-900">{ann.title}</span>
+                                        <span className="font-bold text-lg text-slate-900">{ann.title}</span>
                                     </div>
+
                                     <div className="text-xs text-slate-500 mb-2">{ann.author_name} · {ann.created_at}</div>
+
                                     <div className="prose-sm text-sm text-slate-700 leading-relaxed" dangerouslySetInnerHTML={{ __html: renderMarkdown(ann.content) }} />
                                 </div>
                             ))}

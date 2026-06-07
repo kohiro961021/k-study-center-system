@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { MessageSquare, RefreshCw, Plus, Edit3 } from 'lucide-react';
 import { useApi } from '../../hooks';
 import { useUI, useSeats } from '../../context';
-import { SeatLegend, SeatMap } from '../../components';
+import { SeatLegend, SeatMap, DatePicker } from '../../components';
 import { AdminReservation, SeatData } from '../../type';
 
 export function SeatView() {
@@ -87,21 +87,35 @@ export function SeatView() {
     };
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><MessageSquare className="w-6 h-6 text-amber-600" />座位地圖管理</h2>
+                {/* Title */}
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <MessageSquare className="w-6 h-6 text-amber-600" />
+                    座位地圖管理
+                </h2>
+
+                {/* Date Picker */}
                 <div className="flex items-center gap-2">
-                    <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
-                    <button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+                    <DatePicker value={selectedDate} onChange={setSelectedDate} />
+                </div>
+                
+                {/* Zone Selector & Refresh Button */}
+                <div className="flex items-center gap-3">
+                    {/* Zone Selector (Capsule Switch) */}
+                    <div className="bg-card-alt p-1 rounded-full shadow-inner border border-slate-200 max-w-max">
+                        <button onClick={() => setSelectedBuilding('新館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '新館' ? 'bg-card text-accent shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>新館</button>
+                        <button onClick={() => setSelectedBuilding('舊館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '舊館' ? 'bg-card text-accent shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}>舊館</button>
+                    </div>
+
+                    {/* Refresh Button */}
+                    <button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-card-alt hover:opacity-80 text-slate-700 px-3 py-2 rounded-full font-bold text-sm flex items-center gap-1 transition border border-slate-200">
+                        <RefreshCw className="w-4 h-4" />
+                    </button>
                 </div>
             </div>
 
             <SeatLegend />
-
-            <div className="flex gap-2 mb-2">
-                <button onClick={() => setSelectedBuilding('新館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '新館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>新館</button>
-                <button onClick={() => setSelectedBuilding('舊館')} className={`px-4 py-2 rounded-lg font-bold text-sm transition ${selectedBuilding === '舊館' ? 'bg-accent text-[#fff]' : 'bg-card border border-slate-200 text-slate-600'}`}>舊館</button>
-            </div>
 
             <div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
                 <SeatMap
@@ -145,9 +159,9 @@ export function SeatView() {
                                 <label className="text-sm font-medium text-slate-600">學號</label>
                                 <input type="text" value={adminReserveStudentId} onChange={e => setAdminReserveStudentId(e.target.value)} placeholder="輸入學生學號" className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400" />
                             </div>
-                            <div>
+                            <div className="flex flex-col gap-1">
                                 <label className="text-sm font-medium text-slate-600">日期</label>
-                                <input type="date" value={adminReserveDate} onChange={e => setAdminReserveDate(e.target.value)} className="block w-full mt-1 px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-emerald-400" />
+                                <DatePicker value={adminReserveDate} onChange={setAdminReserveDate} />
                             </div>
                         </div>
                         <div className="flex gap-2 mt-4 justify-end">

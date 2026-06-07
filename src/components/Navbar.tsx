@@ -1,15 +1,11 @@
 import { Sun, Moon, Calendar, LogOut, User, Plus, MessageSquare, ClipboardList, History, Megaphone, Users, FileText, Clock } from 'lucide-react';
 import { useUI, useAuth } from '../context/';
-
 import { useCurrentTime } from '../hooks';
 
-interface NavbarProps {
-	theme: 'light' | 'dark';
-	toggleTheme: () => void;
-}
 
-export const Navbar = ({ theme, toggleTheme }: NavbarProps) => {
-	const { view, setView } = useUI();
+
+export const Navbar = () => {
+	const { view, setView, theme, toggleTheme } = useUI();
 	const { isAdmin, handleLogout } = useAuth();
 	const { timeString, dateString } = useCurrentTime();
 

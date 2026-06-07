@@ -1,3 +1,4 @@
+import React, { useRef, useEffect } from 'react';
 import { SeatData, AdminReservation } from '../type';
 import { NEW_BUILDING_ZONES, OLD_BUILDING_ZONES, OLD_STAFF_ZONES } from '../constants/seats';
 
@@ -29,7 +30,7 @@ interface AdminSeatMapProps extends BaseSeatMapProps {
 type SeatMapProps = StudentSeatMapProps | AdminSeatMapProps;
 
 export const SeatLegend = () => (
-  <div className="flex gap-3 text-xs mb-4">
+  <div className="flex gap-3 text-xs mb-4 justify-center">
     <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-emerald-100 border-2 border-emerald-400 inline-block" /> 空位</span>
     <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-red-100 border-2 border-red-300 inline-block" /> 已預約</span>
     <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-amber-100 border-2 border-amber-400 inline-block" /> 工讀生</span>
@@ -51,6 +52,27 @@ export const SeatMap = (props: SeatMapProps) => {
 		selectedDate,
 		handleReserve
 	} = props;
+
+	const scrollRef = useRef<HTMLDivElement>(null);
+
+	useEffect(() => {
+		const el = scrollRef.current;
+		if (!el) return;
+		
+		const handleWheel = (e: WheelEvent) => {
+			if (e.deltaY !== 0 && !e.shiftKey) {
+				const maxScrollLeft = el.scrollWidth - el.clientWidth;
+				// 只有當容器可水平滾動時，才攔截垂直滾動並轉為水平滾動
+				if (maxScrollLeft > 0) {
+					e.preventDefault();
+					el.scrollLeft += e.deltaY;
+				}
+			}
+		};
+		
+		el.addEventListener('wheel', handleWheel, { passive: false });
+		return () => el.removeEventListener('wheel', handleWheel);
+	}, [selectedBuilding]);
 
 	const seatMap = new Map<number, SeatData>(seats.map(s => [s.seat_number, s]));
 
@@ -184,7 +206,7 @@ export const SeatMap = (props: SeatMapProps) => {
 
 	const renderOldBuilding = () => {
 		return (
-			<div className="space-y-3 overflow-x-auto">
+			<div ref={scrollRef} className="space-y-3 overflow-x-auto pb-2 scrollbar-thin">
 				{/* Main seat area - matching physical layout */}
 				<div className="min-w-[900px]">
 				{/* Top section - main desk groups in columns */}
