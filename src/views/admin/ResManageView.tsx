@@ -107,14 +107,13 @@ export function ResManageView() {
         <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Calendar className="w-6 h-6 text-amber-600" />全部預約紀錄</h2>
-                <div className="flex items-center gap-2">
-                    <PrintButton onClick={handlePrintAttendance} />
-                    <RefreshButton onClick={fetchAdminReservations} />
-                </div>
+                <RefreshButton onClick={fetchAdminReservations} />
             </div>
 
-            <div className="flex items-center gap-2">
-                    <DatePicker value={selectedDate} onChange={setSelectedDate} />
+            <div className="justify-between gap-3 flex items-center">
+                <DatePicker value={selectedDate} onChange={setSelectedDate} />
+
+                <PrintButton onClick={handlePrintAttendance} />
             </div>
             {/* Search bar */}
             <div className="flex items-center gap-2 bg-card/80 glass-card border border-slate-200 rounded-xl px-4 py-2 shadow-sm">

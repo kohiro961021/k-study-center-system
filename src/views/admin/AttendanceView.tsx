@@ -84,15 +84,15 @@ export function AttendanceView() {
         <div className="space-y-6">
             {/* Mobile */}
             <div className="md:hidden space-y-2">
-                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                    <ClipboardList className="w-6 h-6 text-amber-600" />每日出席狀況
-                </h2>
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        <ClipboardList className="w-6 h-6 text-amber-600" />每日出席狀況
+                    </h2>
+                    <RefreshButton onClick={fetchAttendanceList} />
+                </div>
                 <div className="flex items-center justify-between gap-2">
                     <DatePicker value={selectedDate} onChange={setSelectedDate} />
-                    <div className="flex items-center gap-2">
-                        <PrintButton onClick={handlePrintAttendance} />
-                        <RefreshButton onClick={fetchAttendanceList} />
-                    </div>
+                    <PrintButton onClick={handlePrintAttendance} />
                 </div>
             </div>
 
