@@ -30,15 +30,15 @@ interface AdminSeatMapProps extends BaseSeatMapProps {
 type SeatMapProps = StudentSeatMapProps | AdminSeatMapProps;
 
 export const SeatLegend = () => (
-  <div className="flex gap-3 text-xs mb-4 justify-center">
-    <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-emerald-100 border-2 border-emerald-400 inline-block" /> 空位</span>
-    <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-red-100 border-2 border-red-300 inline-block" /> 已預約</span>
-    <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-amber-100 border-2 border-amber-400 inline-block" /> 工讀生</span>
-    <span className="flex items-center gap-1"><span className="w-4 h-4 rounded bg-yellow-100 border-2 border-yellow-400 inline-block" /> 維修中</span>
-    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> 有註記</span>
-    <span className="flex items-center gap-1">
+  <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs mb-4 items-center justify-center">
+    <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-emerald-100 border-2 border-emerald-400 inline-block" /> 空位</span>
+    <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-red-100 border-2 border-red-300 inline-block" /> 已預約</span>
+    <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-amber-100 border-2 border-amber-400 inline-block" /> 工讀生</span>
+    <span className="flex items-center gap-1.5"><span className="w-4 h-4 rounded bg-yellow-100 border-2 border-yellow-400 inline-block" /> 維修中</span>
+    <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" /> 有註記</span>
+    <span className="flex items-center gap-1.5">
 		<span className="text-gray-500 font-medium border-b border-gray-400">柱</span>
-		<span className="text-gray-600">：代表旁邊有柱子</span>
+		<span className="text-slate-500">：代表旁邊有柱子</span>
     </span>
   </div>
 );
@@ -208,7 +208,7 @@ export const SeatMap = (props: SeatMapProps) => {
 		return (
 			<div ref={scrollRef} className="space-y-3 overflow-x-auto pb-2 scrollbar-thin">
 				{/* Main seat area - matching physical layout */}
-				<div className="min-w-[900px]">
+				<div className="min-w-[950px] space-y-3">
 				{/* Top section - main desk groups in columns */}
 				<div className="flex gap-3 items-start">
 					{/* Column 1: leftmost (150-164) */}
@@ -313,10 +313,9 @@ export const SeatMap = (props: SeatMapProps) => {
 					{renderOldDeskGroup("舊最右3", OLD_BUILDING_ZONES["舊最右3"])}
 					</div>
 				</div>
-				</div>
 
 				{/* Staff seats + entrance area (bottom) */}
-				<div className="flex gap-4 items-end">
+				<div className="flex gap-4 items-end pt-3 border-t border-slate-100">
 				{/* Staff zone */}
 				<div className="bg-amber-50/70 backdrop-blur rounded-xl border border-amber-200 p-3 shadow-sm">
 					<div className="text-xs font-bold text-amber-700 mb-2 text-center">工讀生 / 工讀室</div>
@@ -340,6 +339,7 @@ export const SeatMap = (props: SeatMapProps) => {
 
 				<div className="flex flex-col items-center gap-1 text-slate-400 font-bold text-sm pb-2">
 					<span>往新館 →</span>
+				</div>
 				</div>
 			</div>
 		</div>

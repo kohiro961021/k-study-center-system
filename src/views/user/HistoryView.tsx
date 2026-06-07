@@ -21,36 +21,64 @@ export function HistoryView() {
             {myHistory.length === 0 ? (
                 <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有歷史紀錄</div>
             ) : (
-                <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
-                    <table className="w-full text-sm">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                            <th className="px-4 py-3 text-left font-bold text-slate-700">日期</th>
-                            <th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
-                            <th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
-                            <th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
-                            <th className="px-4 py-3 text-center font-bold text-slate-700">出席狀態</th>
-                            </tr>
-                        </thead>
+                <>
+                    {/* 手機端：卡片列表排版 (隱藏在 md 以上螢幕) */}
+                    <div className="md:hidden space-y-3">
+                        {myHistory.map(h => (
+                            <div 
+                                key={h.id} 
+                                className={`bg-card/70 glass-card p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-2 transition-all duration-300 hover:shadow-md ${
+                                    h.attendance_status === 'present' ? 'border-l-4 border-l-emerald-500 bg-emerald-50/10' : 
+                                    h.attendance_status === 'absent' ? 'border-l-4 border-l-red-500 bg-red-50/10' : ''
+                                }`}
+                            >
+                                <div className="flex justify-between items-center">
+                                    <span className="text-sm font-semibold text-slate-800">{h.res_date}</span>
+                                    <div>
+                                        {h.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold"><CheckCircle className="w-3 h-3" />有到</span>}
+                                        {h.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs font-bold"><XCircle className="w-3 h-3" />未到</span>}
+                                        {!h.attendance_status && <span className="text-slate-400 text-xs font-medium">未點名</span>}
+                                    </div>
+                                </div>
+                                <div className="flex justify-between items-center text-xs text-slate-500 mt-0.5">
+                                    <span>座位：<strong className="text-accent text-sm font-bold">{h.seat_label}</strong></span>
+                                    <span>{h.seat_building} · {h.seat_zone}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
 
-                        <tbody className="divide-y divide-slate-100">
-                            {myHistory.map(h => (
-                            <tr key={h.id} className={`transition ${h.attendance_status === 'present' ? 'bg-emerald-50/30' : h.attendance_status === 'absent' ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
-                                <td className="px-4 py-3 text-slate-600">{h.res_date}</td>
-                                <td className="px-4 py-3 font-bold text-accent">{h.seat_label}</td>
-                                <td className="px-4 py-3 text-slate-600">{h.seat_building}</td>
-                                <td className="px-4 py-3 text-slate-600">{h.seat_zone}</td>
-                                <td className="px-4 py-3 text-center">
+                    {/* 桌機端：表格排版 (隱藏在 md 以下螢幕) */}
+                    <div className="hidden md:block bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
+                        <table className="w-full text-sm">
+                            <thead className="bg-slate-50 border-b border-slate-200">
+                                <tr>
+                                <th className="px-4 py-3 text-left font-bold text-slate-700">日期</th>
+                                <th className="px-4 py-3 text-left font-bold text-slate-700">座位</th>
+                                <th className="px-4 py-3 text-left font-bold text-slate-700">館別</th>
+                                <th className="px-4 py-3 text-left font-bold text-slate-700">區域</th>
+                                <th className="px-4 py-3 text-center font-bold text-slate-700">出席狀態</th>
+                                </tr>
+                            </thead>
 
-                                {h.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
-                                {h.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold"><XCircle className="w-3.5 h-3.5" />未到</span>}
-                                {!h.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
-                                </td>
-                            </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            <tbody className="divide-y divide-slate-100">
+                                {myHistory.map(h => (
+                                <tr key={h.id} className={`transition ${h.attendance_status === 'present' ? 'bg-emerald-50/30' : h.attendance_status === 'absent' ? 'bg-red-50/30' : 'hover:bg-slate-50'}`}>
+                                    <td className="px-4 py-3 text-slate-600">{h.res_date}</td>
+                                    <td className="px-4 py-3 font-bold text-accent">{h.seat_label}</td>
+                                    <td className="px-4 py-3 text-slate-600">{h.seat_building}</td>
+                                    <td className="px-4 py-3 text-slate-600">{h.seat_zone}</td>
+                                    <td className="px-4 py-3 text-center">
+                                    {h.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
+                                    {h.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold"><XCircle className="w-3.5 h-3.5" />未到</span>}
+                                    {!h.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
+                                    </td>
+                                </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </>
             )}
         </div>
     );

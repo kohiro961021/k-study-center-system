@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { FileText, RefreshCw, MessageSquare, Edit3 } from 'lucide-react';
+import { FileText, MessageSquare, Edit3 } from 'lucide-react';
 import { useApi } from '../../hooks';
 import { useUI, useSeats } from '../../context';
 import { NoteEntry, SeatData } from '../../type';
+import { RefreshButton } from '../../components';
 
 export function NoteView() {
     const apiCall = useApi();
@@ -36,7 +37,7 @@ export function NoteView() {
         <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><FileText className="w-6 h-6 text-amber-600" />座位註記總覽</h2>
-                <button onClick={fetchNotesList} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+                <RefreshButton onClick={fetchNotesList} />
             </div>
 
             {notesList.length === 0 ? (

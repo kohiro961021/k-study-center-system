@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { MessageSquare, RefreshCw, Plus, Edit3 } from 'lucide-react';
+import { MessageSquare, Plus, Edit3 } from 'lucide-react';
 import { useApi } from '../../hooks';
 import { useUI, useSeats } from '../../context';
-import { SeatLegend, SeatMap, DatePicker } from '../../components';
+import { SeatLegend, SeatMap, DatePicker, RefreshButton } from '../../components';
 import { AdminReservation, SeatData } from '../../type';
 
 export function SeatView() {
@@ -88,32 +88,44 @@ export function SeatView() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-                {/* Title */}
+        {/* Mobile View */}
+        <div className="md:hidden space-y-2">
+            {/* Title and Refresh Button */}
+            <div className="flex items-center justify-between">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <MessageSquare className="w-6 h-6 text-amber-600" />
                     座位地圖管理
                 </h2>
-
-                {/* Date Picker */}
-                <div className="flex items-center gap-2">
-                    <DatePicker value={selectedDate} onChange={setSelectedDate} />
-                </div>
-                
-                {/* Zone Selector & Refresh Button */}
-                <div className="flex items-center gap-3">
-                    {/* Zone Selector (Capsule Switch) */}
-                    <div className="bg-card-alt p-1 rounded-full shadow-inner border border-slate-200 max-w-max">
-                        <button onClick={() => setSelectedBuilding('新館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '新館' ? 'bg-card text-accent shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>新館</button>
-                        <button onClick={() => setSelectedBuilding('舊館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '舊館' ? 'bg-card text-accent shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}>舊館</button>
-                    </div>
-
-                    {/* Refresh Button */}
-                    <button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-card-alt hover:opacity-80 text-slate-700 px-3 py-2 rounded-full font-bold text-sm flex items-center gap-1 transition border border-slate-200">
-                        <RefreshCw className="w-4 h-4" />
-                    </button>
+                <RefreshButton onClick={() => { fetchSeats(); fetchAvailability(); }} />
+            </div>
+            {/* Date Picker and Building Selector */}
+            <div className="flex items-center justify-between gap-3">
+                <DatePicker value={selectedDate} onChange={setSelectedDate} />
+                <div className="bg-card-alt p-1 rounded-full shadow-inner border border-slate-200">
+                    <button onClick={() => setSelectedBuilding('新館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '新館' ? 'bg-card text-accent shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>新館</button>
+                    <button onClick={() => setSelectedBuilding('舊館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '舊館' ? 'bg-card text-accent shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}>舊館</button>
                 </div>
             </div>
+        </div>
+
+        {/* Desktop View */}
+        <div className="hidden md:flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                <MessageSquare className="w-6 h-6 text-amber-600" />
+                座位地圖管理
+            </h2>
+            <div className="flex items-center gap-2">
+                <DatePicker value={selectedDate} onChange={setSelectedDate} />
+            </div>
+            <div className="flex items-center gap-3">
+                <div className="bg-card-alt p-1 rounded-full shadow-inner border border-slate-200 max-w-max">
+                    <button onClick={() => setSelectedBuilding('新館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '新館' ? 'bg-card text-accent shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>新館</button>
+                    <button onClick={() => setSelectedBuilding('舊館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '舊館' ? 'bg-card text-accent shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}>舊館</button>
+                </div>
+                <RefreshButton onClick={() => { fetchSeats(); fetchAvailability(); }} />
+            </div>
+        </div>
+
 
             <SeatLegend />
 

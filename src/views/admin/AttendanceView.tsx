@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, Printer, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
+import { ClipboardList, CheckCircle, XCircle } from 'lucide-react';
 import { useApi } from '../../hooks';
 import { useUI, useSeats } from '../../context';
 import { AttendanceEntry } from '../../type';
 import { escapeHtml } from '../../utils';
-import { DatePicker } from '../../components';
+import { DatePicker, RefreshButton, PrintButton } from '../../components';
 
 export function AttendanceView() {
     const apiCall = useApi();
@@ -82,20 +82,32 @@ export function AttendanceView() {
 
     return (
         <div className="space-y-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+            {/* Mobile */}
+            <div className="md:hidden space-y-2">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <ClipboardList className="w-6 h-6 text-amber-600" />每日出席狀況
                 </h2>
-
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between gap-2">
                     <DatePicker value={selectedDate} onChange={setSelectedDate} />
-
-                    <button onClick={handlePrintAttendance} className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><Printer className="w-4 h-4" />列印</button>
-                     
-                    {/* Refresh Button */}
-                    < button onClick={() => { fetchAttendanceList(); }} className="bg-card-alt hover:opacity-80 text-slate-700 px-3 py-2 rounded-full font-bold text-sm flex items-center gap-1 transition border border-slate-200"><RefreshCw className="w-4 h-4" /></button>
+                    <div className="flex items-center gap-2">
+                        <PrintButton onClick={handlePrintAttendance} />
+                        <RefreshButton onClick={fetchAttendanceList} />
+                    </div>
                 </div>
             </div>
+
+            {/* Desktop */}
+            <div className="hidden md:flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                    <ClipboardList className="w-6 h-6 text-amber-600" />每日出席狀況
+                </h2>
+                <div className="flex items-center gap-4">
+                    <DatePicker value={selectedDate} onChange={setSelectedDate} />
+                    <PrintButton onClick={handlePrintAttendance} />
+                    <RefreshButton onClick={fetchAttendanceList} />
+                </div>
+            </div>
+
 
             {/* Summary cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

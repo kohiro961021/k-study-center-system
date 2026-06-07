@@ -15,7 +15,10 @@ export const Navbar = () => {
 
 				<div className="flex items-center gap-3 font-bold text-lg text-slate-900">
 					{/* Logo and Title */}
-					<div className="flex items-center gap-2">
+					<div className="flex items-center gap-2"
+						onClick={() => setView(isAdmin ? 'admin-attendance' : 'announcements')}
+						style={{ cursor: 'pointer' }}
+					>
 						<img src="/fssh-badge.png" alt="校徽" className="w-8 h-8 rounded-full" />
 						<span className="hidden sm:inline">K書中心{isAdmin ? '管理後台' : '預約系統'}</span>
 					</div>

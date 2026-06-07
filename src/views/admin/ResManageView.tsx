@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Printer, RefreshCw, Search, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { Calendar, Search, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { useApi } from '../../hooks';
 import { useUI, useSeats } from '../../context';
 import { escapeHtml } from '../../utils';
+import { DatePicker, RefreshButton, PrintButton } from '../../components';
 import { AdminReservation, SortKey, SortDir, AttendanceEntry } from '../../type';
 
 export function ResManageView() {
@@ -107,12 +108,14 @@ export function ResManageView() {
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Calendar className="w-6 h-6 text-amber-600" />全部預約紀錄</h2>
                 <div className="flex items-center gap-2">
-                    <input type="date" value={selectedDate} onChange={e => setSelectedDate(e.target.value)} className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm" />
-                    <button onClick={handlePrintAttendance} className="bg-emerald-500 hover:bg-emerald-400 text-white px-4 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><Printer className="w-4 h-4" />列印出席名單</button>
-                    <button onClick={fetchAdminReservations} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-bold text-sm flex items-center gap-1 transition"><RefreshCw className="w-4 h-4" /></button>
+                    <PrintButton onClick={handlePrintAttendance} />
+                    <RefreshButton onClick={fetchAdminReservations} />
                 </div>
             </div>
 
+            <div className="flex items-center gap-2">
+                    <DatePicker value={selectedDate} onChange={setSelectedDate} />
+            </div>
             {/* Search bar */}
             <div className="flex items-center gap-2 bg-card/80 glass-card border border-slate-200 rounded-xl px-4 py-2 shadow-sm">
                 <Search className="w-4 h-4 text-slate-400 shrink-0" />
@@ -130,62 +133,113 @@ export function ResManageView() {
 
             {allReservations.length === 0 ? (
                 <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有任何預約紀錄</div>
-            ) : (
-                <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
-                    <table className="w-full text-sm">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'student_id') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('student_id'); setSortDir('asc'); } }}>學號 {sortKey === 'student_id' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                                <th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
-                                <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'seat_label') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('seat_label'); setSortDir('asc'); } }}>座位 {sortKey === 'seat_label' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                                <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'res_date') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('res_date'); setSortDir('desc'); } }}>日期 {sortKey === 'res_date' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                                <th className="px-4 py-3 text-center font-bold text-slate-700">出席</th>
-                                <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'created_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('created_at'); setSortDir('desc'); } }}>建立時間 {sortKey === 'created_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                                <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'updated_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('updated_at'); setSortDir('desc'); } }}>最後修改 {sortKey === 'updated_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
-                                <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
-                            </tr>
-                        </thead>
-    
-                        <tbody className="divide-y divide-slate-100">
-                            {[...allReservations].filter(res => {
-                                if (!reservationSearch.trim()) return true;
-                                const q = reservationSearch.trim().toLowerCase();
-                                return (
-                                    res.student_id.toLowerCase().includes(q) ||
-                                    res.student_name.toLowerCase().includes(q) ||
-                                    res.seat_label.toLowerCase().includes(q) ||
-                                    res.res_date.includes(q)
-                                );
-                            }).sort((a, b) => { 
-                                const av = (a as any)[sortKey] || ''; 
-                                const bv = (b as any)[sortKey] || '';
-                                return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av)); 
-                            }).map(res => (
-                                <tr key={res.id} className="hover:bg-slate-50 transition">
-                                    <td className="px-4 py-3 text-accent font-medium">{res.student_id}</td>
-                                    <td className="px-4 py-3 text-slate-600">{res.student_name}</td>
-                                    <td className="px-4 py-3 font-bold">{res.seat_label}</td>
-                                    <td className="px-4 py-3 text-slate-600">{res.res_date}</td>
-                                    <td className="px-4 py-3 text-center">
-                                        {res.attendance_status === 'present' && <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
-                                        {res.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 text-red-500 font-bold text-xs"><XCircle className="w-3.5 h-3.5" />未到</span>}
-                                        {!res.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
-                                    </td>
-                                    <td className="px-4 py-3 text-slate-500 text-xs">{res.created_at || '-'}</td>
-                                    <td className="px-4 py-3 text-slate-500 text-xs">{res.updated_at || '-'}</td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex items-center gap-1 justify-end">
-                                            <button onClick={() => handleUpdateAttendance(res.id, 'present')} className="text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 text-xs font-bold transition" title="有到"><CheckCircle className="w-3 h-3" /></button>
-                                            <button onClick={() => handleUpdateAttendance(res.id, 'absent')} className="text-orange-500 hover:bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 text-xs font-bold transition" title="未到"><XCircle className="w-3 h-3" /></button>
-                                            <button onClick={() => handleAdminCancelReservation(res.id)} className="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg border border-red-200 text-xs font-bold transition" title="取消預約"><Trash2 className="w-3 h-3" /></button>
+            ) : (() => {
+                const filtered = [...allReservations].filter(res => {
+                    if (!reservationSearch.trim()) return true;
+                    const q = reservationSearch.trim().toLowerCase();
+                    return (
+                        res.student_id.toLowerCase().includes(q) ||
+                        res.student_name.toLowerCase().includes(q) ||
+                        res.seat_label.toLowerCase().includes(q) ||
+                        res.res_date.includes(q)
+                    );
+                }).sort((a, b) => {
+                    const av = (a as any)[sortKey] || '';
+                    const bv = (b as any)[sortKey] || '';
+                    return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
+                });
+
+                return (
+                    <>
+                        {/* Mobile View */}
+                        <div className="md:hidden space-y-3">
+                            {filtered.map(res => (
+                                <div
+                                    key={res.id}
+                                    className={`bg-card/70 glass-card p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 transition-all duration-200 ${
+                                        res.attendance_status === 'present' ? 'border-l-4 border-l-emerald-500' :
+                                        res.attendance_status === 'absent' ? 'border-l-4 border-l-red-500' : ''
+                                    }`}
+                                >
+                                    {/* Name and Date */}
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <span className="text-sm font-bold text-slate-800">{res.student_name}</span>
+                                            <span className="ml-2 text-xs text-accent font-medium">{res.student_id}</span>
                                         </div>
-                                    </td>
-                                </tr>
+                                        <span className="text-xs text-slate-500">{res.res_date}</span>
+                                    </div>
+
+                                    {/* Seat and Attendance Status */}
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-sm font-bold text-slate-700">座位 <span className="text-accent">{res.seat_label}</span></span>
+                                        <div>
+                                            {res.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full text-xs font-bold"><CheckCircle className="w-3 h-3" />有到</span>}
+                                            {res.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-xs font-bold"><XCircle className="w-3 h-3" />未到</span>}
+                                            {!res.attendance_status && <span className="text-slate-400 text-xs font-medium">未點名</span>}
+                                        </div>
+                                    </div>
+
+                                    {/* Action Buttons */}
+                                    <div className="flex items-center gap-2 pt-1 border-t border-slate-100">
+                                        <button onClick={() => handleUpdateAttendance(res.id, 'present')} className={`flex-1 flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${res.attendance_status === 'present' ? 'bg-emerald-500 text-white' : 'text-emerald-600 border border-emerald-200 hover:bg-emerald-50'}`}>
+                                            <CheckCircle className="w-3.5 h-3.5" />有到
+                                        </button>
+                                        <button onClick={() => handleUpdateAttendance(res.id, 'absent')} className={`flex-1 flex items-center justify-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition ${res.attendance_status === 'absent' ? 'bg-red-500 text-white' : 'text-red-500 border border-red-200 hover:bg-red-50'}`}>
+                                            <XCircle className="w-3.5 h-3.5" />未到
+                                        </button>
+                                        <button onClick={() => handleAdminCancelReservation(res.id)} className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-500 border border-slate-200 hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition flex items-center gap-1">
+                                            <Trash2 className="w-3.5 h-3.5" />取消
+                                        </button>
+                                    </div>
+                                </div>
                             ))}
-                        </tbody>
-                    </table>
-                </div>
-            )}
+                        </div>
+
+                        {/* Desktop View */}
+                        <div className="hidden md:block bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
+                            <table className="w-full text-sm">
+                                <thead className="bg-slate-50 border-b border-slate-200">
+                                    <tr>
+                                        <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'student_id') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('student_id'); setSortDir('asc'); } }}>學號 {sortKey === 'student_id' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                                        <th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
+                                        <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'seat_label') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('seat_label'); setSortDir('asc'); } }}>座位 {sortKey === 'seat_label' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                                        <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'res_date') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('res_date'); setSortDir('desc'); } }}>日期 {sortKey === 'res_date' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                                        <th className="px-4 py-3 text-center font-bold text-slate-700">出席</th>
+                                        <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'created_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('created_at'); setSortDir('desc'); } }}>建立時間 {sortKey === 'created_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                                        <th className="px-4 py-3 text-left font-bold text-slate-700 cursor-pointer select-none" onClick={() => { if (sortKey === 'updated_at') setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey('updated_at'); setSortDir('desc'); } }}>最後修改 {sortKey === 'updated_at' && (sortDir === 'asc' ? '↑' : '↓')}</th>
+                                        <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                    {filtered.map(res => (
+                                        <tr key={res.id} className="hover:bg-slate-50 transition">
+                                            <td className="px-4 py-3 text-accent font-medium">{res.student_id}</td>
+                                            <td className="px-4 py-3 text-slate-600">{res.student_name}</td>
+                                            <td className="px-4 py-3 font-bold">{res.seat_label}</td>
+                                            <td className="px-4 py-3 text-slate-600">{res.res_date}</td>
+                                            <td className="px-4 py-3 text-center">
+                                                {res.attendance_status === 'present' && <span className="inline-flex items-center gap-1 text-emerald-600 font-bold text-xs"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
+                                                {res.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 text-red-500 font-bold text-xs"><XCircle className="w-3.5 h-3.5" />未到</span>}
+                                                {!res.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
+                                            </td>
+                                            <td className="px-4 py-3 text-slate-500 text-xs">{res.created_at || '-'}</td>
+                                            <td className="px-4 py-3 text-slate-500 text-xs">{res.updated_at || '-'}</td>
+                                            <td className="px-4 py-3 text-right">
+                                                <div className="flex items-center gap-1 justify-end">
+                                                    <button onClick={() => handleUpdateAttendance(res.id, 'present')} className="text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded-lg border border-emerald-200 text-xs font-bold transition" title="有到"><CheckCircle className="w-3 h-3" /></button>
+                                                    <button onClick={() => handleUpdateAttendance(res.id, 'absent')} className="text-orange-500 hover:bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 text-xs font-bold transition" title="未到"><XCircle className="w-3 h-3" /></button>
+                                                    <button onClick={() => handleAdminCancelReservation(res.id)} className="text-red-500 hover:bg-red-50 px-2 py-1 rounded-lg border border-red-200 text-xs font-bold transition" title="取消預約"><Trash2 className="w-3 h-3" /></button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    </>
+                );
+            })()}
         </div>
     );
 }

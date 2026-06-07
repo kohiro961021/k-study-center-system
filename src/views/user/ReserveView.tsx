@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw } from 'lucide-react';
 import { useSeats } from '../../context';
 import { useApi } from '../../hooks';
-import { SeatLegend, SeatMap } from '../../components';
+import { SeatLegend, SeatMap, RefreshButton } from '../../components';
 
 function isWeekend(dateStr: string): boolean {
 	const d = new Date(dateStr + 'T00:00:00');
@@ -37,7 +36,7 @@ export function ReserveView() {
         }
     };
 
-    // 生成未來 11 天的日期字卡選項
+    // Generate date options for the next 13 days
     const dateOptions = Array.from({ length: 13 }, (_, i) => {
         const d = new Date();
         d.setDate(d.getDate() + i);
@@ -65,7 +64,7 @@ export function ReserveView() {
                 <div className="flex flex-wrap gap-3 items-center justify-between">
                     <label className="text-lg font-bold text-slate-700">選擇日期與館別</label>
 
-                    <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
                         {/* Zone Selector (Capsule Switch) */}
                         <div className=" bg-card-alt p-1 rounded-full shadow-inner border border-slate-200">
                             <button onClick={() => setSelectedBuilding('新館')} disabled={isWeekend(selectedDate)} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${isWeekend(selectedDate) ? 'text-slate-400 cursor-not-allowed' : selectedBuilding === '新館' ? 'bg-card text-accent shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{isWeekend(selectedDate) ? '新館(週末關閉)' : '新館'}</button>
@@ -73,11 +72,11 @@ export function ReserveView() {
                         </div>
 
                         {/* Refresh Button */}
-                        <  button onClick={() => { fetchSeats(); fetchAvailability(); }} className="bg-card-alt hover:opacity-80 text-slate-700 px-3 py-2 rounded-full font-bold text-sm flex items-center gap-1 transition border border-slate-200"><RefreshCw className="w-4 h-4" /></button>
+                        <RefreshButton onClick={() => { fetchSeats(); fetchAvailability(); }} />
                     </div>
                 </div>
                 
-                {/* 橫向滑動的字卡容器 */}
+                {/* Date Cards Carousel */}
                 <div className="md:ml-6 flex gap-3 overflow-x-auto p-2 scrollbar-thin scroll-smooth snap-x snap-mandatory">
 
                     {dateOptions.map((opt) => {
