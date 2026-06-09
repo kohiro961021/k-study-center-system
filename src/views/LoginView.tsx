@@ -22,7 +22,7 @@ export const LoginView = () => {
     }, []);
 
     return (
-        <div className="min-h-screen bg-page noise-bg p-4 pb-16">
+        <div className="min-h-screen relative pb-16 bg-page noise-bg p-4">
 
             {/* Clock bar + theme toggle */}
             <div className="flex justify-center items-center gap-3 mb-6 pt-4">
@@ -122,7 +122,7 @@ export const LoginView = () => {
             </div>
             
             {/* Footer */}
-            <div className="fixed bottom-0 left-0 w-full bg-page/90 backdrop-blur-sm text-center text-xs py-3  text-slate-500 z-50 border-t border-slate-200/50">
+            <div className="absolute bottom-0 left-0 w-full bg-page/90 backdrop-blur-sm text-center text-xs py-3  text-slate-500 z-50 border-t border-slate-200/50">
                 &copy; {new Date().getFullYear()} 鳳山高中 K書中心預約系統&nbsp;
                 <span className="mx-2 text-slate-300">|</span>
                 <span>System Developed by&nbsp;
