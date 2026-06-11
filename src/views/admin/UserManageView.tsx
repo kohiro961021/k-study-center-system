@@ -54,24 +54,7 @@ export function UserManageView() {
 
     return (
         <div className="space-y-4">
-            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Users className="w-6 h-6 text-amber-600" />學生帳號管理</h2>
-
-            {/* Reset student password form */}
-            <div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
-                <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Key className="w-5 h-5 text-amber-600" /> 重設學生密碼</h3>
-
-                <div className="flex flex-wrap gap-3 items-end">
-                    <div className="flex-1 min-w-[180px] space-y-1">
-                        <label className="text-sm font-medium text-slate-600">學號</label>
-                        <input type="text" value={resetStudentId} onChange={e => setResetStudentId(e.target.value)} placeholder="輸入學號" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" />
-                    </div>
-                    <div className="flex-1 min-w-[180px] space-y-1">
-                        <label className="text-sm font-medium text-slate-600">新密碼</label>
-                        <input type="text" value={resetNewPassword} onChange={e => setResetNewPassword(e.target.value)} placeholder="輸入新密碼" className="block w-full px-3 py-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-amber-400 outline-none" />
-                    </div>
-                    <button onClick={() => handleResetPassword()} className="bg-amber-500 hover:bg-amber-400 text-white font-bold px-6 py-2 rounded-lg transition"><Key className="w-4 h-4 inline mr-1" />重設</button>
-                </div>
-            </div>
+            <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Users className="w-6 h-6 text-amber-600" />帳號管理</h2>
 
             {/* User list with search */}
             <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">

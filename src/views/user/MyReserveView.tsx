@@ -51,7 +51,7 @@ export function MyReserveView() {
                     {sortedReservations.map(res => {
                         const seat = seats.find(s => s.id === res.seat_id);
                         // 判斷是否為今天
-                        const isToday = res.res_date === todayStr;
+                        const isToday = res.res_date === "2026-06-11";
 
                         return (
                             <div 

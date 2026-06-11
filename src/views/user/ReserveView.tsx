@@ -59,8 +59,8 @@ export function ReserveView() {
 
     return (
         <div className="space-y-4">
-            {/* Control Panel (Date Cards Carousel & Zone Selector) */}
             <div className="bg-card/70 glass-card p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col gap-4">
+                {/* Control Panel (Date Cards Carousel & Zone Selector) */}
                 <div className="flex flex-wrap gap-3 items-center justify-between">
                     <label className="text-lg font-bold text-slate-700">選擇日期與館別</label>
 

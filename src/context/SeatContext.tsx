@@ -18,7 +18,12 @@ interface SeatContextType {
 const SeatContext = createContext<SeatContextType | undefined>(undefined);
 
 export function SeatProvider({ children }: { children: ReactNode }) {
-    const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [selectedDate, setSelectedDate] = useState<string>(() => {
+        const localDate = new Date();
+        localDate.setMinutes(localDate.getMinutes() - localDate.getTimezoneOffset());
+        return localDate.toISOString().split('T')[0];
+    });
+    
     const [selectedBuilding, setSelectedBuilding] = useState<'新館' | '舊館'>('新館');
     const [seats, setSeats] = useState<SeatData[]>([]);
     const [bookedSeatIds, setBookedSeatIds] = useState<number[]>([]);
