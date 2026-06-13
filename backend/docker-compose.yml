@@ -7,6 +7,8 @@ services:
       - "127.0.0.1:8000:8000"  # 只綁定本機，外部無法直接存取
     env_file:
       - .env.prod  # 從 .env.prod 讀取機密設定，不寫死在這裡
+    environment:
+      - TZ=Asia/Taipei
     depends_on:
       - db
       - redis
@@ -22,6 +24,8 @@ services:
     restart: always
     env_file:
       - .env.prod  # 從同一個 .env.prod 讀取 POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB
+    environment:
+      - TZ=Asia/Taipei
     volumes:
       - postgres_data:/var/lib/postgresql/data
     logging:
@@ -34,6 +38,8 @@ services:
     image: redis:7-alpine
     container_name: kstudy_redis
     restart: always
+    environment:
+      - TZ=Asia/Taipei
     logging:
       driver: "json-file"
       options:
@@ -44,6 +50,8 @@ services:
     image: nginx:1.30.1-alpine  # 已修補 CVE-2026-42945 (NGINX Rift RCE)
     container_name: kstudy_nginx
     restart: always
+    environment:
+      - TZ=Asia/Taipei
     ports:
       - "80:80"
       - "443:443"
