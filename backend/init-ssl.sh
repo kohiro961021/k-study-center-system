@@ -96,6 +96,9 @@ echo "  ✓ Nginx 已啟動"
 # ── Step 4：用 Certbot 申請真正的 Let's Encrypt 憑證 ──
 echo -e "${GREEN}[4/5]${NC} 向 Let's Encrypt 申請 SSL 憑證..."
 
+# 暫時移除自簽憑證目錄，避免 Certbot 因為目錄已存在而失敗
+rm -rf "$CERT_PATH"
+
 # 設定 email 參數
 if [ -z "$EMAIL" ]; then
   EMAIL_ARG="--register-unsafely-without-email"
@@ -105,7 +108,7 @@ else
 fi
 
 # 使用 webroot 模式（Nginx 會 serve /.well-known/acme-challenge/）
-docker compose run --rm certbot certonly \
+docker compose run --rm --entrypoint certbot certbot certonly \
   --webroot \
   --webroot-path=/var/www/certbot \
   $EMAIL_ARG \
