@@ -27,7 +27,7 @@ export function SeatView() {
 
     const fetchSeats = async () => { try { setSeats(await apiCall('/api/seats')); } catch { } };
     const fetchAvailability = async () => { try { setBookedSeatIds(await apiCall(`/api/availability?res_date=${selectedDate}`)); } catch { } };
-    const fetchAdminReservations = async () => { try { setAllReservations(await apiCall('/api/admin/reservations')); } catch { } };
+    const fetchAdminReservations = async () => { try { setAllReservations(await apiCall(`/api/admin/reservations?date=${selectedDate}`)); } catch { } };
 
     useEffect(() => {
         fetchSeats();

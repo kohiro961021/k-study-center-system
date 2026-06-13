@@ -12,34 +12,36 @@ export function ResManageView() {
     
     const [allReservations, setAllReservations] = useState<AdminReservation[]>([]);
     const [reservationSearch, setReservationSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [sortKey, setSortKey] = useState<SortKey>('res_date');
     const [sortDir, setSortDir] = useState<SortDir>('desc');
+    
+    // Pagination states
+    const [page, setPage] = useState(1);
+    const [size] = useState(20);
+    const [total, setTotal] = useState(0);
+
+    // Debounce search input
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            setDebouncedSearch(reservationSearch);
+            setPage(1); // Reset to page 1 on new search
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [reservationSearch]);
 
     const fetchAdminReservations = async () => { 
         try { 
-            setAllReservations(await apiCall('/api/admin/reservations')); 
+            const query = `page=${page}&size=${size}&search=${encodeURIComponent(debouncedSearch)}&sort_by=${sortKey}&sort_dir=${sortDir}`;
+            const data = await apiCall(`/api/admin/reservations?${query}`); 
+            setAllReservations(data.items);
+            setTotal(data.total);
         } catch { } 
     };
 
     useEffect(() => {
         fetchAdminReservations();
-    }, []);
-
-    const filteredReservations = [...allReservations].filter(res => {
-        if (!reservationSearch.trim()) return true;
-
-        const q = reservationSearch.trim().toLowerCase();
-        return (
-            res.student_id.toLowerCase().includes(q) ||
-            res.student_name.toLowerCase().includes(q) ||
-            res.seat_label.toLowerCase().includes(q) ||
-            res.res_date.includes(q)
-        );
-    }).sort((a, b) => {
-        const av = (a as any)[sortKey] || '';
-        const bv = (b as any)[sortKey] || '';
-        return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
-    });
+    }, [page, debouncedSearch, sortKey, sortDir]);
 
     const handleAdminCancelReservation = async (resId: number) => {
         if (!window.confirm('確定要取消這個學生的預約嗎？')) return;
@@ -60,70 +62,78 @@ export function ResManageView() {
         } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
     };
 
-    const handlePrintAttendance = () => {
-        if (filteredReservations.length === 0) {
-            setAdminMessage('目前沒有符合篩選條件的資料可供列印');
-            return;
-        }
+    const handlePrintAttendance = async () => {
+        try {
+            setAdminMessage('正在載入待列印資料...');
+            const query = `search=${encodeURIComponent(debouncedSearch)}&sort_by=${sortKey}&sort_dir=${sortDir}&all=true`;
+            const printItems = await apiCall(`/api/admin/reservations?${query}`);
 
-        const printWindow = window.open('', '_blank');
-        if (!printWindow) return;
+            if (!printItems || printItems.length === 0) {
+                setAdminMessage('目前沒有符合篩選條件的資料可供列印');
+                return;
+            }
 
-        // Dynamically generate the print content based on the current search filter
-        const searchKeyword = reservationSearch.trim();
-        const subTitleLabel = searchKeyword ? `篩選條件："${searchKeyword}"` : '全部預約名單';
+            const printWindow = window.open('', '_blank');
+            if (!printWindow) return;
 
-        printWindow.document.write(`
-            <!DOCTYPE html>
-            <html>
-                <head>
-                    <title>預約名單列印</title>
-                    <style>
-                        body{font-family:'Microsoft JhengHei',sans-serif;padding:20px}
-                        h1{text-align:center;font-size:20px;margin-bottom:4px}
-                        h2{text-align:center;font-size:14px;color:#666;margin-bottom:16px}
-                        table{width:100%;border-collapse:collapse}
-                        th,td{border:1px solid #333;padding:6px 10px;text-align:center;font-size:13px}
-                        th{background:#f0f0f0;font-weight:bold}
-                        @media print{button{display:none}}
-                    </style>
-                </head>
-                <body>
-                    <button 
-                        onclick="window.print()" 
-                        style="padding:8px 24px;font-size:14px;cursor:pointer;background:#475569;color:#fff;border:none;border-radius:6px; position:fixed;top:20px;right:20px;box-shadow:0 2px 6px rgba(0,0,0,0.2);"
-                    >
-                        🖨️ 確認列印
-                    </button>
-                    <h1>鳳山高中 K書中心 預約名單</h1>
-                    <h2>${subTitleLabel}  共 ${filteredReservations.length} 筆</h2>
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>預約日期</th>
-                                <th>座位號碼</th>
-                                <th>學號</th>
-                                <th>姓名</th>
-                                <th>出席狀態</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${filteredReservations.map(d => `
+            const searchKeyword = reservationSearch.trim();
+            const subTitleLabel = searchKeyword ? `篩選條件："${searchKeyword}"` : '全部預約名單';
+
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                    <head>
+                        <title>預約名單列印</title>
+                        <style>
+                            body{font-family:'Microsoft JhengHei',sans-serif;padding:20px}
+                            h1{text-align:center;font-size:20px;margin-bottom:4px}
+                            h2{text-align:center;font-size:14px;color:#666;margin-bottom:16px}
+                            table{width:100%;border-collapse:collapse}
+                            th,td{border:1px solid #333;padding:6px 10px;text-align:center;font-size:13px}
+                            th{background:#f0f0f0;font-weight:bold}
+                            @media print{button{display:none}}
+                        </style>
+                    </head>
+                    <body>
+                        <button 
+                            onclick="window.print()" 
+                            style="padding:8px 24px;font-size:14px;cursor:pointer;background:#475569;color:#fff;border:none;border-radius:6px; position:fixed;top:20px;right:20px;box-shadow:0 2px 6px rgba(0,0,0,0.2);"
+                        >
+                            🖨️ 確認列印
+                        </button>
+                        <h1>鳳山高中 K書中心 預約名單</h1>
+                        <h2>${subTitleLabel}  共 ${printItems.length} 筆</h2>
+                        <table>
+                            <thead>
                                 <tr>
-                                    <td>${escapeHtml(d.res_date)}</td>
-                                    <td>${escapeHtml(d.seat_label)}</td>
-                                    <td>${escapeHtml(d.student_id)}</td>
-                                    <td>${escapeHtml(d.student_name)}</td>
-                                    <td>${d.attendance_status === 'present' ? '有到' : d.attendance_status === 'absent' ? '未到' : '未點名'}</td>
+                                    <th>預約日期</th>
+                                    <th>座位號碼</th>
+                                    <th>學號</th>
+                                    <th>姓名</th>
+                                    <th>出席狀態</th>
                                 </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </body>
-            </html>
-        `);
-        
-        printWindow.document.close();
+                            </thead>
+                            <tbody>
+                                ${printItems.map((d: any) => `
+                                    <tr>
+                                        <td>${escapeHtml(d.res_date)}</td>
+                                        <td>${escapeHtml(d.seat_label)}</td>
+                                        <td>${escapeHtml(d.student_id)}</td>
+                                        <td>${escapeHtml(d.student_name)}</td>
+                                        <td>${d.attendance_status === 'present' ? '有到' : d.attendance_status === 'absent' ? '未到' : '未點名'}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            setAdminMessage('待列印資料載入完成');
+        } catch (err: any) {
+            setAdminMessage(`載入列印資料失敗: ${err.message}`);
+        }
     };
 
     return (
@@ -161,7 +171,7 @@ export function ResManageView() {
                 <>
                     {/* Mobile View List */}
                     <div className="md:hidden space-y-3">
-                        {filteredReservations.map(res => (
+                        {allReservations.map(res => (
                             <div
                                 key={res.id}
                                 className={`bg-card/70 glass-card p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-3 transition-all duration-200 ${
@@ -217,7 +227,7 @@ export function ResManageView() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {filteredReservations.map(res => (
+                                {allReservations.map(res => (
                                     <tr key={res.id} className="hover:bg-slate-50 transition">
                                         <td className="px-4 py-3 text-accent font-medium">{res.student_id}</td>
                                         <td className="px-4 py-3 text-slate-600">{res.student_name}</td>
@@ -242,6 +252,34 @@ export function ResManageView() {
                             </tbody>
                         </table>
                     </div>
+
+                    {/* Pagination Controls */}
+                    {total > size && (
+                        <div className="flex items-center justify-between px-4 py-3 bg-card/70 glass-card border border-slate-200 rounded-2xl shadow-sm mt-4">
+                            <div className="text-sm text-slate-500">
+                                顯示第 <span className="font-medium">{(page - 1) * size + 1}</span> 至 <span className="font-medium">{Math.min(page * size, total)}</span> 筆，共 <span className="font-medium">{total}</span> 筆紀錄
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    disabled={page === 1}
+                                    onClick={() => setPage(p => Math.max(p - 1, 1))}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition active:scale-95"
+                                >
+                                    上一頁
+                                </button>
+                                <div className="flex items-center px-3 text-sm text-slate-700 font-bold">
+                                    頁次 {page} / {Math.ceil(total / size)}
+                                </div>
+                                <button
+                                    disabled={page >= Math.ceil(total / size)}
+                                    onClick={() => setPage(p => p + 1)}
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent transition active:scale-95"
+                                >
+                                    下一頁
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </>
             )}
         </div>
