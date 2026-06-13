@@ -22,7 +22,7 @@ export function HistoryView() {
                 <div className="p-8 text-center bg-card/70 glass-card rounded-2xl border border-slate-200 text-slate-500">目前沒有歷史紀錄</div>
             ) : (
                 <>
-                    {/* 手機端：卡片列表排版 (隱藏在 md 以上螢幕) */}
+                    {/* Mobile */}
                     <div className="md:hidden space-y-3">
                         {myHistory.map(h => (
                             <div 
@@ -48,7 +48,7 @@ export function HistoryView() {
                         ))}
                     </div>
 
-                    {/* 桌機端：表格排版 (隱藏在 md 以下螢幕) */}
+                    {/* Desktop */}
                     <div className="hidden md:block bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
                         <table className="w-full text-sm">
                             <thead className="bg-slate-50 border-b border-slate-200">
