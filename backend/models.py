@@ -40,7 +40,7 @@ class Reservation(Base):
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     seat_id = Column(Integer, ForeignKey("seats.id"), nullable=False)
-    res_date = Column(String, nullable=False)  # Format: YYYY-MM-DD
+    res_date = Column(String, nullable=False, index=True)  # Format: YYYY-MM-DD
     attendance_status = Column(String, nullable=True)  # null=未點名, "present"=有到, "absent"=未到
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))

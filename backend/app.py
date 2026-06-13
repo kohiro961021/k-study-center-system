@@ -9,8 +9,8 @@ from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, joinedload, contains_eager
+from sqlalchemy import create_engine, or_
 from jose import JWTError, jwt
 from pydantic import BaseModel, field_validator
 import redis
@@ -561,26 +561,100 @@ def admin_change_own_password(req: AdminChangePasswordRequest, admin: User = Dep
 
 
 @app.get("/api/admin/reservations")
-def admin_list_reservations(admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
-    reservations = db.query(Reservation).options(
-        joinedload(Reservation.user),
-        joinedload(Reservation.seat)
-    ).all()
-    result = []
-    for r in reservations:
-        user = r.user
-        seat = r.seat
-        result.append({
-            "id": r.id, "user_id": r.user_id, "seat_id": r.seat_id,
-            "res_date": r.res_date,
-            "student_id": user.student_id if user else "未知",
-            "student_name": (user.name if user and user.name else "未填寫"),
-            "seat_label": seat.label if seat else f"#{r.seat_id}",
-            "attendance_status": r.attendance_status,
-            "created_at": _format_datetime(r.created_at),
-            "updated_at": _format_datetime(r.updated_at),
-        })
-    return result
+def admin_list_reservations(
+    date: Optional[str] = None,
+    page: int = 1,
+    size: int = 20,
+    search: Optional[str] = None,
+    sort_by: str = "res_date",
+    sort_dir: str = "desc",
+    all: bool = False,
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(Reservation).join(Reservation.user).join(Reservation.seat)
+
+    if date:
+        query = query.filter(Reservation.res_date == date)
+
+    if search:
+        search_pat = f"%{search}%"
+        query = query.filter(
+            or_(
+                User.student_id.like(search_pat),
+                User.name.like(search_pat),
+                Seat.label.like(search_pat),
+                Reservation.res_date.like(search_pat)
+            )
+        )
+
+    sort_map = {
+        "res_date": Reservation.res_date,
+        "seat_label": Seat.label,
+        "student_id": User.student_id,
+        "student_name": User.name,
+        "attendance_status": Reservation.attendance_status,
+        "created_at": Reservation.created_at,
+        "updated_at": Reservation.updated_at
+    }
+    
+    sort_col = sort_map.get(sort_by, Reservation.res_date)
+    
+    if sort_dir == "asc":
+        query = query.order_by(sort_col.asc())
+    else:
+        query = query.order_by(sort_col.desc())
+
+    if date or all:
+        reservations = query.options(
+            contains_eager(Reservation.user),
+            contains_eager(Reservation.seat)
+        ).all()
+        
+        result = []
+        for r in reservations:
+            user = r.user
+            seat = r.seat
+            result.append({
+                "id": r.id, "user_id": r.user_id, "seat_id": r.seat_id,
+                "res_date": r.res_date,
+                "student_id": user.student_id if user else "未知",
+                "student_name": (user.name if user and user.name else "未填寫"),
+                "seat_label": seat.label if seat else f"#{r.seat_id}",
+                "attendance_status": r.attendance_status,
+                "created_at": _format_datetime(r.created_at),
+                "updated_at": _format_datetime(r.updated_at),
+            })
+        return result
+    else:
+        total_count = query.count()
+        
+        reservations = query.options(
+            contains_eager(Reservation.user),
+            contains_eager(Reservation.seat)
+        ).offset((page - 1) * size).limit(size).all()
+        
+        items = []
+        for r in reservations:
+            user = r.user
+            seat = r.seat
+            items.append({
+                "id": r.id, "user_id": r.user_id, "seat_id": r.seat_id,
+                "res_date": r.res_date,
+                "student_id": user.student_id if user else "未知",
+                "student_name": (user.name if user and user.name else "未填寫"),
+                "seat_label": seat.label if seat else f"#{r.seat_id}",
+                "attendance_status": r.attendance_status,
+                "created_at": _format_datetime(r.created_at),
+                "updated_at": _format_datetime(r.updated_at),
+            })
+            
+        return {
+            "total": total_count,
+            "page": page,
+            "size": size,
+            "items": items
+        }
 
 
 @app.delete("/api/admin/reservations/{reservation_id}")
