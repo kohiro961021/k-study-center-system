@@ -37,7 +37,7 @@ ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
 # Rate limit config
-RESERVE_RATE_LIMIT = 5          # max attempts
+RESERVE_RATE_LIMIT = 10          # max attempts
 RESERVE_RATE_WINDOW = 60        # per N seconds
 
 # --- Database Setup ---
