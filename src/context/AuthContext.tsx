@@ -130,9 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 			const container = document.getElementById('google-signin-btn');
 
 			if (container) w.google.accounts.id.renderButton(container, {
-				theme: 'filled_black',
+				theme: 'outline',
 				size: 'large',
-				width: 200,
 				shape: 'pill',
 				text: 'signin_with',
 				locale: 'zh-TW',

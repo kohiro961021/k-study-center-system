@@ -83,8 +83,8 @@ export const LoginView = () => {
                             <>
                                 <div className="text-center text-sm text-slate-500 mt-4">── 或使用Google帳號 ──</div>
 
-                                <div className="mt-8">
-                                    <div id="google-signin-btn" className="flex justify-center" />
+                                <div className="mt-8 flex justify-center" style={{ colorScheme: 'light' }}>
+                                    <div id="google-signin-btn" />
                                 </div>
                             </>
                         )}

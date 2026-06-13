@@ -160,3 +160,9 @@ input:focus-visible, textarea:focus-visible, select:focus-visible {
 .theme-toggle-icon:hover {
   transform: rotate(30deg) scale(1.15);
 }
+
+/* ═══════ Google Sign-in Button transparent background fix ═══════ */
+#google-signin-btn iframe {
+  background: transparent !important;
+  background-color: transparent !important;
+}
