@@ -20,3 +20,7 @@ bcrypt>=4.0.0
 google-auth>=2.27.0
 google-auth-httplib2>=0.2.0
 requests>=2.31.0          
+
+# 排程工具 (自動點名/缺席處理)
+apscheduler>=3.10.0
+

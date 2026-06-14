@@ -5,6 +5,8 @@ import re
 import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
@@ -35,6 +37,8 @@ if not SECRET_KEY:
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+QR_TOKEN_EXPIRE_MINUTES = 3  # QR Code 有效期限（分鐘）
+QR_SECRET_KEY = os.getenv("QR_SECRET_KEY", SECRET_KEY + "_qr")  # QR Token 專用密鑰
 
 # Rate limit config
 RESERVE_RATE_LIMIT = 10          # max attempts
@@ -106,6 +110,40 @@ async def get_admin_user(current_user: User = Depends(get_current_user)):
 
 # --- App Initialization ---
 app = FastAPI(docs_url=None, redoc_url=None)  # 生產環境關閉 API 文件
+
+
+# --- Scheduler: 每日 22:00 自動標記缺席 ---
+def mark_absent_job():
+    """每天晚上 10 點，將今日未簽到的預約自動標記為缺席。"""
+    db = Session(bind=engine)
+    try:
+        today = datetime.now().strftime("%Y-%m-%d")
+        unmarked = db.query(Reservation).filter(
+            Reservation.res_date == today,
+            Reservation.attendance_status == None  # noqa: E711
+        ).all()
+        count = 0
+        for r in unmarked:
+            r.attendance_status = "absent"
+            r.updated_at = datetime.now(timezone.utc)
+            count += 1
+        db.commit()
+        print(f"[Scheduler] {today} 自動標記缺席完成，共 {count} 筆")
+    except Exception as e:
+        db.rollback()
+        print(f"[Scheduler] 標記缺席失敗: {e}")
+    finally:
+        db.close()
+
+
+scheduler = BackgroundScheduler(timezone="Asia/Taipei")
+scheduler.add_job(
+    mark_absent_job,
+    CronTrigger(hour=22, minute=0, timezone="Asia/Taipei"),
+    id="mark_absent_daily",
+    replace_existing=True
+)
+scheduler.start()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://kbook.fssh.khc.edu.tw"],
@@ -113,6 +151,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 # ═══════════════════
@@ -278,6 +317,10 @@ class AdminModifyReservationRequest(BaseModel):
 
 class AttendanceUpdateRequest(BaseModel):
     status: str  # "present" or "absent"
+
+
+class QRScanRequest(BaseModel):
+    token: str  # 學生端產生的 QR Token
 
 
 # --- Helpers ---
@@ -766,6 +809,11 @@ def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, a
     if not reservation:
         raise HTTPException(status_code=404, detail="找不到此預約")
     reservation.attendance_status = req.status
+    if req.status == "present":
+        if not reservation.check_in_time:
+            reservation.check_in_time = datetime.now(timezone.utc)
+    else:
+        reservation.check_in_time = None
     reservation.updated_at = datetime.now(timezone.utc)
     db.commit()
     status_text = "有到" if req.status == "present" else "未到"
@@ -797,6 +845,7 @@ def admin_get_attendance(date: str, admin: User = Depends(get_admin_user), db: S
             "student_id": user.student_id if user else "未知",
             "student_name": (user.name if user and user.name else "未填寫"),
             "attendance_status": r.attendance_status,
+            "check_in_time": _format_datetime(r.check_in_time),
         })
     result.sort(key=lambda x: x["seat_number"])
     return result
@@ -817,6 +866,89 @@ def admin_get_notes(admin: User = Depends(get_admin_user), db: Session = Depends
             "note": s.note,
         })
     return result
+
+
+# ═══════════════════
+#  QR Code 點名 Routes
+# ═══════════════════
+
+import secrets
+
+@app.get("/api/attendance/qr")
+def generate_qr_token(current_user: User = Depends(get_current_user)):
+    """學生專用：產生 3 分鐘有效的 QR Code Token (Redis 短 Token)。"""
+    # 產生 24 字元的安全隨機 Token
+    token = secrets.token_hex(12)
+    
+    # 將 Token 存入 Redis，Key 為 qr_token:<token>，Value 為學號，有效時間 3 分鐘 (180 秒)
+    redis_key = f"qr_token:{token}"
+    redis_client.setex(redis_key, QR_TOKEN_EXPIRE_MINUTES * 60, current_user.student_id)
+    
+    expire = datetime.now(timezone.utc) + timedelta(minutes=QR_TOKEN_EXPIRE_MINUTES)
+    return {
+        "token": token,
+        "expires_at": expire.isoformat(),
+        "student_id": current_user.student_id,
+        "name": current_user.name or "",
+    }
+
+
+@app.post("/api/attendance/scan")
+def scan_qr_token(req: QRScanRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    """管理員平板專用：驗證 Redis 短 Token 並更新簽到狀態。"""
+    redis_key = f"qr_token:{req.token}"
+    student_id_bytes = redis_client.get(redis_key)
+    
+    if not student_id_bytes:
+        raise HTTPException(status_code=400, detail="QR Code 無效或已過期")
+        
+    student_id = student_id_bytes.decode("utf-8")
+    
+    user = db.query(User).filter(User.student_id == student_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="找不到此學生")
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    reservation = db.query(Reservation).filter(
+        Reservation.user_id == user.id,
+        Reservation.res_date == today
+    ).first()
+
+    if not reservation:
+        # 如果今日沒有預約，也先刪除該 Token，防止被重覆利用
+        redis_client.delete(redis_key)
+        raise HTTPException(
+            status_code=404,
+            detail=f"{user.name or user.student_id} 今日沒有預約，無法簽到"
+        )
+
+    if reservation.attendance_status == "present":
+        # 如果已經簽到成功，也把 Redis Key 刪掉
+        redis_client.delete(redis_key)
+        return {
+            "message": f"{user.name or user.student_id} 已簽到過了",
+            "student_id": user.student_id,
+            "student_name": user.name or "",
+            "seat_label": reservation.seat.label if reservation.seat else f"#{reservation.seat_id}",
+            "already_checked_in": True,
+        }
+
+    reservation.attendance_status = "present"
+    reservation.check_in_time = datetime.now(timezone.utc)
+    reservation.updated_at = datetime.now(timezone.utc)
+    db.commit()
+
+    # 簽到成功後，立刻刪除 Redis Key，確保 QR Code 僅能使用一次
+    redis_client.delete(redis_key)
+
+    seat = db.query(Seat).filter(Seat.id == reservation.seat_id).first()
+    return {
+        "message": f"{user.name or user.student_id} 簽到成功！",
+        "student_id": user.student_id,
+        "student_name": user.name or "",
+        "seat_label": seat.label if seat else f"#{reservation.seat_id}",
+        "already_checked_in": False,
+    }
 
 
 # ═══════════════════

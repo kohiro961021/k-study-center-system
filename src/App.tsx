@@ -6,8 +6,8 @@ import { Navbar, BottomNav } from './components';
 
 import { 
 	LoginView, 
-	MyReserveView, HistoryView, ReserveView, AnnouncementView, 
-	AdminAnnouncementView, AttendanceView, NoteView, ResManageView, SeatView, UserManageView
+	MyReserveView, HistoryView, ReserveView, AnnouncementView, QRCodeView,
+	AdminAnnouncementView, AttendanceView, NoteView, ResManageView, SeatView, UserManageView, ScannerView
 } from './views';
 
 export default function App() {
@@ -59,12 +59,14 @@ export default function App() {
 				{view === 'admin-seats' && <SeatView />}
 				{view === 'admin-users' && <UserManageView />}
 				{view === 'admin-announcements' && <AdminAnnouncementView />}
+				{view === 'admin-scanner' && <ScannerView />}
 
 				{/* Student Views */}
 				{view === 'myreserve' && <MyReserveView />}
 				{view === 'history' && <HistoryView />}
 				{view === 'reserve' && <ReserveView />}
 				{view === 'announcements' && <AnnouncementView />}
+				{view === 'qrcode' && <QRCodeView />}
 			</main>
 
 			<BottomNav />

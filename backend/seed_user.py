@@ -2,17 +2,22 @@ import os
 import sys
 import argparse
 import bcrypt
+from dotenv import load_dotenv
+load_dotenv()
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 
+
 # Import models
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-from models import User
+from models import Base, User
 
 # Configuration
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+psycopg://user:password@localhost/kstudy")
 engine = create_engine(DATABASE_URL)
+Base.metadata.create_all(bind=engine)
+
 
 # 💡 移除 passlib，改用與 app.py 完全相同的純 bcrypt 寫法
 def get_password_hash(password):
