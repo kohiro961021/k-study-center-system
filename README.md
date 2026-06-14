@@ -457,4 +457,27 @@ docker exec kstudy_db pg_dump -U kstudy_user kstudy > backup_$(date +%Y%m%d).sql
 
 # 還原資料庫
 cat backup.sql | docker exec -i kstudy_db psql -U kstudy_user -d kstudy
+# 若 QR 程式有更新資料庫需要手動 migrate 資料
+-- 1. 加入簽到時間欄位
+ALTER TABLE reservations ADD COLUMN check_in_time TIMESTAMP;
+-- 2. 重啟容器
+docker compose restart kstudy_app
+
+# 1. 拉最新的 code
+git pull origin main
+
+# 2. 跑資料庫 migration：加上 check_in_time 欄位（若 DB 是舊的需執行）
+docker exec kstudy_db psql -U <你的DB_USER> -d <你的DB_NAME> -c \
+  "ALTER TABLE reservations ADD COLUMN IF NOT EXISTS check_in_time TIMESTAMP;"
+
+# 3. 重新 build 並重啟後端 container（讓新的 requirements 和程式碼生效）
+cd backend
+docker compose down app
+docker compose up -d --build app
+
+# 4. 重新 build 前端並部署
+cd ..
+npm run build
+# dist/ 資料夾會被 nginx 的 volume 自動對應
+
 ```
