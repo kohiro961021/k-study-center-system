@@ -140,32 +140,6 @@ export function QRCodeView() {
                         <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                         立即刷新 QR Code
                     </button>
-
-                    {/* Developer Debug Copy Token (Localhost / Development Only) */}
-                    {(import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && qrToken && (
-                        <div className="bg-amber-50/50 border border-dashed border-amber-200 rounded-xl p-3 space-y-2 mt-4">
-                            <p className="text-xs font-bold text-amber-800 flex items-center gap-1">
-                                🔧 開發者偵錯：複製 QR Token 進行模擬
-                            </p>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    readOnly
-                                    value={qrToken}
-                                    className="flex-1 min-w-0 px-2 py-1 text-xs bg-white border border-slate-300 rounded font-mono select-all focus:outline-none"
-                                />
-                                <button
-                                    onClick={() => {
-                                        navigator.clipboard.writeText(qrToken);
-                                        alert('已複製 QR Token！');
-                                    }}
-                                    className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded text-xs font-bold transition shrink-0"
-                                >
-                                    複製
-                                </button>
-                            </div>
-                        </div>
-                    )}
                 </div>
             )}
 

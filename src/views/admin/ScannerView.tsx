@@ -185,63 +185,76 @@ export function ScannerView() {
         >
             <div className={isFullscreen ? 'w-full max-w-xl space-y-5 my-auto' : 'space-y-5'}>
                 {/* Header */}
-                <div className="flex items-center justify-between">
-                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <ScanLine className="w-6 h-6 text-amber-600" />
-                        QR Code 掃描器
-                    </h2>
-                    <div className="flex flex-wrap items-center gap-3">
-                        <span className="text-sm text-slate-500">
+                <div className="flex flex-col gap-4">
+                    {/* 第一行：標題與簽到統計 */}
+                    <div className="flex items-center justify-between w-full border-b border-slate-100 pb-3">
+                        <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                            <ScanLine className="w-6 h-6 text-amber-600" />
+                            QR Code 掃描
+                        </h2>
+                        <div className="text-sm text-slate-500 bg-slate-100 px-3 py-1.5 rounded-full font-medium">
                             今日已簽到：<span className="font-bold text-emerald-600">{scanCount}</span> 人
-                        </span>
-                        
-                        {/* 鏡像切換按鈕 */}
+                        </div>
+                    </div>
+
+                    {/* 第二行：控制按鈕群，統一高度與風格 */}
+                    <div className="flex flex-wrap items-center gap-3 w-full justify-between">
+                        {/* 啟動/關閉鏡頭 */}
+                        <button
+                            onClick={scanning ? stopScanner : () => startScanner(activeDeviceId)}
+                            className={`flex-1 sm:flex-none h-10 px-4 rounded-xl text-sm font-bold transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
+                                scanning
+                                    ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100/70'
+                                    : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100/70'
+                            }`}
+                        >
+                            {scanning ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
+                            {scanning ? '關閉鏡頭' : '啟動鏡頭'}
+                        </button>
+
+                        {/* 鏡像切換 */}
                         <button
                             onClick={() => setMirrored(m => !m)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                            className={`flex-1 sm:flex-none h-10 px-4 rounded-xl text-sm font-bold transition-all border flex items-center justify-center gap-1.5 cursor-pointer ${
                                 mirrored
-                                    ? 'text-amber-700 bg-amber-50 border-amber-200'
-                                    : 'text-slate-600 bg-white border-slate-200 hover:bg-slate-50'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100/70'
+                                    : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                             }`}
                             title="鏡像翻轉相機畫面"
                         >
-                            鏡像：{mirrored ? '開' : '關'}
+                            鏡像：{mirrored ? '開啟' : '關閉'}
                         </button>
 
+                        {/* 鏡頭選擇 */}
                         {videoDevices.length > 1 && (
-                            <select
-                                value={activeDeviceId}
-                                onChange={(e) => handleDeviceChange(e.target.value)}
-                                className="text-sm border border-slate-200 rounded-xl px-2.5 py-1.5 bg-white font-semibold focus:outline-none cursor-pointer"
-                            >
-                                {videoDevices.map((d, index) => (
-                                    <option key={d.deviceId} value={d.deviceId}>
-                                        {d.label || `鏡頭 ${index + 1}`}
-                                    </option>
-                                ))}
-                            </select>
+                            <div className="flex-1 sm:flex-none relative h-10">
+                                <select
+                                    value={activeDeviceId}
+                                    onChange={(e) => handleDeviceChange(e.target.value)}
+                                    className="w-full h-full text-sm border border-slate-200 rounded-xl pl-3 pr-8 bg-white font-bold text-slate-700 focus:outline-none cursor-pointer hover:bg-slate-50 appearance-none transition-all"
+                                >
+                                    {videoDevices.map((d, index) => (
+                                        <option key={d.deviceId} value={d.deviceId}>
+                                            {d.label || `鏡頭 ${index + 1}`}
+                                        </option>
+                                    ))}
+                                </select>
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-slate-500">
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                </div>
+                            </div>
                         )}
 
-                        {/* 全螢幕切換按鈕 */}
+                        {/* 全螢幕切換 */}
                         <button
                             onClick={toggleFullscreen}
-                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                            className="flex-1 sm:flex-none h-10 px-4 rounded-xl text-sm font-bold transition-all border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 flex items-center justify-center gap-1.5 cursor-pointer"
                             title={isFullscreen ? '退出全螢幕' : '進入全螢幕'}
                         >
                             {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                             {isFullscreen ? '退出全螢幕' : '全螢幕模式'}
-                        </button>
-
-                        <button
-                            onClick={scanning ? stopScanner : () => startScanner(activeDeviceId)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-bold transition border ${
-                                scanning
-                                    ? 'text-red-600 border-red-200 hover:bg-red-50'
-                                    : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
-                            }`}
-                        >
-                            {scanning ? <CameraOff className="w-4 h-4" /> : <Camera className="w-4 h-4" />}
-                            {scanning ? '停止' : '啟動'}
                         </button>
                     </div>
                 </div>
