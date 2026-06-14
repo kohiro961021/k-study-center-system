@@ -5,7 +5,8 @@ type View =
     'history' |
     'reserve' |
     'announcements' |
-    'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes' | 'admin-announcements';
+    'qrcode' |
+    'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes' | 'admin-announcements' | 'admin-scanner';
 
 type AnnouncementData = { 
     id: number;
@@ -73,7 +74,8 @@ type AttendanceEntry = {
     building: string;
     student_id: string;
     student_name: string;
-    attendance_status: string | null
+    attendance_status: string | null;
+    check_in_time?: string | null
 };
 
 type NoteEntry = {

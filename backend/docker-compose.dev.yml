@@ -1,0 +1,45 @@
+services:
+  app:
+    build: .
+    container_name: kstudy_app_dev
+    restart: always
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    env_file:
+      - .env
+    environment:
+      - TZ=Asia/Taipei
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres@db:5432/kstudy
+      - REDIS_URL=redis://redis:6379/0
+    command: uvicorn app:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:15-alpine
+    container_name: kstudy_db_dev
+    restart: always
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=kstudy
+      - TZ=Asia/Taipei
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: kstudy_redis_dev
+    restart: always
+    environment:
+      - TZ=Asia/Taipei
+    ports:
+      - "6379:6379"
+
+volumes:
+  postgres_data_dev:

@@ -59,15 +59,20 @@ export function AttendanceView() {
                             <th>館別</th>
                             <th>學號</th>
                             <th>姓名</th>
+                            <th>出席狀態</th>
+                            <th>簽到時間</th>
                         </tr>
                         </thead>
                         <tbody>
                             ${data.map(d => `
-                                <tr><td>${escapeHtml(d.seat_label)}</td>
-                                <td>${escapeHtml(d.zone)}</td>
-                                <td>${escapeHtml(d.building)}</td>
-                                <td>${escapeHtml(d.student_id)}</td>
-                                <td>${escapeHtml(d.student_name)}</td>
+                                <tr>
+                                    <td>${escapeHtml(d.seat_label)}</td>
+                                    <td>${escapeHtml(d.zone)}</td>
+                                    <td>${escapeHtml(d.building)}</td>
+                                    <td>${escapeHtml(d.student_id)}</td>
+                                    <td>${escapeHtml(d.student_name)}</td>
+                                    <td>${escapeHtml(d.attendance_status === 'present' ? '有到' : d.attendance_status === 'absent' ? '未到' : '未點名')}</td>
+                                    <td>${escapeHtml(d.check_in_time ? d.check_in_time.split(' ')[1] : '-')}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -144,6 +149,7 @@ export function AttendanceView() {
                                 <th className="px-4 py-3 text-left font-bold text-slate-700">學號</th>
                                 <th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
                                 <th className="px-4 py-3 text-center font-bold text-slate-700">出席狀態</th>
+                                <th className="px-4 py-3 text-left font-bold text-slate-700">簽到時間</th>
                                 <th className="px-4 py-3 text-left font-bold text-slate-700">操作</th>
                             </tr>
                         </thead>
@@ -160,6 +166,9 @@ export function AttendanceView() {
                                         {entry.attendance_status === 'present' && <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full text-xs font-bold"><CheckCircle className="w-3.5 h-3.5" />有到</span>}
                                         {entry.attendance_status === 'absent' && <span className="inline-flex items-center gap-1 bg-red-100 text-red-600 px-2.5 py-1 rounded-full text-xs font-bold"><XCircle className="w-3.5 h-3.5" />未到</span>}
                                         {!entry.attendance_status && <span className="text-slate-400 text-xs">未點名</span>}
+                                    </td>
+                                    <td className="px-4 py-3 text-slate-500 font-mono text-xs">
+                                        {entry.check_in_time ? entry.check_in_time.split(' ')[1] : '-'}
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex items-center gap-1">

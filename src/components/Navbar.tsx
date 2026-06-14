@@ -1,4 +1,4 @@
-import { Sun, Moon, Calendar, LogOut, User, Plus, MessageSquare, ClipboardList, History, Megaphone, Users, FileText, Clock } from 'lucide-react';
+import { Sun, Moon, Calendar, LogOut, User, Plus, MessageSquare, ClipboardList, History, Megaphone, Users, FileText, Clock, QrCode, ScanLine } from 'lucide-react';
 import { useUI, useAuth } from '../context/';
 import { useCurrentTime } from '../hooks';
 
@@ -53,6 +53,9 @@ export const Navbar = () => {
 								<button onClick={() => setView('admin-announcements')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-announcements' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<Megaphone className="w-4 h-4 inline mr-1" />公告
 								</button>
+								<button onClick={() => setView('admin-scanner')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-scanner' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+									<ScanLine className="w-4 h-4 inline mr-1" />掃描器
+								</button>
 							</>
 						) : (
 							<>
@@ -67,6 +70,9 @@ export const Navbar = () => {
 								</button>
 								<button onClick={() => setView('history')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'history' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<History className="w-4 h-4 inline mr-1" />歷史紀錄
+								</button>
+								<button onClick={() => setView('qrcode')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'qrcode' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+									<QrCode className="w-4 h-4 inline mr-1" />點名
 								</button>
 							</>
 						)}
