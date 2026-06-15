@@ -30,7 +30,7 @@
 
 ### ⚡ 系統安全與穩定性
 - **Redis 分散式鎖**：防止同一時間兩人搶到同一座位（Race Condition）
-- **Per-User Rate Limiting**：每人每分鐘最多 5 次預約嘗試，防止機器人刷位
+- **Per-User Rate Limiting**：每人每分鐘最多 10 次預約嘗試，防止機器人刷位
 - **Nginx IP Rate Limiting**：每 IP 每秒 10 req，burst 20
 - **Nginx X-KLib-Key 驗證**：API 不接受一般的 HTTP 請求
 - **JWT HS256** 身份驗證，管理員路由以 404 偽裝（非 403）
