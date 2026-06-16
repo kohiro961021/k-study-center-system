@@ -124,7 +124,7 @@ export const LoginView = () => {
                 {canInstall && (
                     <button
                         onClick={install}
-                        className="w-full max-w-md flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-[#fff] font-bold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+                        className="md:hidden w-full max-w-md flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-[#fff] font-bold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
                     >
                         <Download className="w-5 h-5" />
                         安裝
