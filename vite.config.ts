@@ -21,7 +21,8 @@ export default defineConfig(({ mode }) => {
 					name: 'K書中心預約系統',
 					short_name: 'K書中心',
 					description: '鳳山高中 K書中心座位預約系統 — 線上預約自習座位，輕鬆管理學習空間',
-					theme_color: '#ffffff',
+					theme_color: '#0f172a',
+					background_color: '#0f172a',
 					icons: [
 						{
 							src: 'pwa-192x192.png',
