@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
-import { Clock, Sun, Moon, User, Lock, AlertCircle, Megaphone, Pin } from 'lucide-react'
+import { Clock, Sun, Moon, User, Lock, AlertCircle, Megaphone, Pin, Download } from 'lucide-react'
 
 import { useAuth, useUI, useAnnouncements } from '../context';
 
 import { GOOGLE_CLIENT_ID } from '../constants';
 
-import { useCurrentTime } from '../hooks';
+import { useCurrentTime, usePWAInstall } from '../hooks';
 
 import { renderMarkdown } from '../utils';
 
@@ -16,6 +16,7 @@ export const LoginView = () => {
     const { theme, toggleTheme } = useUI();
     const { announcements, fetchAnnouncements } = useAnnouncements();
     const { dateString, timeString } = useCurrentTime();
+    const { canInstall, install } = usePWAInstall();
 
     useEffect(() => {
         fetchAnnouncements();
@@ -117,6 +118,17 @@ export const LoginView = () => {
                             ))}
                         </div>
                     </div>
+                )}
+
+                {/* PWA Install Button */}
+                {canInstall && (
+                    <button
+                        onClick={install}
+                        className="w-full max-w-md flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-[#fff] font-bold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+                    >
+                        <Download className="w-5 h-5" />
+                        安裝
+                    </button>
                 )}
 
             </div>
