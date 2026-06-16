@@ -91,4 +91,12 @@ type SortKey = 'res_date' | 'student_id' | 'seat_label' | 'created_at' | 'update
 
 type SortDir = 'asc' | 'desc';
 
-export type { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, AttendanceEntry, NoteEntry, SortKey, SortDir };
+type ScanResult = {
+    type: 'success' | 'error' | 'already';
+    message: string;
+    student_name?: string;
+    student_id?: string;
+    seat_label?: string;
+};
+
+export type { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, AttendanceEntry, NoteEntry, SortKey, SortDir, ScanResult };

@@ -2,14 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { BrowserQRCodeReader, IScannerControls } from '@zxing/browser';
 import { ScanLine, CheckCircle2, XCircle, Camera, CameraOff, RefreshCw, Maximize, Minimize } from 'lucide-react';
 import { useApi } from '../../hooks';
-
-type ScanResult = {
-    type: 'success' | 'error' | 'already';
-    message: string;
-    student_name?: string;
-    student_id?: string;
-    seat_label?: string;
-};
+import { ScanResult } from '../../type';
 
 const RESULT_DISPLAY_MS = 3500; // 掃描結果顯示時間（毫秒）
 

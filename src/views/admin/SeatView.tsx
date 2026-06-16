@@ -23,7 +23,15 @@ export function SeatView() {
     const [showAdminReserve, setShowAdminReserve] = useState(false);
     const [adminReserveSeatId, setAdminReserveSeatId] = useState<number | null>(null);
     const [adminReserveStudentId, setAdminReserveStudentId] = useState('');
-    const [adminReserveDate, setAdminReserveDate] = useState(new Date().toISOString().split('T')[0]);
+    const [adminReserveDate, setAdminReserveDate] = useState(() => {
+        const now = new Date();
+        const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+        const tz8 = new Date(utc + 8 * 3600000);
+        const y = tz8.getUTCFullYear();
+        const m = String(tz8.getUTCMonth() + 1).padStart(2, '0');
+        const d = String(tz8.getUTCDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+    });
 
     const fetchSeats = async () => { try { setSeats(await apiCall('/api/seats')); } catch { } };
     const fetchAvailability = async () => { try { setBookedSeatIds(await apiCall(`/api/availability?res_date=${selectedDate}`)); } catch { } };
