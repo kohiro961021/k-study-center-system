@@ -43,6 +43,17 @@ export const LoginView = () => {
             {/* Login form */}
             <div className="flex flex-col lg:flex-row gap-6 max-w-5xl mx-auto items-start justify-center">
 
+                {/* PWA Install Button */}
+                {canInstall && (
+                    <button
+                        onClick={install}
+                        className="md:hidden w-full max-w-md flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-[#fff] font-bold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
+                    >
+                        <Download className="w-5 h-5" />
+                        安裝
+                    </button>
+                )}
+
                 {/* Login card */}
                 <div className="w-full max-w-md bg-card/80 glass-card rounded-4xl shadow-xl p-8 border border-slate-200">
 
@@ -118,17 +129,6 @@ export const LoginView = () => {
                             ))}
                         </div>
                     </div>
-                )}
-
-                {/* PWA Install Button */}
-                {canInstall && (
-                    <button
-                        onClick={install}
-                        className="md:hidden w-full max-w-md flex items-center justify-center gap-2 bg-accent hover:bg-accent-hover text-[#fff] font-bold py-3 px-6 rounded-2xl shadow-lg hover:shadow-xl transition-all active:scale-[0.98]"
-                    >
-                        <Download className="w-5 h-5" />
-                        安裝
-                    </button>
                 )}
 
             </div>
