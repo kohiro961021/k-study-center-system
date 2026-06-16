@@ -5,6 +5,8 @@ import re
 import bcrypt
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+
+TAIPEI_TZ = timezone(timedelta(hours=8))
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
@@ -363,10 +365,12 @@ def _make_token(user: User) -> dict:
 
 
 def _format_datetime(dt) -> Optional[str]:
-    """Format datetime to ISO string for JSON output."""
+    """Format datetime to ISO string for JSON output, converting UTC to Taipei time (+8)."""
     if dt is None:
         return None
-    return dt.strftime("%Y-%m-%d %H:%M:%S")
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(TAIPEI_TZ).strftime("%Y-%m-%d %H:%M:%S")
 
 
 # ═══════════════════
@@ -884,7 +888,7 @@ def generate_qr_token(current_user: User = Depends(get_current_user)):
     redis_key = f"qr_token:{token}"
     redis_client.setex(redis_key, QR_TOKEN_EXPIRE_MINUTES * 60, current_user.student_id)
     
-    expire = datetime.now(timezone.utc) + timedelta(minutes=QR_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(TAIPEI_TZ) + timedelta(minutes=QR_TOKEN_EXPIRE_MINUTES)
     return {
         "token": token,
         "expires_at": expire.isoformat(),
