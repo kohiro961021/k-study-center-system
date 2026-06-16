@@ -20,7 +20,7 @@ export default defineConfig(({ mode }) => {
 				manifest: {
 					name: 'K書中心預約系統',
 					short_name: 'K書中心',
-					description: 'K書中心預約系統',
+					description: '鳳山高中 K書中心座位預約系統 — 線上預約自習座位，輕鬆管理學習空間',
 					theme_color: '#ffffff',
 					icons: [
 						{
