@@ -1,4 +1,5 @@
 import os
+import math
 from dotenv import load_dotenv
 load_dotenv()
 import re
@@ -277,6 +278,14 @@ class UserOut(BaseModel):
     name: Optional[str] = None
     is_admin: bool
     model_config = {"from_attributes": True}
+
+
+class UserPageOut(BaseModel):
+    users: List[UserOut]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int
 
 
 class SeatNoteRequest(BaseModel):
@@ -574,9 +583,24 @@ def cancel_reservation(reservation_id: int, current_user: User = Depends(get_cur
 #  Admin Routes
 # ═══════════════════
 
-@app.get("/api/admin/users", response_model=List[UserOut])
-def admin_list_users(admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
-    return db.query(User).filter(User.is_admin == False).all()
+@app.get("/api/admin/users", response_model=UserPageOut)
+def admin_list_users(
+    search: str = "",
+    page: int = 1,
+    page_size: int = 20,
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(User).filter(User.is_admin == False)
+    if search:
+        keyword = f"%{search}%"
+        query = query.filter(
+            or_(User.student_id.ilike(keyword), User.name.ilike(keyword))
+        )
+    total = query.count()
+    users = query.order_by(User.student_id).offset((page - 1) * page_size).limit(page_size).all()
+    total_pages = math.ceil(total / page_size) if total > 0 else 1
+    return {"users": users, "total": total, "page": page, "page_size": page_size, "total_pages": total_pages}
 
 
 @app.put("/api/admin/reset-password")

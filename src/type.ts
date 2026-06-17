@@ -66,6 +66,14 @@ type StudentUser = {
     is_admin: boolean
 };
 
+type UserPage = {
+    users: StudentUser[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+};
+
 type AttendanceEntry = {
     id: number;
     seat_label: string;
@@ -99,4 +107,4 @@ type ScanResult = {
     seat_label?: string;
 };
 
-export type { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, AttendanceEntry, NoteEntry, SortKey, SortDir, ScanResult };
+export type { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, UserPage, AttendanceEntry, NoteEntry, SortKey, SortDir, ScanResult };

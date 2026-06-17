@@ -1,27 +1,66 @@
-import { useState, useEffect } from 'react';
-import { Users, Key, KeyRound, Search, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { Users, Key, KeyRound, Search, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useApi } from '../../hooks';
 import { useUI } from '../../context';
-import { StudentUser } from '../../type';
+import { UserPage } from '../../type';
+
+const PAGE_SIZE = 20;
 
 export function UserManageView() {
     const apiCall = useApi();
     const { setAdminMessage } = useUI();
-    
-    const [allUsers, setAllUsers] = useState<StudentUser[]>([]);
-    const [resetStudentId, setResetStudentId] = useState('');
-    const [resetNewPassword, setResetNewPassword] = useState('');
+
+    const [data, setData] = useState<UserPage | null>(null);
+    const [page, setPage] = useState(1);
     const [searchTerm, setSearchTerm] = useState('');
+    const [inputValue, setInputValue] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
+    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const [adminOldPw, setAdminOldPw] = useState('');
     const [adminNewPw, setAdminNewPw] = useState('');
     const [adminConfirmPw, setAdminConfirmPw] = useState('');
 
-    const fetchAdminUsers = async () => { try { setAllUsers(await apiCall('/api/admin/users')); } catch { } };
+    const [resetStudentId, setResetStudentId] = useState('');
+    const [resetNewPassword, setResetNewPassword] = useState('');
 
+    const fetchUsers = useCallback(async (search: string, currentPage: number) => {
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams({
+                search,
+                page: String(currentPage),
+                page_size: String(PAGE_SIZE),
+            });
+            const result: UserPage = await apiCall(`/api/admin/users?${params}`);
+            setData(result);
+        } catch {
+            // error handled by useApi
+        } finally {
+            setIsLoading(false);
+        }
+    }, [apiCall]);
+
+    // Initial load
     useEffect(() => {
-        fetchAdminUsers();
-    }, []);
+        fetchUsers('', 1);
+    }, [fetchUsers]);
+
+    // Debounce search input → reset to page 1
+    const handleSearchChange = (value: string) => {
+        setInputValue(value);
+        if (debounceRef.current) clearTimeout(debounceRef.current);
+        debounceRef.current = setTimeout(() => {
+            setSearchTerm(value);
+            setPage(1);
+            fetchUsers(value, 1);
+        }, 300);
+    };
+
+    const handlePageChange = (newPage: number) => {
+        setPage(newPage);
+        fetchUsers(searchTerm, newPage);
+    };
 
     const handleResetPassword = async (sid?: string) => {
         const targetId = sid || resetStudentId;
@@ -31,11 +70,11 @@ export function UserManageView() {
         if (sid) { const input = window.prompt(`請輸入 ${sid} 的新密碼：`); if (!input) return; newPw = input; }
         if (!newPw) { setAdminMessage('請輸入新密碼'); return; }
 
-        try { 
-            const result = await apiCall('/api/admin/reset-password', 'PUT', { student_id: targetId, new_password: newPw }); 
+        try {
+            const result = await apiCall('/api/admin/reset-password', 'PUT', { student_id: targetId, new_password: newPw });
             setAdminMessage(result.message);
             setResetStudentId('');
-            setResetNewPassword(''); 
+            setResetNewPassword('');
         } catch (err: any) { setAdminMessage(`重設失敗: ${err.message}`); }
     };
 
@@ -52,14 +91,30 @@ export function UserManageView() {
         } catch (err: any) { setAdminMessage(`修改失敗: ${err.message}`); }
     };
 
+    const totalPages = data?.total_pages ?? 1;
+    const users = data?.users ?? [];
+    const total = data?.total ?? 0;
+
     return (
         <div className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Users className="w-6 h-6 text-amber-600" />帳號管理</h2>
 
             {/* User list with search */}
             <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
-                <div className="p-4 border-b border-slate-200 flex items-center gap-3"><Search className="w-4 h-4 text-slate-400" />
-                    <input type="text" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="搜尋學號..." className="flex-1 outline-none text-sm bg-transparent" />
+                {/* Search bar */}
+                <div className="p-4 border-b border-slate-200 flex items-center gap-3">
+                    <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                    <input
+                        type="text"
+                        value={inputValue}
+                        onChange={e => handleSearchChange(e.target.value)}
+                        placeholder="搜尋學號或姓名..."
+                        className="flex-1 outline-none text-sm bg-transparent"
+                    />
+                    {isLoading && <Loader2 className="w-4 h-4 text-slate-400 animate-spin shrink-0" />}
+                    {total > 0 && !isLoading && (
+                        <span className="text-xs text-slate-400 shrink-0">共 {total} 筆</span>
+                    )}
                 </div>
 
                 <table className="w-full text-sm">
@@ -71,15 +126,82 @@ export function UserManageView() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {allUsers.filter(u => u.student_id.toLowerCase().includes(searchTerm.toLowerCase())).map(u => (
-                            <tr key={u.id} className="hover:bg-slate-50 transition">
-                            <td className="px-4 py-3 text-accent font-medium">{u.student_id}</td>
-                            <td className="px-4 py-3 text-slate-600">{u.name || '未填寫'}</td>
-                            <td className="px-4 py-3 text-right"><button onClick={() => handleResetPassword(u.student_id)} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition"><Key className="w-3 h-3 inline mr-1" />重設密碼</button></td>
+                        {isLoading && users.length === 0 ? (
+                            // Loading skeleton
+                            Array.from({ length: 5 }).map((_, i) => (
+                                <tr key={i}>
+                                    <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded animate-pulse w-24" /></td>
+                                    <td className="px-4 py-3"><div className="h-4 bg-slate-100 rounded animate-pulse w-16" /></td>
+                                    <td className="px-4 py-3 text-right"><div className="h-6 bg-slate-100 rounded animate-pulse w-20 ml-auto" /></td>
+                                </tr>
+                            ))
+                        ) : users.length === 0 ? (
+                            <tr>
+                                <td colSpan={3} className="px-4 py-8 text-center text-slate-400 text-sm">
+                                    {searchTerm ? `找不到「${searchTerm}」的相關用戶` : '尚無用戶資料'}
+                                </td>
                             </tr>
-                        ))}
+                        ) : (
+                            users.map(u => (
+                                <tr key={u.id} className="hover:bg-slate-50 transition">
+                                    <td className="px-4 py-3 text-accent font-medium">{u.student_id}</td>
+                                    <td className="px-4 py-3 text-slate-600">{u.name || '未填寫'}</td>
+                                    <td className="px-4 py-3 text-right">
+                                        <button onClick={() => handleResetPassword(u.student_id)} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition">
+                                            <Key className="w-3 h-3 inline mr-1" />重設密碼
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
+                        )}
                     </tbody>
                 </table>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                    <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between">
+                        <button
+                            onClick={() => handlePageChange(page - 1)}
+                            disabled={page <= 1 || isLoading}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                        >
+                            <ChevronLeft className="w-4 h-4" />上一頁
+                        </button>
+
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: totalPages }, (_, i) => i + 1)
+                                .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                                .reduce<(number | 'ellipsis')[]>((acc, p, idx, arr) => {
+                                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push('ellipsis');
+                                    acc.push(p);
+                                    return acc;
+                                }, [])
+                                .map((p, idx) =>
+                                    p === 'ellipsis' ? (
+                                        <span key={`e-${idx}`} className="px-1 text-slate-400 text-sm">…</span>
+                                    ) : (
+                                        <button
+                                            key={p}
+                                            onClick={() => handlePageChange(p as number)}
+                                            disabled={isLoading}
+                                            className={`w-8 h-8 rounded-lg text-sm font-medium transition ${page === p ? 'bg-accent text-white' : 'text-slate-600 hover:bg-slate-100'}`}
+                                        >
+                                            {p}
+                                        </button>
+                                    )
+                                )
+                            }
+                        </div>
+
+                        <button
+                            onClick={() => handlePageChange(page + 1)}
+                            disabled={page >= totalPages || isLoading}
+                            className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                        >
+                            下一頁<ChevronRight className="w-4 h-4" />
+                        </button>
+                    </div>
+                )}
             </div>
 
             {/* Admin change own password */}
