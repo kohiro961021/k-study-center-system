@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { SeatData, AdminReservation } from '../type';
+import { useRef, useEffect } from 'react';
+import { SeatData } from '../type';
 import { NEW_BUILDING_ZONES, OLD_BUILDING_ZONES, OLD_STAFF_ZONES } from '../constants/seats';
 
 interface BaseSeatMapProps {
@@ -16,15 +16,7 @@ interface StudentSeatMapProps extends BaseSeatMapProps {
 
 interface AdminSeatMapProps extends BaseSeatMapProps {
 	isAdminView: true;
-	allReservations: AdminReservation[];
-	setEditingSeatNote: (seat: SeatData | null) => void;
-	setNoteText: (text: string) => void;
-	setAdminReserveSeatId: (id: number | null) => void;
-	setAdminReserveStudentId: (id: string) => void;
-	setAdminReserveDate: (date: string) => void;
-	setShowAdminReserve: (show: boolean) => void;
-	handleUpdateAttendance: (id: number, status: 'present' | 'absent') => void;
-	handleSeatStatus: (seatId: number, status: 'maintenance' | 'available') => void;
+	onSeatClick: (seat: SeatData) => void;
 }
 
 type SeatMapProps = StudentSeatMapProps | AdminSeatMapProps;
@@ -53,8 +45,8 @@ export const SeatMap = (props: SeatMapProps) => {
 		handleReserve
 	} = props;
 
+	{/* Scroll container for horizontal scrolling */}
 	const scrollRef = useRef<HTMLDivElement>(null);
-
 	useEffect(() => {
 		const el = scrollRef.current;
 		if (!el) return;
@@ -95,42 +87,8 @@ export const SeatMap = (props: SeatMapProps) => {
 
 		const handleClick = () => {
 			if (props.isAdminView) {
-				const {
-					setEditingSeatNote, setNoteText, setAdminReserveSeatId,
-					setAdminReserveStudentId, setAdminReserveDate, setShowAdminReserve,
-					allReservations, handleUpdateAttendance, handleSeatStatus
-				} = props;
-
 				if (isPillar && !isReservablePillar) return;
-
-				const statusText = isMaint ? '維修中' : isBooked ? '已預約' : isStaff ? '工讀生' : '空位';
-				const action = window.prompt(`座位 ${seat.label}\n${seat.note ? `註記: ${seat.note}\n` : ''}狀態: ${statusText}\n\n輸入操作：\n1 = 編輯註記\n2 = 代為預約\n3 = 有到\n4 = 未到\n5 = 設為維修中\n6 = 恢復可用\n取消 = 關閉`);
-
-				switch (action) {
-					case '1':
-						setEditingSeatNote(seat);
-						setNoteText(seat.note || '');
-						break;
-					case '2':
-						setAdminReserveSeatId(seat.id);
-						setAdminReserveStudentId('');
-						setAdminReserveDate(selectedDate);
-						setShowAdminReserve(true);
-						break;
-					case '3':
-					case '4':
-						const targetRes = allReservations.find(r => r.seat_id === seat.id && r.res_date === selectedDate);
-
-						if (!targetRes) { alert('該座位在這個日期沒有預約'); return; }
-						handleUpdateAttendance(targetRes.id, action === '3' ? 'present' : 'absent');
-						break;
-					case '5':
-						handleSeatStatus(seat.id, 'maintenance');
-						break;
-					case '6':
-						handleSeatStatus(seat.id, 'available');
-						break;
-				}
+				props.onSeatClick(seat);
 			} else {
 				if (!disabled) handleReserve(seat.id);
 			}

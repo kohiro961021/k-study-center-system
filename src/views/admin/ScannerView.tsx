@@ -27,7 +27,7 @@ export function ScannerView() {
         processingRef.current = true;
 
         try {
-            const res = await apiCall('/api/attendance/scan', 'POST', { token });
+            const res = await apiCall('/api/attendance/scan', 'POST', { token }, false);
             setScanResult({
                 type: res.already_checked_in ? 'already' : 'success',
                 message: res.message,

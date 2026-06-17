@@ -5,7 +5,7 @@ import { API_BASE, KLIB_KEY } from '../constants';
 
 export const useApi = () => {
     const { token } = useAuth();
-    const apiCall = useCallback(async (endpoint: string, method = 'GET', body?: any) => {
+    const apiCall = useCallback(async (endpoint: string, method = 'GET', body?: any, showAlert = true) => {
         const headers: any = { 'Content-Type': 'application/json', 'X-KLib-Key': KLIB_KEY };
         
         if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -30,7 +30,9 @@ export const useApi = () => {
             
             return data;
         } catch (err: any) {
-            alert(err.message);
+            if (showAlert) {
+                alert(err.message);
+            }
             throw err;
         }
     }, [token]);
