@@ -1,14 +1,11 @@
 import { useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useUI } from '../context/UIContext';
+
 import { API_BASE, KLIB_KEY } from '../constants';
 
 export const useApi = () => {
     const { token } = useAuth();
-    const { setGlobalError } = useUI();
-
     const apiCall = useCallback(async (endpoint: string, method = 'GET', body?: any) => {
-        setGlobalError(null);
         const headers: any = { 'Content-Type': 'application/json', 'X-KLib-Key': KLIB_KEY };
         
         if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -33,10 +30,10 @@ export const useApi = () => {
             
             return data;
         } catch (err: any) {
-            setGlobalError(err.message);
+            alert(err.message);
             throw err;
         }
-    }, [token, setGlobalError]);
+    }, [token]);
 
     return apiCall;
 };

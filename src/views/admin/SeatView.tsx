@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { MessageSquare, Plus, Edit3 } from 'lucide-react';
 import { useApi } from '../../hooks';
-import { useUI, useSeats } from '../../context';
+import { useSeats } from '../../context';
 import { SeatLegend, SeatMap, DatePicker, RefreshButton } from '../../components';
 import { AdminReservation, SeatData } from '../../type';
 
 export function SeatView() {
     const apiCall = useApi();
-    const { setAdminMessage } = useUI();
+
     const { 
         selectedDate, setSelectedDate,
         selectedBuilding, setSelectedBuilding,
@@ -46,9 +46,9 @@ export function SeatView() {
     const handleUpdateAttendance = async (reservationId: number, status: 'present' | 'absent') => {
         try {
             const result = await apiCall(`/api/admin/reservations/${reservationId}/attendance`, 'PUT', { status });
-            setAdminMessage(result.message);
+            alert(result.message);
             fetchAdminReservations();
-        } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
+        } catch (err: any) { alert(`更新失敗: ${err.message}`); }
     };
 
     const handleSeatStatus = async (seatId: number, newStatus: 'maintenance' | 'available') => {
@@ -56,11 +56,11 @@ export function SeatView() {
         if (!window.confirm(`確定要${action}嗎？`)) return;
         try {
             const result = await apiCall(`/api/admin/seats/${seatId}/status`, 'PUT', { status: newStatus });
-            setAdminMessage(result.message);
+            alert(result.message);
             fetchSeats();
             fetchAvailability();
             fetchAdminReservations();
-        } catch (err: any) { setAdminMessage(`操作失敗: ${err.message}`); }
+        } catch (err: any) { alert(`操作失敗: ${err.message}`); }
     };
 
     const handleReserve = async (seatId: number) => {
@@ -79,19 +79,19 @@ export function SeatView() {
             await apiCall(`/api/admin/seats/${editingSeatNote.id}/note`, 'PUT', { note: noteText });
             setEditingSeatNote(null); 
             fetchSeats(); 
-            setAdminMessage('註記已更新'); 
-        } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
+            alert('註記已更新'); 
+        } catch (err: any) { alert(`更新失敗: ${err.message}`); }
     };
 
     const handleAdminReserve = async () => {
         if (!adminReserveSeatId || !adminReserveStudentId) return;
         try { 
             const result = await apiCall('/api/admin/reserve', 'POST', { student_id: adminReserveStudentId, seat_id: adminReserveSeatId, res_date: adminReserveDate }); 
-            setAdminMessage(result.message);
+            alert(result.message);
             setShowAdminReserve(false);
             fetchAvailability();
             fetchAdminReservations();
-        } catch (err: any) { setAdminMessage(`預約失敗: ${err.message}`); }
+        } catch (err: any) { alert(`預約失敗: ${err.message}`); }
     };
 
     return (

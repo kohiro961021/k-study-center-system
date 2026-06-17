@@ -12,10 +12,7 @@ import {
 
 export default function App() {
 	const { token, isAdmin } = useAuth();
-	const {
-		view, setView,
-		globalError, setGlobalError
-	} = useUI();
+	const { view, setView } = useUI();
 
 	// 🏴 Easter egg console hint
 	useEffect(() => {
@@ -41,17 +38,6 @@ export default function App() {
 			<Navbar />
 
 			<main className="max-w-7xl mx-auto px-4 py-6 pb-24 md:pb-6 space-y-6">
-				{/* Global Error Banner */}
-				{globalError && (
-					<div className="p-4 bg-red-50 text-red-800 text-sm rounded-xl border border-red-200 flex items-center justify-between shadow-sm">
-						<div className="flex items-center gap-2">
-							<AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
-							<span>{globalError}</span>
-						</div>
-						<button onClick={() => setGlobalError(null)} className="text-red-600 hover:text-red-800 font-bold ml-4">✕</button>
-					</div>
-				)}
-
 				{/* Admin Views */}
 				{view === 'admin-reservations' && <ResManageView />}
 				{view === 'admin-attendance' && <AttendanceView />}

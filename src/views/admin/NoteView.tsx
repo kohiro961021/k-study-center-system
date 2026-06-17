@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import { FileText, MessageSquare, Edit3 } from 'lucide-react';
 import { useApi } from '../../hooks';
-import { useUI, useSeats } from '../../context';
+import { useSeats } from '../../context';
 import { NoteEntry, SeatData } from '../../type';
 import { RefreshButton } from '../../components';
 
 export function NoteView() {
     const apiCall = useApi();
-    const { setAdminMessage } = useUI();
+
     const { seats, setSeats } = useSeats();
     
     const [notesList, setNotesList] = useState<NoteEntry[]>([]);
@@ -29,8 +29,8 @@ export function NoteView() {
             setEditingSeatNote(null); 
             fetchSeats(); 
             fetchNotesList();
-            setAdminMessage('註記已更新'); 
-        } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
+            alert('註記已更新'); 
+        } catch (err: any) { alert(`更新失敗: ${err.message}`); }
     };
 
     return (

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Calendar, Search, CheckCircle, XCircle, Trash2 } from 'lucide-react';
 import { useApi } from '../../hooks';
-import { useUI } from '../../context';
+
 import { escapeHtml } from '../../utils';
 import { RefreshButton, PrintButton } from '../../components';
 import { AdminReservation, SortKey, SortDir } from '../../type';
 
 export function ResManageView() {
     const apiCall = useApi();
-    const { setAdminMessage } = useUI();
+
     
     const [allReservations, setAllReservations] = useState<AdminReservation[]>([]);
     const [reservationSearch, setReservationSearch] = useState('');
@@ -47,29 +47,29 @@ export function ResManageView() {
         if (!window.confirm('確定要取消這個學生的預約嗎？')) return;
         try { 
             await apiCall(`/api/admin/reservations/${resId}`, 'DELETE'); 
-            setAdminMessage('已成功取消預約'); 
+            alert('已成功取消預約'); 
             fetchAdminReservations();
         } catch (err: any) { 
-            setAdminMessage(`取消失敗: ${err.message}`); 
+            alert(`取消失敗: ${err.message}`); 
         }
     };
 
     const handleUpdateAttendance = async (reservationId: number, status: 'present' | 'absent') => {
         try {
             const result = await apiCall(`/api/admin/reservations/${reservationId}/attendance`, 'PUT', { status });
-            setAdminMessage(result.message);
+            alert(result.message);
             fetchAdminReservations();
-        } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
+        } catch (err: any) { alert(`更新失敗: ${err.message}`); }
     };
 
     const handlePrintAttendance = async () => {
         try {
-            setAdminMessage('正在載入待列印資料...');
+            alert('正在載入待列印資料...');
             const query = `search=${encodeURIComponent(debouncedSearch)}&sort_by=${sortKey}&sort_dir=${sortDir}&all=true`;
             const printItems = await apiCall(`/api/admin/reservations?${query}`);
 
             if (!printItems || printItems.length === 0) {
-                setAdminMessage('目前沒有符合篩選條件的資料可供列印');
+                alert('目前沒有符合篩選條件的資料可供列印');
                 return;
             }
 
@@ -130,9 +130,9 @@ export function ResManageView() {
             `);
             
             printWindow.document.close();
-            setAdminMessage('待列印資料載入完成');
+            alert('待列印資料載入完成');
         } catch (err: any) {
-            setAdminMessage(`載入列印資料失敗: ${err.message}`);
+            alert(`載入列印資料失敗: ${err.message}`);
         }
     };
 

@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, Key, KeyRound, Search, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
 import { useApi } from '../../hooks';
-import { useUI } from '../../context';
+
 import { UserPage } from '../../type';
 
 const PAGE_SIZE = 20;
 
 export function UserManageView() {
     const apiCall = useApi();
-    const { setAdminMessage } = useUI();
+
 
     const [data, setData] = useState<UserPage | null>(null);
     const [page, setPage] = useState(1);
@@ -64,31 +64,31 @@ export function UserManageView() {
 
     const handleResetPassword = async (sid?: string) => {
         const targetId = sid || resetStudentId;
-        if (!targetId) { setAdminMessage('請輸入學號'); return; }
+        if (!targetId) { alert('請輸入學號'); return; }
 
         let newPw = sid ? '' : resetNewPassword;
         if (sid) { const input = window.prompt(`請輸入 ${sid} 的新密碼：`); if (!input) return; newPw = input; }
-        if (!newPw) { setAdminMessage('請輸入新密碼'); return; }
+        if (!newPw) { alert('請輸入新密碼'); return; }
 
         try {
             const result = await apiCall('/api/admin/reset-password', 'PUT', { student_id: targetId, new_password: newPw });
-            setAdminMessage(result.message);
+            alert(result.message);
             setResetStudentId('');
             setResetNewPassword('');
-        } catch (err: any) { setAdminMessage(`重設失敗: ${err.message}`); }
+        } catch (err: any) { alert(`重設失敗: ${err.message}`); }
     };
 
     const handleAdminChangePassword = async () => {
-        if (!adminOldPw) { setAdminMessage('請輸入舊密碼'); return; }
-        if (!adminNewPw) { setAdminMessage('請輸入新密碼'); return; }
-        if (!adminConfirmPw) { setAdminMessage('請再次輸入新密碼確認'); return; }
-        if (adminNewPw !== adminConfirmPw) { setAdminMessage('兩次輸入的新密碼不一致'); return; }
+        if (!adminOldPw) { alert('請輸入舊密碼'); return; }
+        if (!adminNewPw) { alert('請輸入新密碼'); return; }
+        if (!adminConfirmPw) { alert('請再次輸入新密碼確認'); return; }
+        if (adminNewPw !== adminConfirmPw) { alert('兩次輸入的新密碼不一致'); return; }
         if (!window.confirm('⚠️ 確定要修改管理員密碼嗎？\n\n修改後需要使用新密碼重新登入。')) return;
         try {
             const result = await apiCall('/api/admin/change-password', 'PUT', { old_password: adminOldPw, new_password: adminNewPw, confirm_password: adminConfirmPw });
-            setAdminMessage(result.message);
+            alert(result.message);
             setAdminOldPw(''); setAdminNewPw(''); setAdminConfirmPw('');
-        } catch (err: any) { setAdminMessage(`修改失敗: ${err.message}`); }
+        } catch (err: any) { alert(`修改失敗: ${err.message}`); }
     };
 
     const totalPages = data?.total_pages ?? 1;

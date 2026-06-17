@@ -29,7 +29,7 @@ const AnnouncementContext = createContext<AnnouncementContextType | undefined>(u
 
 export function AnnouncementProvider({ children }: { children: ReactNode }) {
     const apiCall = useApi();
-    const { view, setAdminMessage } = useUI();
+    const { view } = useUI();
 
     const [announcements, setAnnouncements] = useState<AnnouncementData[]>([]);
     const [annTitle, setAnnTitle] = useState('');
@@ -45,14 +45,14 @@ export function AnnouncementProvider({ children }: { children: ReactNode }) {
     };
 
     const handleCreateAnnouncement = async () => {
-        if (!annTitle.trim() || !annContent.trim()) { setAdminMessage('標題和內容不能為空'); return; }
+        if (!annTitle.trim() || !annContent.trim()) { alert('標題和內容不能為空'); return; }
 
         try {
             await apiCall('/api/admin/announcements', 'POST', { title: annTitle, content: annContent, is_pinned: annPinned });
-            setAdminMessage('公告已發布'); 
+            alert('公告已發布'); 
             setAnnTitle(''); setAnnContent(''); setAnnPinned(false); 
             fetchAnnouncements();
-        } catch (err: any) { setAdminMessage(`發布失敗: ${err.message}`); }
+        } catch (err: any) { alert(`發布失敗: ${err.message}`); }
     };
 
     const handleUpdateAnnouncement = async () => {
@@ -60,10 +60,10 @@ export function AnnouncementProvider({ children }: { children: ReactNode }) {
 
         try {
             await apiCall(`/api/admin/announcements/${editingAnn.id}`, 'PUT', { title: annTitle, content: annContent, is_pinned: annPinned });
-            setAdminMessage('公告已更新'); 
+            alert('公告已更新'); 
             setEditingAnn(null); setAnnTitle(''); setAnnContent(''); setAnnPinned(false); 
             fetchAnnouncements();
-        } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
+        } catch (err: any) { alert(`更新失敗: ${err.message}`); }
     };
 
     const handleDeleteAnnouncement = async (id: number) => {
@@ -71,9 +71,9 @@ export function AnnouncementProvider({ children }: { children: ReactNode }) {
 
         try { 
             await apiCall(`/api/admin/announcements/${id}`, 'DELETE'); 
-            setAdminMessage('公告已刪除'); 
+            alert('公告已刪除'); 
             fetchAnnouncements(); 
-        } catch (err: any) { setAdminMessage(`刪除失敗: ${err.message}`); }
+        } catch (err: any) { alert(`刪除失敗: ${err.message}`); }
     };
 
     // Auto-fetch announcements when switching to related views

@@ -1,9 +1,9 @@
 import { Megaphone, Pin, Edit3, Trash2 } from 'lucide-react';
-import { useUI, useAnnouncements } from '../../context';
+import { useAnnouncements } from '../../context';
 import { renderMarkdown } from '../../utils';
 
 export function AdminAnnouncementView() {
-    const { adminMessage, setAdminMessage } = useUI();
+
     const { 
         announcements,
         annTitle, setAnnTitle,
@@ -18,7 +18,7 @@ export function AdminAnnouncementView() {
     return (
         <div className="space-y-4">
             <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2"><Megaphone className="w-6 h-6 text-amber-600" />公告管理</h2>
-            {adminMessage && <div className="p-3 bg-amber-50 text-amber-800 text-sm rounded-lg border border-amber-200 flex items-center justify-between"><span>{adminMessage}</span><button onClick={() => setAdminMessage(null)} className="text-amber-600 font-bold">✕</button></div>}
+
 
             {/* Create / Edit form */}
             <div className="bg-card glass-card rounded-2xl border border-slate-200 p-6 shadow-sm">

@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 import { ClipboardList, CheckCircle, XCircle } from 'lucide-react';
 import { useApi } from '../../hooks';
-import { useUI, useSeats } from '../../context';
+import { useSeats } from '../../context';
 import { AttendanceEntry } from '../../type';
 import { escapeHtml } from '../../utils';
 import { DatePicker, RefreshButton, PrintButton } from '../../components';
 
 export function AttendanceView() {
     const apiCall = useApi();
-    const { setAdminMessage } = useUI();
+
     const { selectedDate, setSelectedDate } = useSeats();
     
     const [attendanceList, setAttendanceList] = useState<AttendanceEntry[]>([]);
@@ -22,9 +22,9 @@ export function AttendanceView() {
     const handleUpdateAttendance = async (reservationId: number, status: 'present' | 'absent') => {
         try {
             const result = await apiCall(`/api/admin/reservations/${reservationId}/attendance`, 'PUT', { status });
-            setAdminMessage(result.message);
+            alert(result.message);
             fetchAttendanceList();
-        } catch (err: any) { setAdminMessage(`更新失敗: ${err.message}`); }
+        } catch (err: any) { alert(`更新失敗: ${err.message}`); }
     };
 
     const handlePrintAttendance = async () => {
@@ -82,7 +82,7 @@ export function AttendanceView() {
                 </html>
             `);
             printWindow.document.close();
-        } catch (err: any) { setAdminMessage(`無法取得出席名單: ${err.message}`); }
+        } catch (err: any) { alert(`無法取得出席名單: ${err.message}`); }
     };
 
     return (
