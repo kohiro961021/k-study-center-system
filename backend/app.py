@@ -20,7 +20,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, field_validator
 import redis
 
-from models import Base, User, Seat, Reservation, Announcement
+from models import Base, User, Seat, Reservation, Announcement, BuildingDateOverride
 from seat_layout import SEAT_LAYOUT
 
 # Google Auth
@@ -288,6 +288,16 @@ class UserPageOut(BaseModel):
     total_pages: int
 
 
+class BuildingOverrideOut(BaseModel):
+    date: str
+    status: str
+    model_config = {"from_attributes": True}
+
+
+class BuildingOverrideRequest(BaseModel):
+    status: str  # "open", "closed", or "auto" (auto deletes the override)
+
+
 class SeatNoteRequest(BaseModel):
     note: str
 
@@ -344,8 +354,15 @@ def check_reservation_date(res_date_str: str):
         raise HTTPException(status_code=400, detail="只能預約未來 7 天內的座位")
 
 
-def check_weekend_building(res_date_str: str, seat: Seat):
-    """Block new building reservations on weekends."""
+def check_weekend_building(db: Session, res_date_str: str, seat: Seat):
+    """Block new building reservations on weekends, unless overridden."""
+    override = db.query(BuildingDateOverride).filter(BuildingDateOverride.date == res_date_str).first()
+    if override:
+        if override.status == "closed" and seat.building == "新館":
+            raise HTTPException(status_code=400, detail="本館今日未開放預約")
+        elif override.status == "open":
+            return # allowed
+            
     if is_weekend(res_date_str) and seat.building == "新館":
         raise HTTPException(status_code=400, detail="週六日僅開放舊館，新館不可預約")
 
@@ -456,13 +473,26 @@ def get_availability(res_date: str, db: Session = Depends(get_db)):
     reservations = db.query(Reservation).filter(Reservation.res_date == res_date).all()
     booked_ids = [r.seat_id for r in reservations]
 
-    # On weekends, all new building seats are unavailable
-    if is_weekend(res_date):
+    # Check overrides
+    override = db.query(BuildingDateOverride).filter(BuildingDateOverride.date == res_date).first()
+    is_new_building_closed = False
+    if override:
+        if override.status == "closed":
+            is_new_building_closed = True
+    elif is_weekend(res_date):
+        is_new_building_closed = True
+
+    if is_new_building_closed:
         new_building_seats = db.query(Seat).filter(Seat.building == "新館").all()
         new_building_ids = [s.id for s in new_building_seats]
         booked_ids = list(set(booked_ids + new_building_ids))
 
     return booked_ids
+
+@app.get("/api/settings/building/overrides", response_model=List[BuildingOverrideOut])
+def get_building_overrides(db: Session = Depends(get_db)):
+    today = datetime.now().strftime("%Y-%m-%d")
+    return db.query(BuildingDateOverride).filter(BuildingDateOverride.date >= today).all()
 
 
 # ═══════════════════
@@ -534,7 +564,7 @@ def create_reservation(req: ReservationRequest, current_user: User = Depends(get
         raise HTTPException(status_code=400, detail="此座位維修中")
 
     # Weekend restriction
-    check_weekend_building(req.res_date, seat)
+    check_weekend_building(db, req.res_date, seat)
 
     lock_key = f"lock:{req.res_date}:{req.seat_id}"
     lock = redis_client.lock(lock_key, timeout=5)
@@ -789,7 +819,7 @@ def admin_create_reservation(req: AdminReserveRequest, admin: User = Depends(get
         raise HTTPException(status_code=404, detail="座位不存在")
 
     # Weekend restriction applies to admin too
-    check_weekend_building(req.res_date, seat)
+    check_weekend_building(db, req.res_date, seat)
 
     if seat.status == "maintenance":
         raise HTTPException(status_code=400, detail="此座位維修中，無法預約")
@@ -827,6 +857,26 @@ def admin_modify_reservation(reservation_id: int, req: AdminModifyReservationReq
     reservation.updated_at = datetime.now(timezone.utc)
     db.commit()
     return {"message": "預約已修改"}
+
+@app.put("/api/admin/settings/building/overrides/{date}")
+def update_building_override(date: str, req: BuildingOverrideRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    validate_date_format(date)
+    override = db.query(BuildingDateOverride).filter(BuildingDateOverride.date == date).first()
+    if req.status == "auto":
+        if override:
+            db.delete(override)
+            db.commit()
+        return {"message": f"{date} 已恢復預設狀態"}
+    else:
+        if req.status not in ("open", "closed"):
+            raise HTTPException(status_code=400, detail="無效的狀態")
+        if override:
+            override.status = req.status
+        else:
+            new_override = BuildingDateOverride(date=date, status=req.status)
+            db.add(new_override)
+        db.commit()
+        return {"message": f"{date} 新館狀態已設定為強制 {req.status}"}
 
 
 @app.put("/api/admin/reservations/{reservation_id}/attendance")

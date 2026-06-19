@@ -16,14 +16,26 @@ export function ReserveView() {
         seats, setSeats,
         bookedSeatIds, setBookedSeatIds
     } = useSeats();
+    
+    const [overrides, setOverrides] = useState<{date: string, status: string}[]>([]);
 
     const fetchSeats = async () => { try { setSeats(await apiCall('/api/seats')); } catch { } };
     const fetchAvailability = async () => { try { setBookedSeatIds(await apiCall(`/api/availability?res_date=${selectedDate}`)); } catch { } };
+    const fetchOverrides = async () => { try { setOverrides(await apiCall('/api/settings/building/overrides')); } catch { } };
 
     useEffect(() => {
         fetchSeats();
         fetchAvailability();
+        fetchOverrides();
     }, [selectedDate]);
+
+    const isNewBuildingClosed = (dateStr: string) => {
+        const override = overrides.find(o => o.date === dateStr);
+        if (override) {
+            return override.status === 'closed';
+        }
+        return isWeekend(dateStr);
+    };
 
     const handleReserve = async (seatId: number) => {
         if (!window.confirm('確定要預約這個座位嗎？')) return;
@@ -67,8 +79,8 @@ export function ReserveView() {
                     <div className="flex items-center justify-between gap-3 w-full sm:w-auto">
                         {/* Zone Selector (Capsule Switch) */}
                         <div className=" bg-card-alt p-1 rounded-full shadow-inner border border-slate-200">
-                            <button onClick={() => setSelectedBuilding('新館')} disabled={isWeekend(selectedDate)} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${isWeekend(selectedDate) ? 'text-slate-400 cursor-not-allowed' : selectedBuilding === '新館' ? 'bg-card text-accent shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{isWeekend(selectedDate) ? '新館(週末關閉)' : '新館'}</button>
-                            <button onClick={() => setSelectedBuilding('舊館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '舊館' || isWeekend(selectedDate) ? 'bg-card text-accent shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}>舊館</button>
+                            <button onClick={() => setSelectedBuilding('新館')} disabled={isNewBuildingClosed(selectedDate)} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${isNewBuildingClosed(selectedDate) ? 'text-slate-400 cursor-not-allowed' : selectedBuilding === '新館' ? 'bg-card text-accent shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}>{isNewBuildingClosed(selectedDate) ? '新館(目前關閉)' : '新館'}</button>
+                            <button onClick={() => setSelectedBuilding('舊館')} className={`px-5 py-1.5 rounded-full font-bold text-sm transition-all duration-300 ${selectedBuilding === '舊館' || isNewBuildingClosed(selectedDate) ? 'bg-card text-accent shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}>舊館</button>
                         </div>
 
                         {/* Refresh Button */}
@@ -109,12 +121,12 @@ export function ReserveView() {
 
             <div className="bg-gradient-to-br from-slate-100/50 to-indigo-50/50 rounded-2xl border border-slate-200 p-4">
                 <h3 className="text-xl font-bold text-slate-900 mb-4 text-center">
-                    {isWeekend(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}座位圖 — 點擊空位即可預約
+                    {isNewBuildingClosed(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}座位圖 — 點擊空位即可預約
                 </h3>
                 <SeatLegend />
                 <SeatMap
                     isAdminView={false}
-                    selectedBuilding={isWeekend(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}
+                    selectedBuilding={isNewBuildingClosed(selectedDate) && selectedBuilding === '新館' ? '舊館' : selectedBuilding}
                     seats={seats}
                     bookedSeatIds={bookedSeatIds}
                     selectedDate={selectedDate}

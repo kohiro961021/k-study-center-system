@@ -16,6 +16,7 @@ export function SeatView() {
     } = useSeats();
     
     const [allReservations, setAllReservations] = useState<AdminReservation[]>([]);
+    const [overrides, setOverrides] = useState<{date: string, status: string}[]>([]);
     
     // 整合式座位管理 Modal 狀態
     const [activeSeat, setActiveSeat] = useState<SeatData | null>(null);
@@ -34,12 +35,16 @@ export function SeatView() {
     const fetchSeats = async () => { try { setSeats(await apiCall('/api/seats')); } catch { } };
     const fetchAvailability = async () => { try { setBookedSeatIds(await apiCall(`/api/availability?res_date=${selectedDate}`)); } catch { } };
     const fetchAdminReservations = async () => { try { setAllReservations(await apiCall(`/api/admin/reservations?date=${selectedDate}`)); } catch { } };
+    const fetchOverrides = async () => { try { setOverrides(await apiCall('/api/settings/building/overrides')); } catch { } };
 
     useEffect(() => {
         fetchSeats();
         fetchAvailability();
         fetchAdminReservations();
+        fetchOverrides();
     }, [selectedDate]);
+
+    const currentOverride = overrides.find(o => o.date === selectedDate)?.status || 'auto';
 
     // 開啟整合式 Modal
     const handleSeatClick = (seat: SeatData) => {
@@ -55,9 +60,18 @@ export function SeatView() {
         fetchSeats();
         fetchAvailability();
         fetchAdminReservations();
+        fetchOverrides();
     };
 
     // API
+    const handleOverrideChange = async (status: string) => {
+        try {
+            await apiCall(`/api/admin/settings/building/overrides/${selectedDate}`, 'PUT', { status });
+            fetchOverrides();
+            fetchAvailability();
+            alert('館別狀態已更新');
+        } catch (err: any) { alert(`更新失敗: ${err.message}`); }
+    };
     const handleUpdateAttendance = async (reservationId: number, status: 'present' | 'absent') => {
         try {
             const result = await apiCall(`/api/admin/reservations/${reservationId}/attendance`, 'PUT', { status });
@@ -331,6 +345,36 @@ export function SeatView() {
                 </div>
             </div>
 
+            {/* 館別狀態控制 */}
+            <div className="bg-indigo-50/50 border border-indigo-100 rounded-2xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                <div>
+                    <h3 className="text-sm font-bold text-indigo-900 flex items-center gap-1.5">
+                        <Wrench className="w-4 h-4 text-indigo-600" />
+                        {selectedDate} 新館開放狀態設定
+                    </h3>
+                    <p className="text-xs text-indigo-700 mt-1">預設為「平日開放、週末關閉」。您可在此針對單日進行強制修改，以應對連假或補班。</p>
+                </div>
+                <div className="flex gap-2 w-full md:w-auto">
+                    <button 
+                        onClick={() => handleOverrideChange('auto')}
+                        className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold text-sm transition-all ${currentOverride === 'auto' ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-50'}`}
+                    >
+                        自動 (依平假日)
+                    </button>
+                    <button 
+                        onClick={() => handleOverrideChange('open')}
+                        className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold text-sm transition-all ${currentOverride === 'open' ? 'bg-emerald-600 text-white shadow-md' : 'bg-white text-emerald-600 border border-emerald-200 hover:bg-emerald-50'}`}
+                    >
+                        強制開放
+                    </button>
+                    <button 
+                        onClick={() => handleOverrideChange('closed')}
+                        className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-bold text-sm transition-all ${currentOverride === 'closed' ? 'bg-red-600 text-white shadow-md' : 'bg-white text-red-600 border border-red-200 hover:bg-red-50'}`}
+                    >
+                        強制關閉
+                    </button>
+                </div>
+            </div>
 
             <SeatLegend />
 

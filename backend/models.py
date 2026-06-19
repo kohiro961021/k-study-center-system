@@ -69,3 +69,10 @@ class Announcement(Base):
     updated_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     author = relationship("User")
+
+
+class BuildingDateOverride(Base):
+    __tablename__ = "building_date_overrides"
+
+    date = Column(String, primary_key=True, index=True)  # Format: YYYY-MM-DD
+    status = Column(String, nullable=False)  # "open" or "closed"
