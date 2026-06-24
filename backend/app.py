@@ -40,6 +40,7 @@ if not SECRET_KEY:
 GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ADMIN_TOKEN_EXPIRE_DAYS = 5
 QR_TOKEN_EXPIRE_MINUTES = 3  # QR Code 有效期限（分鐘）
 QR_SECRET_KEY = os.getenv("QR_SECRET_KEY", SECRET_KEY + "_qr")  # QR Token 專用密鑰
 
@@ -384,8 +385,10 @@ def init_seats(db: Session):
 
 
 def _make_token(user: User) -> dict:
+    expires = timedelta(days=ADMIN_TOKEN_EXPIRE_DAYS) if user.is_admin else timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": user.student_id, "admin": user.is_admin, "name": user.name or ""}
+        data={"sub": user.student_id, "admin": user.is_admin, "name": user.name or ""},
+        expires_delta=expires
     )
     return {"access_token": access_token, "token_type": "bearer"}
 

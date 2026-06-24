@@ -41,7 +41,6 @@ export const SeatMap = (props: SeatMapProps) => {
 		selectedBuilding,
 		seats,
 		bookedSeatIds,
-		selectedDate,
 		handleReserve
 	} = props;
 
