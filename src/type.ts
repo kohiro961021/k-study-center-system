@@ -1,4 +1,4 @@
-type View = 
+type View =
     'login' |
     'register' |
     'myreserve' |
@@ -6,7 +6,7 @@ type View =
     'reserve' |
     'announcements' |
     'qrcode' |
-    'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes' | 'admin-announcements' | 'admin-scanner';
+    'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes' | 'admin-announcements' | 'admin-scanner' | 'admin-building-override';
 
 type AnnouncementData = { 
     id: number;

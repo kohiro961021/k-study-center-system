@@ -74,5 +74,11 @@ class Announcement(Base):
 class BuildingDateOverride(Base):
     __tablename__ = "building_date_overrides"
 
-    date = Column(String, primary_key=True, index=True)  # Format: YYYY-MM-DD
-    status = Column(String, nullable=False)  # "open" or "closed"
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    date = Column(String, nullable=False, index=True)  # Format: YYYY-MM-DD
+    building = Column(String, nullable=False)           # "新館" or "舊館"
+    status = Column(String, nullable=False)             # "open" or "closed"
+
+    __table_args__ = (
+        UniqueConstraint('date', 'building', name='uq_override_date_building'),
+    )

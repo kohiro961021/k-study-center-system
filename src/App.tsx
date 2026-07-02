@@ -4,10 +4,10 @@ import { AlertCircle } from 'lucide-react';
 import { useAuth } from './context/AuthContext';
 import { Navbar, BottomNav } from './components';
 
-import { 
-	LoginView, 
+import {
+	LoginView,
 	MyReserveView, HistoryView, ReserveView, AnnouncementView, QRCodeView,
-	AdminAnnouncementView, AttendanceView, NoteView, ResManageView, SeatView, UserManageView, ScannerView
+	AdminAnnouncementView, AttendanceView, NoteView, ResManageView, SeatView, UserManageView, ScannerView, BuildingOverrideView
 } from './views';
 
 export default function App() {
@@ -46,6 +46,7 @@ export default function App() {
 				{view === 'admin-users' && <UserManageView />}
 				{view === 'admin-announcements' && <AdminAnnouncementView />}
 				{view === 'admin-scanner' && <ScannerView />}
+				{view === 'admin-building-override' && <BuildingOverrideView />}
 
 				{/* Student Views */}
 				{view === 'myreserve' && <MyReserveView />}

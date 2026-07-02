@@ -7,6 +7,7 @@ export { SeatView } from './admin/SeatView';
 export { UserManageView } from './admin/UserManageView';
 export { AdminAnnouncementView } from './admin/AdminAnnouncementView';
 export { ScannerView } from './admin/ScannerView';
+export { BuildingOverrideView } from './admin/BuildingOverrideView';
 
 export { MyReserveView } from './user/MyReserveView';
 export { HistoryView } from './user/HistoryView';

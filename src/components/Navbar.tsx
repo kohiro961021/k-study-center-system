@@ -1,4 +1,4 @@
-import { Sun, Moon, Calendar, LogOut, User, Plus, MessageSquare, ClipboardList, History, Megaphone, Users, FileText, Clock, QrCode, ScanLine } from 'lucide-react';
+import { Sun, Moon, Calendar, LogOut, User, Plus, MessageSquare, ClipboardList, History, Megaphone, Users, FileText, Clock, QrCode, ScanLine, Settings } from 'lucide-react';
 import { useUI, useAuth } from '../context/';
 import { useCurrentTime } from '../hooks';
 
@@ -55,6 +55,9 @@ export const Navbar = () => {
 								</button>
 								<button onClick={() => setView('admin-scanner')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-scanner' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
 									<ScanLine className="w-4 h-4 inline mr-1" />掃描器
+								</button>
+								<button onClick={() => setView('admin-building-override')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-building-override' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
+									<Settings className="w-4 h-4 inline mr-1" />館別
 								</button>
 							</>
 						) : (

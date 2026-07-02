@@ -238,11 +238,11 @@ docker compose up -d  # 啟動所有容器
 
 ```bash
 # 查看 seats 欄位
-docker exec kstudy_db psql -U user -d kstudy -c \
+docker exec kstudy_db psql -U kstudy_user -d kstudy -c \
   "SELECT column_name FROM information_schema.columns WHERE table_name='seats';"
 
 # 若缺少 seat_number, zone, building 等欄位，清除舊 schema：
-docker exec kstudy_db psql -U user -d kstudy -c \
+docker exec kstudy_db psql -U kstudy_user -d kstudy -c \
   "DROP TABLE IF EXISTS reservations CASCADE; DROP TABLE IF EXISTS seats CASCADE;"
 
 # 重新 build 後端讓 SQLAlchemy 重建
