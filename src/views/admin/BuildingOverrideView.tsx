@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Settings, Plus, Trash2 } from 'lucide-react';
 import { useApi } from '../../hooks';
+import { DatePicker } from '../../components/DatePicker';
 
 type Override = { date: string; building: string; status: string };
 type BuildingChoice = '新館' | '舊館' | '全部';
@@ -163,22 +164,11 @@ export function BuildingOverrideView() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-600">起始日期</label>
-                        <input
-                            type="date"
-                            value={formStart}
-                            onChange={e => setFormStart(e.target.value)}
-                            className="block w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 text-sm bg-card"
-                        />
+                        <DatePicker value={formStart} onChange={setFormStart} />
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-600">結束日期</label>
-                        <input
-                            type="date"
-                            value={formEnd}
-                            min={formStart}
-                            onChange={e => setFormEnd(e.target.value)}
-                            className="block w-full px-3 py-2 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-indigo-400 text-sm bg-card"
-                        />
+                        <DatePicker value={formEnd} onChange={setFormEnd} />
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-600">館別</label>
@@ -215,7 +205,7 @@ export function BuildingOverrideView() {
                     <button
                         onClick={handleAddRule}
                         disabled={submitting}
-                        className="flex items-center gap-1.5 px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center gap-1.5 px-5 py-2 bg-accent hover:bg-accent/90 text-white font-bold text-sm rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <Plus className="w-4 h-4" />
                         {submitting ? '套用中...' : '套用規則'}

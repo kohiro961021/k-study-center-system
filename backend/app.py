@@ -506,6 +506,8 @@ def get_availability(res_date: str, db: Session = Depends(get_db)):
 @app.get("/api/settings/building/overrides", response_model=List[BuildingOverrideOut])
 def get_building_overrides(db: Session = Depends(get_db)):
     today = datetime.now().strftime("%Y-%m-%d")
+    db.query(BuildingDateOverride).filter(BuildingDateOverride.date < today).delete()
+    db.commit()
     return db.query(BuildingDateOverride).filter(BuildingDateOverride.date >= today).all()
 
 
