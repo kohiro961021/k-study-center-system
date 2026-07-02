@@ -296,15 +296,24 @@ class BuildingOverrideOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
-class BuildingOverrideRequest(BaseModel):
-    building: str  # "新館" or "舊館"
+class BuildingOverrideRangeRequest(BaseModel):
+    start_date: str
+    end_date: str
+    building: str  # "新館", "舊館", or "全部"
     status: str    # "open", "closed", or "auto"
 
     @field_validator("building")
     @classmethod
     def validate_building(cls, v):
-        if v not in ("新館", "舊館"):
-            raise ValueError("館別只能是 新館 或 舊館")
+        if v not in ("新館", "舊館", "全部"):
+            raise ValueError("館別只能是 新館、舊館 或 全部")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v):
+        if v not in ("open", "closed", "auto"):
+            raise ValueError("狀態只能是 open、closed 或 auto")
         return v
 
 
@@ -874,26 +883,41 @@ def admin_modify_reservation(reservation_id: int, req: AdminModifyReservationReq
     db.commit()
     return {"message": "預約已修改"}
 
-@app.put("/api/admin/settings/building/overrides/{date}")
-def update_building_override(date: str, req: BuildingOverrideRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
-    validate_date_format(date)
-    override = db.query(BuildingDateOverride).filter(
-        BuildingDateOverride.date == date,
-        BuildingDateOverride.building == req.building
-    ).first()
-    if req.status == "auto":
-        if override:
-            db.delete(override)
-            db.commit()
-        return {"message": f"{date} {req.building} 已恢復預設狀態"}
-    if req.status not in ("open", "closed"):
-        raise HTTPException(status_code=400, detail="無效的狀態")
-    if override:
-        override.status = req.status
-    else:
-        db.add(BuildingDateOverride(date=date, building=req.building, status=req.status))
+@app.put("/api/admin/settings/building/overrides")
+def update_building_override_range(req: BuildingOverrideRangeRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    try:
+        validate_date_format(req.start_date)
+        validate_date_format(req.end_date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if req.start_date > req.end_date:
+        raise HTTPException(status_code=400, detail="起始日期不能晚於結束日期")
+
+    buildings = ["新館", "舊館"] if req.building == "全部" else [req.building]
+
+    cur = datetime.strptime(req.start_date, "%Y-%m-%d")
+    end_d = datetime.strptime(req.end_date, "%Y-%m-%d")
+    dates = []
+    while cur <= end_d:
+        dates.append(cur.strftime("%Y-%m-%d"))
+        cur += timedelta(days=1)
+
+    for d in dates:
+        for b in buildings:
+            override = db.query(BuildingDateOverride).filter(
+                BuildingDateOverride.date == d,
+                BuildingDateOverride.building == b
+            ).first()
+            if req.status == "auto":
+                if override:
+                    db.delete(override)
+            else:
+                if override:
+                    override.status = req.status
+                else:
+                    db.add(BuildingDateOverride(date=d, building=b, status=req.status))
     db.commit()
-    return {"message": f"{date} {req.building} 已設定為強制{req.status}"}
+    return {"message": f"已更新 {len(dates)} 天 × {len(buildings)} 館"}
 
 
 @app.put("/api/admin/reservations/{reservation_id}/attendance")

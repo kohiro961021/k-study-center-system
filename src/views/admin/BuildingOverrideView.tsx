@@ -4,8 +4,9 @@ import { useApi } from '../../hooks';
 import { DatePicker } from '../../components/DatePicker';
 
 type Override = { date: string; building: string; status: string };
+type Rule     = { start: string; end: string; building: string; status: string };
 type BuildingChoice = '新館' | '舊館' | '全部';
-type StatusChoice = 'open' | 'closed' | 'auto';
+type StatusChoice   = 'open' | 'closed' | 'auto';
 
 const getTodayStr = () => {
     const now = new Date();
@@ -23,6 +24,29 @@ const getDatesInRange = (start: string, end: string): string[] => {
         cur.setDate(cur.getDate() + 1);
     }
     return dates;
+};
+
+const isNextDay = (dateStr: string, nextStr: string): boolean => {
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` === nextStr;
+};
+
+const groupIntoRules = (overrides: Override[]): Rule[] => {
+    const sorted = [...overrides]
+        .filter(o => o.status !== 'auto')
+        .sort((a, b) => a.building.localeCompare(b.building) || a.date.localeCompare(b.date));
+
+    const rules: Rule[] = [];
+    for (const o of sorted) {
+        const last = rules[rules.length - 1];
+        if (last && last.building === o.building && last.status === o.status && isNextDay(last.end, o.date)) {
+            last.end = o.date;
+        } else {
+            rules.push({ start: o.date, end: o.date, building: o.building, status: o.status });
+        }
+    }
+    return rules;
 };
 
 const STATUS_DISPLAY: Record<string, { label: string; badge: string }> = {
@@ -80,9 +104,9 @@ export function BuildingOverrideView() {
     const [submitting, setSubmitting] = useState(false);
 
     const [formStart, setFormStart] = useState(today);
-    const [formEnd, setFormEnd] = useState(today);
+    const [formEnd, setFormEnd]     = useState(today);
     const [formBuilding, setFormBuilding] = useState<BuildingChoice>('全部');
-    const [formStatus, setFormStatus] = useState<StatusChoice>('closed');
+    const [formStatus, setFormStatus]     = useState<StatusChoice>('closed');
 
     const fetchOverrides = useCallback(async () => {
         try { setOverrides(await apiCall('/api/settings/building/overrides')); } catch { }
@@ -95,41 +119,47 @@ export function BuildingOverrideView() {
 
     const setOverride = async (date: string, building: string, status: StatusChoice) => {
         try {
-            await apiCall(`/api/admin/settings/building/overrides/${date}`, 'PUT', { building, status });
+            await apiCall('/api/admin/settings/building/overrides', 'PUT', {
+                start_date: date, end_date: date, building, status,
+            });
             fetchOverrides();
         } catch { }
     };
 
     const handleAddRule = async () => {
         if (formStart > formEnd) { alert('起始日期不能晚於結束日期'); return; }
-        const dates = getDatesInRange(formStart, formEnd);
-        const buildings = formBuilding === '全部' ? ['新館', '舊館'] : [formBuilding];
         setSubmitting(true);
         try {
-            for (const date of dates) {
-                for (const b of buildings) {
-                    await apiCall(`/api/admin/settings/building/overrides/${date}`, 'PUT', { building: b, status: formStatus }, false);
-                }
-            }
+            await apiCall('/api/admin/settings/building/overrides', 'PUT', {
+                start_date: formStart,
+                end_date:   formEnd,
+                building:   formBuilding,
+                status:     formStatus,
+            });
             await fetchOverrides();
-            alert(`已更新 ${dates.length} 天 × ${buildings.length} 館，共 ${dates.length * buildings.length} 筆`);
+            const days      = getDatesInRange(formStart, formEnd).length;
+            const buildings = formBuilding === '全部' ? 2 : 1;
+            alert(`已更新 ${days} 天 × ${buildings} 館，共 ${days * buildings} 筆`);
         } catch (err: any) {
-            alert(`部分更新失敗：${err.message}`);
+            alert(`更新失敗：${err.message}`);
         } finally {
             setSubmitting(false);
         }
     };
 
-    const handleDelete = async (date: string, building: string) => {
+    const handleDelete = async (rule: Rule) => {
         try {
-            await apiCall(`/api/admin/settings/building/overrides/${date}`, 'PUT', { building, status: 'auto' });
+            await apiCall('/api/admin/settings/building/overrides', 'PUT', {
+                start_date: rule.start,
+                end_date:   rule.end,
+                building:   rule.building,
+                status:     'auto',
+            });
             fetchOverrides();
         } catch { }
     };
 
-    const activeOverrides = overrides
-        .filter(o => o.status !== 'auto')
-        .sort((a, b) => a.date.localeCompare(b.date) || a.building.localeCompare(b.building));
+    const activeRules = groupIntoRules(overrides);
 
     return (
         <div className="space-y-6">
@@ -163,12 +193,16 @@ export function BuildingOverrideView() {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-600">起始日期</label>
-                        <DatePicker value={formStart} onChange={setFormStart} />
+                        <label className="block text-xs font-medium text-slate-600">起始日期</label>
+                        <div className="pl-1">
+                            <DatePicker value={formStart} onChange={setFormStart} />
+                        </div>
                     </div>
                     <div className="space-y-1">
-                        <label className="text-xs font-medium text-slate-600">結束日期</label>
-                        <DatePicker value={formEnd} onChange={setFormEnd} />
+                        <label className="block text-xs font-medium text-slate-600">結束日期</label>
+                        <div className="pl-1">
+                            <DatePicker value={formEnd} onChange={setFormEnd} />
+                        </div>
                     </div>
                     <div className="space-y-1">
                         <label className="text-xs font-medium text-slate-600">館別</label>
@@ -195,7 +229,7 @@ export function BuildingOverrideView() {
                         </select>
                     </div>
                 </div>
-                <div className="flex items-center justify-between gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                     <p className="text-xs text-slate-500">
                         {formStart === formEnd
                             ? `將套用 1 天`
@@ -205,7 +239,7 @@ export function BuildingOverrideView() {
                     <button
                         onClick={handleAddRule}
                         disabled={submitting}
-                        className="flex items-center gap-1.5 px-5 py-2 bg-accent hover:bg-accent/90 text-white font-bold text-sm rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="flex items-center justify-center gap-1.5 px-5 py-2 bg-accent hover:bg-accent/90 text-white font-bold text-sm rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
                     >
                         <Plus className="w-4 h-4" />
                         {submitting ? '套用中...' : '套用規則'}
@@ -213,13 +247,13 @@ export function BuildingOverrideView() {
                 </div>
             </div>
 
-            {/* 現有 Override 列表 */}
+            {/* 現有規則列表 */}
             <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
                 <div className="px-5 py-4 border-b border-slate-200">
-                    <h3 className="text-sm font-bold text-slate-700">現有規則（{activeOverrides.length} 筆）</h3>
-                    <p className="text-xs text-slate-500 mt-0.5">僅顯示非「自動」的 Override 項目</p>
+                    <h3 className="text-sm font-bold text-slate-700">現有規則（{activeRules.length} 筆）</h3>
+                    <p className="text-xs text-slate-500 mt-0.5">僅顯示非「自動」的 Override 規則</p>
                 </div>
-                {activeOverrides.length === 0 ? (
+                {activeRules.length === 0 ? (
                     <div className="py-10 text-center text-slate-400 text-sm">目前沒有任何 Override 規則</div>
                 ) : (
                     <>
@@ -234,18 +268,19 @@ export function BuildingOverrideView() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
-                                {activeOverrides.map(o => {
-                                    const { label, badge } = STATUS_DISPLAY[o.status] ?? STATUS_DISPLAY.auto;
+                                {activeRules.map(rule => {
+                                    const { label, badge } = STATUS_DISPLAY[rule.status] ?? STATUS_DISPLAY.auto;
+                                    const dateLabel = rule.start === rule.end ? rule.start : `${rule.start} ~ ${rule.end}`;
                                     return (
-                                        <tr key={`${o.date}-${o.building}`} className="hover:bg-slate-50 transition">
-                                            <td className="px-5 py-3 font-mono text-slate-800">{o.date}</td>
-                                            <td className="px-5 py-3 font-medium text-slate-700">{o.building}</td>
+                                        <tr key={`${rule.start}-${rule.end}-${rule.building}`} className="hover:bg-slate-50 transition">
+                                            <td className="px-5 py-3 font-mono text-slate-800">{dateLabel}</td>
+                                            <td className="px-5 py-3 font-medium text-slate-700">{rule.building}</td>
                                             <td className="px-5 py-3">
                                                 <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full border ${badge}`}>{label}</span>
                                             </td>
                                             <td className="px-5 py-3 text-right">
                                                 <button
-                                                    onClick={() => handleDelete(o.date, o.building)}
+                                                    onClick={() => handleDelete(rule)}
                                                     className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition border border-transparent hover:border-red-200"
                                                     title="移除此規則（恢復自動）"
                                                 >
@@ -260,18 +295,19 @@ export function BuildingOverrideView() {
 
                         {/* Mobile cards */}
                         <div className="md:hidden divide-y divide-slate-100">
-                            {activeOverrides.map(o => {
-                                const { label, badge } = STATUS_DISPLAY[o.status] ?? STATUS_DISPLAY.auto;
+                            {activeRules.map(rule => {
+                                const { label, badge } = STATUS_DISPLAY[rule.status] ?? STATUS_DISPLAY.auto;
+                                const dateLabel = rule.start === rule.end ? rule.start : `${rule.start} ~ ${rule.end}`;
                                 return (
-                                    <div key={`${o.date}-${o.building}`} className="flex items-center justify-between px-4 py-3">
+                                    <div key={`${rule.start}-${rule.end}-${rule.building}`} className="flex items-center justify-between px-4 py-3">
                                         <div className="space-y-0.5">
-                                            <p className="font-mono text-sm text-slate-800">{o.date}</p>
-                                            <p className="text-xs text-slate-500">{o.building}</p>
+                                            <p className="font-mono text-sm text-slate-800">{dateLabel}</p>
+                                            <p className="text-xs text-slate-500">{rule.building}</p>
                                         </div>
                                         <div className="flex items-center gap-3">
                                             <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${badge}`}>{label}</span>
                                             <button
-                                                onClick={() => handleDelete(o.date, o.building)}
+                                                onClick={() => handleDelete(rule)}
                                                 className="p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition"
                                             >
                                                 <Trash2 className="w-4 h-4" />

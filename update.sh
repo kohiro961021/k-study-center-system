@@ -3,8 +3,9 @@
 
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+BACKEND_DIR="$PROJECT_ROOT/backend"
 
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -28,7 +29,7 @@ ok "前端 build 完成"
 
 # ── 3. docker compose up ──
 step "3/3" "重新編譯並啟動容器"
-cd "$SCRIPT_DIR"
+cd "$BACKEND_DIR"
 docker compose up -d --build || err "docker compose up 失敗"
 ok "容器已重啟"
 
