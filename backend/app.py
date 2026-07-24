@@ -11,7 +11,7 @@ TAIPEI_TZ = timezone(timedelta(hours=8))
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload, contains_eager
@@ -22,6 +22,7 @@ import redis
 
 from models import Base, User, Seat, Reservation, Announcement, BuildingDateOverride
 from seat_layout import SEAT_LAYOUT
+from mail import send_email_sync
 
 # Google Auth
 try:
@@ -122,7 +123,7 @@ def mark_absent_job():
     db = Session(bind=engine)
     try:
         today = datetime.now().strftime("%Y-%m-%d")
-        unmarked = db.query(Reservation).filter(
+        unmarked = db.query(Reservation).options(joinedload(Reservation.user)).filter(
             Reservation.res_date == today,
             Reservation.attendance_status == None  # noqa: E711
         ).all()
@@ -131,6 +132,27 @@ def mark_absent_job():
             r.attendance_status = "absent"
             r.updated_at = datetime.now(timezone.utc)
             count += 1
+            
+            # 若使用者有填寫 Email，發送缺席通知信
+            if r.user and r.user.email:
+                subject = "【K-Study K書中心】今日預約缺席通知"
+                name_display = r.user.name or r.user.student_id
+                body = f"""
+                <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                    <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 缺席通知</h2>
+                    <p><b>{name_display}</b> 同學您好：</p>
+                    <p>系統偵測到您於 <b>{today}</b> 預約了 K書中心 座位，但未於規定時間內完成簽到。</p>
+                    <p style="background-color: #f9f2f2; border-left: 4px solid #d9534f; padding: 12px; margin: 20px 0; color: #b94a48;">
+                        您的預約已被系統標記為：<b>缺席 (Absent)</b>。
+                    </p>
+                    <p>請注意，多次預約未到可能會影響您未來的預約權利。若您有任何疑問或特殊原因，請聯絡 K書中心管理員。</p>
+                    <br>
+                    <hr style="border: 0; border-top: 1px solid #eeeeee;">
+                    <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
+                </div>
+                """
+                send_email_sync(subject, r.user.email, body)
+                
         db.commit()
         print(f"[Scheduler] {today} 自動標記缺席完成，共 {count} 筆")
     except Exception as e:
@@ -921,10 +943,10 @@ def update_building_override_range(req: BuildingOverrideRangeRequest, admin: Use
 
 
 @app.put("/api/admin/reservations/{reservation_id}/attendance")
-def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, background_tasks: BackgroundTasks, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
     if req.status not in ("present", "absent"):
         raise HTTPException(status_code=400, detail="狀態只能是 present 或 absent")
-    reservation = db.query(Reservation).filter(Reservation.id == reservation_id).first()
+    reservation = db.query(Reservation).options(joinedload(Reservation.user)).filter(Reservation.id == reservation_id).first()
     if not reservation:
         raise HTTPException(status_code=404, detail="找不到此預約")
     reservation.attendance_status = req.status
@@ -935,6 +957,27 @@ def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, a
         reservation.check_in_time = None
     reservation.updated_at = datetime.now(timezone.utc)
     db.commit()
+    
+    # 若手動設為 absent，且使用者有 Email，透過 BackgroundTasks 在背景發送通知信
+    if req.status == "absent" and reservation.user and reservation.user.email:
+        subject = "【K-Study K書中心】預約缺席通知"
+        name_display = reservation.user.name or reservation.user.student_id
+        body = f"""
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 缺席通知</h2>
+            <p><b>{name_display}</b> 同學您好：</p>
+            <p>管理員已於系統中將您在 <b>{reservation.res_date}</b> 的 K書中心 預約狀態變更為：<b>缺席 (Absent)</b>。</p>
+            <p style="background-color: #f9f2f2; border-left: 4px solid #d9534f; padding: 12px; margin: 20px 0; color: #b94a48;">
+                您的預約已被標記為：<b>缺席 (Absent)</b>。
+            </p>
+            <p>請注意，多次預約未到可能會影響您未來的預約權利。若您有任何疑問或特殊原因，請聯絡 K書中心管理員。</p>
+            <br>
+            <hr style="border: 0; border-top: 1px solid #eeeeee;">
+            <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
+        </div>
+        """
+        background_tasks.add_task(send_email_sync, subject, reservation.user.email, body)
+
     status_text = "有到" if req.status == "present" else "未到"
     return {"message": f"已更新出席狀態為：{status_text}"}
 

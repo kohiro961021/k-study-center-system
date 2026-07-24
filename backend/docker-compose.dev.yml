@@ -41,5 +41,14 @@ services:
     ports:
       - "6379:6379"
 
+  mailpit:
+    image: axllent/mailpit
+    container_name: kstudy_mailpit_dev
+    restart: always
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+
 volumes:
   postgres_data_dev:
+
