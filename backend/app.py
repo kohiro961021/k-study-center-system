@@ -20,7 +20,7 @@ from jose import JWTError, jwt
 from pydantic import BaseModel, field_validator
 import redis
 
-from models import Base, User, Seat, Reservation, Announcement, BuildingDateOverride
+from models import Base, User, Seat, Reservation, Announcement, BuildingDateOverride, SystemConfig
 from seat_layout import SEAT_LAYOUT
 from mail import send_email_sync
 
@@ -52,6 +52,46 @@ RESERVE_RATE_WINDOW = 60        # per N seconds
 # --- Database Setup ---
 engine = create_engine(DATABASE_URL)
 Base.metadata.create_all(bind=engine)
+
+# --- Auto-Migration & Configuration Initialization ---
+import json
+from sqlalchemy import inspect, text
+try:
+    inspector = inspect(engine)
+    columns = [c['name'] for c in inspector.get_columns('users')]
+    with engine.begin() as conn:
+        if 'is_banned' not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN is_banned BOOLEAN DEFAULT FALSE"))
+            print("Added is_banned column to users table.")
+        if 'banned_until' not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN banned_until TIMESTAMP"))
+            print("Added banned_until column to users table.")
+        if 'ban_reason' not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN ban_reason VARCHAR"))
+            print("Added ban_reason column to users table.")
+        if 'created_at' not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
+            print("Added created_at column to users table.")
+except Exception as e:
+    print(f"⚠️ Auto-migration failed: {e}")
+
+try:
+    # Initialize default autoban rules
+    _db = Session(bind=engine)
+    existing_config = _db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
+    if not existing_config:
+        default_rules = {
+            "enabled": False,
+            "inactive_days": 30,
+            "ban_duration_days": 7,
+            "ban_reason": "長期未到館被系統自動停權"
+        }
+        _db.add(SystemConfig(key="autoban_rules", value=json.dumps(default_rules)))
+        _db.commit()
+        print("Initialized default autoban rules.")
+    _db.close()
+except Exception as e:
+    print(f"⚠️ Failed to initialize default config: {e}")
 
 
 def get_db():
@@ -162,11 +202,29 @@ def mark_absent_job():
         db.close()
 
 
+def autoban_job():
+    """每天晚上 10 點 05 分，自動執行停權與解除過期停權的檢測。"""
+    db = Session(bind=engine)
+    try:
+        result = run_autoban_scan(db)
+        print(f"[Scheduler] 自動停權檢測完成: {result['message']}")
+    except Exception as e:
+        print(f"[Scheduler] 自動停權檢測失敗: {e}")
+    finally:
+        db.close()
+
+
 scheduler = BackgroundScheduler(timezone="Asia/Taipei")
 scheduler.add_job(
     mark_absent_job,
     CronTrigger(hour=22, minute=0, timezone="Asia/Taipei"),
     id="mark_absent_daily",
+    replace_existing=True
+)
+scheduler.add_job(
+    autoban_job,
+    CronTrigger(hour=22, minute=5, timezone="Asia/Taipei"),
+    id="autoban_daily",
     replace_existing=True
 )
 scheduler.start()
@@ -300,7 +358,23 @@ class UserOut(BaseModel):
     student_id: str
     name: Optional[str] = None
     is_admin: bool
+    is_banned: bool = False
+    banned_until: Optional[datetime] = None
+    ban_reason: Optional[str] = None
+    created_at: Optional[datetime] = None
     model_config = {"from_attributes": True}
+
+
+class AutobanRulesRequest(BaseModel):
+    enabled: bool
+    inactive_days: int
+    ban_duration_days: int
+    ban_reason: str
+
+
+class ManualBanRequest(BaseModel):
+    duration_days: int
+    reason: str
 
 
 class UserPageOut(BaseModel):
@@ -599,6 +673,28 @@ def create_reservation(req: ReservationRequest, current_user: User = Depends(get
     # Date format already validated by Pydantic
     check_reservation_date(req.res_date)
 
+    # Check if user is banned
+    if current_user.is_banned:
+        # If ban duration has expired, automatically lift the ban
+        now_utc = datetime.now(timezone.utc)
+        banned_until_aware = None
+        if current_user.banned_until:
+            banned_until_aware = current_user.banned_until.replace(tzinfo=timezone.utc) if current_user.banned_until.tzinfo is None else current_user.banned_until
+
+        if banned_until_aware and now_utc > banned_until_aware:
+            current_user.is_banned = False
+            current_user.banned_until = None
+            current_user.ban_reason = None
+            db.commit()
+        else:
+            ban_msg = "您的帳號目前處於停權狀態"
+            if current_user.ban_reason:
+                ban_msg += f"（原因：{current_user.ban_reason}）"
+            if banned_until_aware:
+                local_expire = banned_until_aware.astimezone(TAIPEI_TZ).strftime("%Y-%m-%d %H:%M:%S")
+                ban_msg += f"，預計停權至 {local_expire}"
+            raise HTTPException(status_code=403, detail=ban_msg)
+
     # Per-user rate limiting
     check_rate_limit(current_user.id)
 
@@ -706,6 +802,301 @@ def admin_change_own_password(req: AdminChangePasswordRequest, admin: User = Dep
     admin.password_hash = get_password_hash(req.new_password)
     db.commit()
     return {"message": "密碼已成功修改"}
+
+
+# ═══════════════════
+#  Autoban Admin Routes
+# ═══════════════════
+
+@app.get("/api/admin/autoban/rules")
+def get_autoban_rules(admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    config = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
+    if not config:
+        default_rules = {
+            "enabled": False,
+            "inactive_days": 30,
+            "ban_duration_days": 7,
+            "ban_reason": "長期未到館被系統自動停權"
+        }
+        return default_rules
+    return json.loads(config.value)
+
+
+@app.put("/api/admin/autoban/rules")
+def update_autoban_rules(req: AutobanRulesRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    config = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
+    rules = {
+        "enabled": req.enabled,
+        "inactive_days": req.inactive_days,
+        "ban_duration_days": req.ban_duration_days,
+        "ban_reason": req.ban_reason
+    }
+    if not config:
+        config = SystemConfig(key="autoban_rules", value=json.dumps(rules))
+        db.add(config)
+    else:
+        config.value = json.dumps(rules)
+    db.commit()
+    return {"message": "已更新自動停權規則"}
+
+
+def run_autoban_scan(db: Session) -> dict:
+    """Executes the autoban check on all users. Can be called from job or manual action."""
+    config_row = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
+    if not config_row:
+        return {"banned": [], "unbanned": [], "message": "未設定停權規則"}
+    
+    rules = json.loads(config_row.value)
+    
+    # 1. Unban expired users (always run this even if autoban is disabled)
+    now_utc = datetime.now(timezone.utc)
+    expired_users = db.query(User).filter(
+        User.is_banned == True,
+        User.banned_until != None,
+        User.banned_until < now_utc
+    ).all()
+    unbanned_list = []
+    for u in expired_users:
+        u.is_banned = False
+        u.banned_until = None
+        u.ban_reason = None
+        unbanned_list.append(u.student_id)
+        
+        # Send Email notification for unban
+        if u.email:
+            subject = "【K-Study K書中心】帳號復權通知"
+            name_display = u.name or u.student_id
+            body = f"""
+            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                <h2 style="color: #5cb85c; border-bottom: 2px solid #5cb85c; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 復權通知</h2>
+                <p><b>{name_display}</b> 同學您好：</p>
+                <p>您的帳號停權期限已屆滿，系統已自動解除您的停權狀態。</p>
+                <p style="background-color: #f2f9f2; border-left: 4px solid #5cb85c; padding: 12px; margin: 20px 0; color: #3c763d;">
+                    <b>狀態：</b>已解除停權，可正常預約座位。
+                </p>
+                <p>歡迎您繼續使用 K書中心 座位！</p>
+                <br>
+                <hr style="border: 0; border-top: 1px solid #eeeeee;">
+                <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
+            </div>
+            """
+            try:
+                send_email_sync(subject, u.email, body)
+            except Exception as mail_err:
+                print(f"Failed to send auto unban mail to {u.email}: {mail_err}")
+                
+    if not rules.get("enabled", False):
+        db.commit()
+        return {"banned": [], "unbanned": unbanned_list, "message": "停權規則已停用，已解除過期停權學生"}
+
+    inactive_days = rules.get("inactive_days", 30)
+    ban_duration_days = rules.get("ban_duration_days", 7)
+    default_ban_reason = rules.get("ban_reason", "長期未到館被系統自動停權")
+
+    threshold_date = (datetime.now() - timedelta(days=inactive_days)).strftime("%Y-%m-%d")
+    threshold_datetime = datetime.now(timezone.utc) - timedelta(days=inactive_days)
+
+    # Find users who are not admin, not banned, and account created before threshold (or created_at is null)
+    candidate_users = db.query(User).filter(
+        User.is_admin == False,
+        User.is_banned == False,
+        or_(User.created_at == None, User.created_at < threshold_datetime)
+    ).all()
+
+    banned_list = []
+    for u in candidate_users:
+        # Check if they have ANY attendance_status = 'present' reservation in the last inactive_days days
+        recent_present = db.query(Reservation).filter(
+            Reservation.user_id == u.id,
+            Reservation.attendance_status == 'present',
+            Reservation.res_date >= threshold_date
+        ).first()
+
+        if not recent_present:
+            u.is_banned = True
+            u.ban_reason = default_ban_reason
+            if ban_duration_days > 0:
+                u.banned_until = datetime.now(timezone.utc) + timedelta(days=ban_duration_days)
+            else:
+                u.banned_until = None  # Permanent
+
+            banned_list.append({
+                "student_id": u.student_id,
+                "name": u.name or u.student_id,
+                "reason": default_ban_reason
+            })
+
+            # Send Email Notification
+            if u.email:
+                subject = "【K-Study K書中心】帳號停權通知"
+                name_display = u.name or u.student_id
+                duration_text = f"{ban_duration_days} 天" if ban_duration_days > 0 else "永久 (直到管理員手動解除)"
+                until_display = (datetime.now(TAIPEI_TZ) + timedelta(days=ban_duration_days)).strftime("%Y-%m-%d %H:%M:%S") if ban_duration_days > 0 else "無期限"
+                
+                body = f"""
+                <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+                    <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 帳號停權通知</h2>
+                    <p><b>{name_display}</b> 同學您好：</p>
+                    <p>系統偵測到您已超過 <b>{inactive_days}</b> 天未至 K書中心 簽到使用座位。</p>
+                    <p style="background-color: #f9f2f2; border-left: 4px solid #d9534f; padding: 12px; margin: 20px 0; color: #b94a48;">
+                        根據 K書中心 管理規範，您的帳號已被系統自動處以：<b>停權 (Banned)</b>。<br>
+                        <b>原因：</b>{default_ban_reason}<br>
+                        <b>停權時長：</b>{duration_text}<br>
+                        <b>預計截止時間：</b>{until_display}
+                    </p>
+                    <p>停權期間您將無法預約任何座位。若有特殊原因或疑義，請聯絡 K書中心管理員進行申訴與解鎖。</p>
+                    <br>
+                    <hr style="border: 0; border-top: 1px solid #eeeeee;">
+                    <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
+                </div>
+                """
+                try:
+                    send_email_sync(subject, u.email, body)
+                except Exception as mail_err:
+                    print(f"Failed to send ban mail to {u.email}: {mail_err}")
+
+    db.commit()
+    return {
+        "banned": banned_list,
+        "unbanned": unbanned_list,
+        "message": f"檢測完成。停權 {len(banned_list)} 人，解除 {len(unbanned_list)} 人。"
+    }
+
+
+@app.post("/api/admin/autoban/run")
+def admin_run_autoban(admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    result = run_autoban_scan(db)
+    return result
+
+
+@app.get("/api/admin/autoban/banned-users")
+def get_banned_users(
+    search: str = "",
+    page: int = 1,
+    page_size: int = 20,
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    query = db.query(User).filter(User.is_banned == True)
+    if search:
+        keyword = f"%{search}%"
+        query = query.filter(
+            or_(User.student_id.ilike(keyword), User.name.ilike(keyword))
+        )
+    total = query.count()
+    users = query.order_by(User.banned_until.asc()).offset((page - 1) * page_size).limit(page_size).all()
+    total_pages = math.ceil(total / page_size) if total > 0 else 1
+
+    return {
+        "users": [
+            {
+                "id": u.id,
+                "student_id": u.student_id,
+                "name": u.name,
+                "is_banned": u.is_banned,
+                "banned_until": _format_datetime(u.banned_until),
+                "ban_reason": u.ban_reason,
+                "created_at": _format_datetime(u.created_at)
+            } for u in users
+        ],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": total_pages
+    }
+
+
+@app.post("/api/admin/users/{user_id}/ban")
+def admin_manual_ban(
+    user_id: int,
+    req: ManualBanRequest,
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="找不到該學生")
+    if user.is_admin:
+        raise HTTPException(status_code=400, detail="無法停權管理員帳號")
+    
+    user.is_banned = True
+    user.ban_reason = req.reason.strip() if req.reason.strip() else "管理員手動停權"
+    if req.duration_days > 0:
+        user.banned_until = datetime.now(timezone.utc) + timedelta(days=req.duration_days)
+    else:
+        user.banned_until = None
+        
+    db.commit()
+    
+    if user.email:
+        subject = "【K-Study K書中心】管理員停權通知"
+        name_display = user.name or user.student_id
+        duration_text = f"{req.duration_days} 天" if req.duration_days > 0 else "永久 (直到管理員手動解除)"
+        until_display = (datetime.now(TAIPEI_TZ) + timedelta(days=req.duration_days)).strftime("%Y-%m-%d %H:%M:%S") if req.duration_days > 0 else "無期限"
+        
+        body = f"""
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 帳號停權通知</h2>
+            <p><b>{name_display}</b> 同學您好：</p>
+            <p>管理員已於系統中將您的帳號處以：<b>停權 (Banned)</b>。</p>
+            <p style="background-color: #f9f2f2; border-left: 4px solid #d9534f; padding: 12px; margin: 20px 0; color: #b94a48;">
+                <b>原因：</b>{user.ban_reason}<br>
+                <b>停權時長：</b>{duration_text}<br>
+                <b>預計截止時間：</b>{until_display}
+            </p>
+            <p>停權期間您將無法預約任何座位。若有疑問，請聯絡 K書中心管理員。</p>
+            <br>
+            <hr style="border: 0; border-top: 1px solid #eeeeee;">
+            <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
+        </div>
+        """
+        try:
+            send_email_sync(subject, user.email, body)
+        except Exception as mail_err:
+            print(f"Failed to send manual ban mail to {user.email}: {mail_err}")
+            
+    return {"message": f"已成功將學生 {user.student_id} 停權"}
+
+
+@app.post("/api/admin/users/{user_id}/unban")
+def admin_manual_unban(
+    user_id: int,
+    admin: User = Depends(get_admin_user),
+    db: Session = Depends(get_db)
+):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="找不到該學生")
+    
+    user.is_banned = False
+    user.banned_until = None
+    user.ban_reason = None
+    db.commit()
+    
+    if user.email:
+        subject = "【K-Study K書中心】帳號復權通知"
+        name_display = user.name or user.student_id
+        
+        body = f"""
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+            <h2 style="color: #5cb85c; border-bottom: 2px solid #5cb85c; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 復權通知</h2>
+            <p><b>{name_display}</b> 同學您好：</p>
+            <p>管理員已於系統中解除您帳號的停權狀態，您的權限已完全恢復。</p>
+            <p style="background-color: #f2f9f2; border-left: 4px solid #5cb85c; padding: 12px; margin: 20px 0; color: #3c763d;">
+                <b>狀態：</b>已解除停權，可正常預約座位。
+            </p>
+            <p>歡迎您繼續預約並使用 K書中心 座位！</p>
+            <br>
+            <hr style="border: 0; border-top: 1px solid #eeeeee;">
+            <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
+        </div>
+        """
+        try:
+            send_email_sync(subject, user.email, body)
+        except Exception as mail_err:
+            print(f"Failed to send unban mail to {user.email}: {mail_err}")
+            
+    return {"message": f"已成功將學生 {user.student_id} 解除停權"}
 
 
 @app.get("/api/admin/reservations")

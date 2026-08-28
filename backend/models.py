@@ -15,8 +15,23 @@ class User(Base):
     name = Column(String, nullable=True)  # 學生姓名（出席名單用）
     email = Column(String, nullable=True)  # Google 信箱
     google_id = Column(String, nullable=True, unique=True)  # Google OAuth ID
+    
+    # Banning fields
+    is_banned = Column(Boolean, default=False)
+    banned_until = Column(DateTime, nullable=True)
+    ban_reason = Column(String, nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     reservations = relationship("Reservation", back_populates="user")
+
+
+class SystemConfig(Base):
+    __tablename__ = "system_configs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, index=True, nullable=False)
+    value = Column(String, nullable=False)  # JSON formatted string
+
 
 
 class Seat(Base):

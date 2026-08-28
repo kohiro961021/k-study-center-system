@@ -16,6 +16,13 @@ def send_email_sync(subject: str, recipient: str, html_body: str):
     smtp_from_email = os.getenv("SMTP_FROM_EMAIL", "noreply@kstudy.local")
     smtp_from_name = os.getenv("SMTP_FROM_NAME", "K-Study K書中心")
 
+    # 檢查是否啟用郵件發送
+    enable_email = os.getenv("ENABLE_EMAIL", "true").lower() == "true"
+    # 如果正式環境沒有設定真實的 SMTP 主機（維持預設的 localhost 且無密碼），則自動跳過，避免連線逾時導致卡頓
+    if not enable_email or (smtp_host == "localhost" and not smtp_username):
+        print(f"[Mail] Email sending is skipped for {recipient} (Disabled or unconfigured)")
+        return False
+
     # 建立信件內容
     msg = MIMEText(html_body, 'html', 'utf-8')
     msg['Subject'] = Header(subject, 'utf-8')
