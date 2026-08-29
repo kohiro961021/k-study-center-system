@@ -1,4 +1,4 @@
-import { Calendar, ClipboardList, MessageSquare, FileText, Users, Megaphone, User, History, BookText, QrCode, ScanLine, Settings } from 'lucide-react';
+import { Calendar, ClipboardList, MessageSquare, FileText, Users, Megaphone, User, History, BookText, QrCode, ScanLine, Settings, ShieldAlert } from 'lucide-react';
 import { useUI, useAuth } from '../context';
 
 export const BottomNav = () => {
@@ -41,6 +41,10 @@ export const BottomNav = () => {
 						<button onClick={() => setView('admin-building-override')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-building-override' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
 							<Settings className="w-5 h-5" />
 							<span className="text-[10px] mt-1">館別</span>
+						</button>
+						<button onClick={() => setView('admin-autoban')} className={`flex flex-col items-center justify-center flex-1 py-1 rounded-xl transition active:scale-95 ${view === 'admin-autoban' ? 'text-amber-600 font-bold' : 'text-slate-500'}`}>
+							<ShieldAlert className="w-5 h-5" />
+							<span className="text-[10px] mt-1">停權</span>
 						</button>
 					</>
 				) : (

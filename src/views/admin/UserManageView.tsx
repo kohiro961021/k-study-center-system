@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Users, Key, KeyRound, Search, AlertCircle, ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { Users, Key, KeyRound, Search, AlertCircle, ChevronLeft, ChevronRight, Loader2, ShieldAlert, ShieldX } from 'lucide-react';
 import { useApi } from '../../hooks';
 
 import { UserPage } from '../../type';
@@ -78,6 +78,40 @@ export function UserManageView() {
         } catch (err: any) { alert(`重設失敗: ${err.message}`); }
     };
 
+    const handleBanUser = async (user: StudentUser) => {
+        const reason = window.prompt(`請輸入對學生 ${user.student_id} 的停權原因：`, '違反使用規範');
+        if (reason === null) return;
+        const durationStr = window.prompt(`請輸入停權天數（輸入大於 0 的整數，或輸入 -1 代表永久停權）：`, '7');
+        if (durationStr === null) return;
+        const duration = parseInt(durationStr);
+        if (isNaN(duration) || (duration <= 0 && duration !== -1)) {
+            alert('天數格式錯誤！');
+            return;
+        }
+
+        try {
+            const result = await apiCall(`/api/admin/users/${user.id}/ban`, 'POST', {
+                duration_days: duration,
+                reason: reason.trim()
+            });
+            alert(result.message);
+            fetchUsers(searchTerm, page);
+        } catch (err: any) {
+            alert(`停權失敗: ${err.message}`);
+        }
+    };
+
+    const handleUnbanUser = async (user: StudentUser) => {
+        if (!window.confirm(`確定要解除學生 ${user.student_id} 的停權狀態嗎？`)) return;
+        try {
+            const result = await apiCall(`/api/admin/users/${user.id}/unban`, 'POST');
+            alert(result.message);
+            fetchUsers(searchTerm, page);
+        } catch (err: any) {
+            alert(`解除停權失敗: ${err.message}`);
+        }
+    };
+
     const handleAdminChangePassword = async () => {
         if (!adminOldPw) { alert('請輸入舊密碼'); return; }
         if (!adminNewPw) { alert('請輸入新密碼'); return; }
@@ -143,13 +177,33 @@ export function UserManageView() {
                             </tr>
                         ) : (
                             users.map(u => (
-                                <tr key={u.id} className="hover:bg-slate-50 transition">
-                                    <td className="px-4 py-3 text-accent font-medium">{u.student_id}</td>
+                                <tr key={u.id} className={`hover:bg-slate-50 transition ${u.is_banned ? 'bg-red-50/20' : ''}`}>
+                                    <td className="px-4 py-3 text-accent font-medium">
+                                        <div className="flex items-center gap-1.5">
+                                            {u.student_id}
+                                            {u.is_banned && (
+                                                <span className="bg-red-100 text-red-700 font-bold text-[10px] px-1.5 py-0.5 rounded border border-red-200" title={u.ban_reason || ''}>
+                                                    已停權
+                                                </span>
+                                            )}
+                                        </div>
+                                    </td>
                                     <td className="px-4 py-3 text-slate-600">{u.name || '未填寫'}</td>
                                     <td className="px-4 py-3 text-right">
-                                        <button onClick={() => handleResetPassword(u.student_id)} className="text-amber-600 hover:bg-amber-50 px-3 py-1 rounded-lg border border-amber-200 text-xs font-bold transition">
-                                            <Key className="w-3 h-3 inline mr-1" />重設密碼
-                                        </button>
+                                        <div className="flex justify-end gap-2">
+                                            <button onClick={() => handleResetPassword(u.student_id)} className="text-amber-600 hover:bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 text-xs font-bold transition flex items-center gap-1">
+                                                <Key className="w-3 h-3" />重設密碼
+                                            </button>
+                                            {u.is_banned ? (
+                                                <button onClick={() => handleUnbanUser(u)} className="text-emerald-600 hover:bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs font-bold transition flex items-center gap-1">
+                                                    <ShieldX className="w-3.5 h-3.5" />解除停權
+                                                </button>
+                                            ) : (
+                                                <button onClick={() => handleBanUser(u)} className="text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg border border-red-200 text-xs font-bold transition flex items-center gap-1">
+                                                    <ShieldAlert className="w-3.5 h-3.5" />停權
+                                                </button>
+                                            )}
+                                        </div>
                                     </td>
                                 </tr>
                             ))

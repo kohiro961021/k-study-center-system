@@ -7,7 +7,7 @@ import { Navbar, BottomNav } from './components';
 import {
 	LoginView,
 	MyReserveView, HistoryView, ReserveView, AnnouncementView, QRCodeView,
-	AdminAnnouncementView, AttendanceView, NoteView, ResManageView, SeatView, UserManageView, ScannerView, BuildingOverrideView
+	AdminAnnouncementView, AttendanceView, NoteView, ResManageView, SeatView, UserManageView, ScannerView, BuildingOverrideView, AutobanView
 } from './views';
 
 export default function App() {
@@ -47,6 +47,7 @@ export default function App() {
 				{view === 'admin-announcements' && <AdminAnnouncementView />}
 				{view === 'admin-scanner' && <ScannerView />}
 				{view === 'admin-building-override' && <BuildingOverrideView />}
+				{view === 'admin-autoban' && <AutobanView />}
 
 				{/* Student Views */}
 				{view === 'myreserve' && <MyReserveView />}

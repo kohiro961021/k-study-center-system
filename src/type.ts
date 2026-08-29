@@ -6,7 +6,7 @@ type View =
     'reserve' |
     'announcements' |
     'qrcode' |
-    'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes' | 'admin-announcements' | 'admin-scanner' | 'admin-building-override';
+    'admin-reservations' | 'admin-users' | 'admin-seats' | 'admin-attendance' | 'admin-notes' | 'admin-announcements' | 'admin-scanner' | 'admin-building-override' | 'admin-autoban';
 
 type AnnouncementData = { 
     id: number;
@@ -63,7 +63,11 @@ type StudentUser = {
     id: number;
     student_id: string;
     name: string | null;
-    is_admin: boolean
+    is_admin: boolean;
+    is_banned?: boolean;
+    banned_until?: string | null;
+    ban_reason?: string | null;
+    created_at?: string | null
 };
 
 type UserPage = {
