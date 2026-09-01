@@ -83,6 +83,7 @@ try:
         default_rules = {
             "enabled": False,
             "inactive_days": 30,
+            "max_absents": 3,
             "ban_duration_days": 7,
             "ban_reason": "長期未到館被系統自動停權"
         }
@@ -157,6 +158,62 @@ async def get_admin_user(current_user: User = Depends(get_current_user)):
 app = FastAPI(docs_url=None, redoc_url=None)  # 生產環境關閉 API 文件
 
 
+# --- Helper: 計算缺席統計與發送提醒信 ---
+def get_user_absent_stats(db: Session, user_id: int):
+    """計算使用者累計缺席次數與停權門檻"""
+    absent_count = db.query(Reservation).filter(
+        Reservation.user_id == user_id,
+        Reservation.attendance_status == "absent"
+    ).count()
+
+    max_absents = 3
+    config_row = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
+    if config_row and config_row.value:
+        try:
+            rules = json.loads(config_row.value)
+            max_absents = rules.get("max_absents", 3)
+        except Exception:
+            pass
+
+    return absent_count, max_absents
+
+
+def send_absent_email_helper(user_email: str, name_display: str, res_date: str, absent_count: int, max_absents: int):
+    """發送缺席通知信，包含目前缺席次數與再缺席幾次即會停權之提醒"""
+    remaining = max_absents - absent_count
+    subject = "【K-Study K書中心】預約缺席通知與累計提醒"
+
+    if remaining > 0:
+        warning_html = f"""
+        <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 15px 0; color: #856404;">
+            <b>⚠️ 停權提醒：</b> 您目前已累計缺席 <b>{absent_count}</b> 次（系統停權門檻為 <b>{max_absents}</b> 次）。<br>
+            再缺席 <b style="color: #d9534f; font-size: 16px;">{remaining}</b> 次您的帳號將會被處以停權處分！
+        </div>
+        """
+    else:
+        warning_html = f"""
+        <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin: 15px 0; color: #721c24;">
+            <b>🚨 嚴重警告：</b> 您已達到缺席上限（累計 <b>{absent_count}</b> 次 / 上限 <b>{max_absents}</b> 次），您的帳號即將被處以停權處分！
+        </div>
+        """
+
+    body = f"""
+    <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
+        <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 缺席通知</h2>
+        <p><b>{name_display}</b> 同學您好：</p>
+        <p>系統記錄到您於 <b>{res_date}</b> 的 K書中心 預約未於規定時間內完成簽到，已被標記為：<b style="color: #d9534f;">缺席 (Absent)</b>。</p>
+        
+        {warning_html}
+
+        <p>請務必留意您的簽到狀況與預約規範，維護座位使用權益。若有特殊原因，請儘速聯絡 K書中心管理員。</p>
+        <br>
+        <hr style="border: 0; border-top: 1px solid #eeeeee;">
+        <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
+    </div>
+    """
+    send_email_sync(subject, user_email, body)
+
+
 # --- Scheduler: 每日 22:00 自動標記缺席 ---
 def mark_absent_job():
     """每天晚上 10 點，將今日未簽到的預約自動標記為缺席。"""
@@ -173,27 +230,15 @@ def mark_absent_job():
             r.updated_at = datetime.now(timezone.utc)
             count += 1
             
-            # 若使用者有填寫 Email，發送缺席通知信
-            if r.user and r.user.email:
-                subject = "【K-Study K書中心】今日預約缺席通知"
-                name_display = r.user.name or r.user.student_id
-                body = f"""
-                <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-                    <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 缺席通知</h2>
-                    <p><b>{name_display}</b> 同學您好：</p>
-                    <p>系統偵測到您於 <b>{today}</b> 預約了 K書中心 座位，但未於規定時間內完成簽到。</p>
-                    <p style="background-color: #f9f2f2; border-left: 4px solid #d9534f; padding: 12px; margin: 20px 0; color: #b94a48;">
-                        您的預約已被系統標記為：<b>缺席 (Absent)</b>。
-                    </p>
-                    <p>請注意，多次預約未到可能會影響您未來的預約權利。若您有任何疑問或特殊原因，請聯絡 K書中心管理員。</p>
-                    <br>
-                    <hr style="border: 0; border-top: 1px solid #eeeeee;">
-                    <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
-                </div>
-                """
-                send_email_sync(subject, r.user.email, body)
-                
         db.commit()
+
+        # 發送缺席與剩餘次數提醒信件
+        for r in unmarked:
+            if r.user and r.user.email:
+                absent_count, max_absents = get_user_absent_stats(db, r.user.id)
+                name_display = r.user.name or r.user.student_id
+                send_absent_email_helper(r.user.email, name_display, today, absent_count, max_absents)
+
         print(f"[Scheduler] {today} 自動標記缺席完成，共 {count} 筆")
     except Exception as e:
         db.rollback()
@@ -368,6 +413,7 @@ class UserOut(BaseModel):
 class AutobanRulesRequest(BaseModel):
     enabled: bool
     inactive_days: int
+    max_absents: Optional[int] = 3
     ban_duration_days: int
     ban_reason: str
 
@@ -862,28 +908,7 @@ def run_autoban_scan(db: Session) -> dict:
         u.ban_reason = None
         unbanned_list.append(u.student_id)
         
-        # Send Email notification for unban
-        if u.email:
-            subject = "【K-Study K書中心】帳號復權通知"
-            name_display = u.name or u.student_id
-            body = f"""
-            <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-                <h2 style="color: #5cb85c; border-bottom: 2px solid #5cb85c; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 復權通知</h2>
-                <p><b>{name_display}</b> 同學您好：</p>
-                <p>您的帳號停權期限已屆滿，系統已自動解除您的停權狀態。</p>
-                <p style="background-color: #f2f9f2; border-left: 4px solid #5cb85c; padding: 12px; margin: 20px 0; color: #3c763d;">
-                    <b>狀態：</b>已解除停權，可正常預約座位。
-                </p>
-                <p>歡迎您繼續使用 K書中心 座位！</p>
-                <br>
-                <hr style="border: 0; border-top: 1px solid #eeeeee;">
-                <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
-            </div>
-            """
-            try:
-                send_email_sync(subject, u.email, body)
-            except Exception as mail_err:
-                print(f"Failed to send auto unban mail to {u.email}: {mail_err}")
+
                 
     if not rules.get("enabled", False):
         db.commit()
@@ -926,34 +951,7 @@ def run_autoban_scan(db: Session) -> dict:
                 "reason": default_ban_reason
             })
 
-            # Send Email Notification
-            if u.email:
-                subject = "【K-Study K書中心】帳號停權通知"
-                name_display = u.name or u.student_id
-                duration_text = f"{ban_duration_days} 天" if ban_duration_days > 0 else "永久 (直到管理員手動解除)"
-                until_display = (datetime.now(TAIPEI_TZ) + timedelta(days=ban_duration_days)).strftime("%Y-%m-%d %H:%M:%S") if ban_duration_days > 0 else "無期限"
-                
-                body = f"""
-                <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-                    <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 帳號停權通知</h2>
-                    <p><b>{name_display}</b> 同學您好：</p>
-                    <p>系統偵測到您已超過 <b>{inactive_days}</b> 天未至 K書中心 簽到使用座位。</p>
-                    <p style="background-color: #f9f2f2; border-left: 4px solid #d9534f; padding: 12px; margin: 20px 0; color: #b94a48;">
-                        根據 K書中心 管理規範，您的帳號已被系統自動處以：<b>停權 (Banned)</b>。<br>
-                        <b>原因：</b>{default_ban_reason}<br>
-                        <b>停權時長：</b>{duration_text}<br>
-                        <b>預計截止時間：</b>{until_display}
-                    </p>
-                    <p>停權期間您將無法預約任何座位。若有特殊原因或疑義，請聯絡 K書中心管理員進行申訴與解鎖。</p>
-                    <br>
-                    <hr style="border: 0; border-top: 1px solid #eeeeee;">
-                    <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
-                </div>
-                """
-                try:
-                    send_email_sync(subject, u.email, body)
-                except Exception as mail_err:
-                    print(f"Failed to send ban mail to {u.email}: {mail_err}")
+
 
     db.commit()
     return {
@@ -1028,32 +1026,7 @@ def admin_manual_ban(
         
     db.commit()
     
-    if user.email:
-        subject = "【K-Study K書中心】管理員停權通知"
-        name_display = user.name or user.student_id
-        duration_text = f"{req.duration_days} 天" if req.duration_days > 0 else "永久 (直到管理員手動解除)"
-        until_display = (datetime.now(TAIPEI_TZ) + timedelta(days=req.duration_days)).strftime("%Y-%m-%d %H:%M:%S") if req.duration_days > 0 else "無期限"
-        
-        body = f"""
-        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-            <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 帳號停權通知</h2>
-            <p><b>{name_display}</b> 同學您好：</p>
-            <p>管理員已於系統中將您的帳號處以：<b>停權 (Banned)</b>。</p>
-            <p style="background-color: #f9f2f2; border-left: 4px solid #d9534f; padding: 12px; margin: 20px 0; color: #b94a48;">
-                <b>原因：</b>{user.ban_reason}<br>
-                <b>停權時長：</b>{duration_text}<br>
-                <b>預計截止時間：</b>{until_display}
-            </p>
-            <p>停權期間您將無法預約任何座位。若有疑問，請聯絡 K書中心管理員。</p>
-            <br>
-            <hr style="border: 0; border-top: 1px solid #eeeeee;">
-            <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
-        </div>
-        """
-        try:
-            send_email_sync(subject, user.email, body)
-        except Exception as mail_err:
-            print(f"Failed to send manual ban mail to {user.email}: {mail_err}")
+
             
     return {"message": f"已成功將學生 {user.student_id} 停權"}
 
@@ -1073,28 +1046,7 @@ def admin_manual_unban(
     user.ban_reason = None
     db.commit()
     
-    if user.email:
-        subject = "【K-Study K書中心】帳號復權通知"
-        name_display = user.name or user.student_id
-        
-        body = f"""
-        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-            <h2 style="color: #5cb85c; border-bottom: 2px solid #5cb85c; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 復權通知</h2>
-            <p><b>{name_display}</b> 同學您好：</p>
-            <p>管理員已於系統中解除您帳號的停權狀態，您的權限已完全恢復。</p>
-            <p style="background-color: #f2f9f2; border-left: 4px solid #5cb85c; padding: 12px; margin: 20px 0; color: #3c763d;">
-                <b>狀態：</b>已解除停權，可正常預約座位。
-            </p>
-            <p>歡迎您繼續預約並使用 K書中心 座位！</p>
-            <br>
-            <hr style="border: 0; border-top: 1px solid #eeeeee;">
-            <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
-        </div>
-        """
-        try:
-            send_email_sync(subject, user.email, body)
-        except Exception as mail_err:
-            print(f"Failed to send unban mail to {user.email}: {mail_err}")
+
             
     return {"message": f"已成功將學生 {user.student_id} 解除停權"}
 
@@ -1296,42 +1248,6 @@ def admin_modify_reservation(reservation_id: int, req: AdminModifyReservationReq
     db.commit()
     return {"message": "預約已修改"}
 
-@app.put("/api/admin/settings/building/overrides")
-def update_building_override_range(req: BuildingOverrideRangeRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
-    try:
-        validate_date_format(req.start_date)
-        validate_date_format(req.end_date)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    if req.start_date > req.end_date:
-        raise HTTPException(status_code=400, detail="起始日期不能晚於結束日期")
-
-    buildings = ["新館", "舊館"] if req.building == "全部" else [req.building]
-
-    cur = datetime.strptime(req.start_date, "%Y-%m-%d")
-    end_d = datetime.strptime(req.end_date, "%Y-%m-%d")
-    dates = []
-    while cur <= end_d:
-        dates.append(cur.strftime("%Y-%m-%d"))
-        cur += timedelta(days=1)
-
-    for d in dates:
-        for b in buildings:
-            override = db.query(BuildingDateOverride).filter(
-                BuildingDateOverride.date == d,
-                BuildingDateOverride.building == b
-            ).first()
-            if req.status == "auto":
-                if override:
-                    db.delete(override)
-            else:
-                if override:
-                    override.status = req.status
-                else:
-                    db.add(BuildingDateOverride(date=d, building=b, status=req.status))
-    db.commit()
-    return {"message": f"已更新 {len(dates)} 天 × {len(buildings)} 館"}
-
 
 @app.put("/api/admin/reservations/{reservation_id}/attendance")
 def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, background_tasks: BackgroundTasks, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
@@ -1351,23 +1267,16 @@ def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, b
     
     # 若手動設為 absent，且使用者有 Email，透過 BackgroundTasks 在背景發送通知信
     if req.status == "absent" and reservation.user and reservation.user.email:
-        subject = "【K-Study K書中心】預約缺席通知"
+        absent_count, max_absents = get_user_absent_stats(db, reservation.user.id)
         name_display = reservation.user.name or reservation.user.student_id
-        body = f"""
-        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-            <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 缺席通知</h2>
-            <p><b>{name_display}</b> 同學您好：</p>
-            <p>管理員已於系統中將您在 <b>{reservation.res_date}</b> 的 K書中心 預約狀態變更為：<b>缺席 (Absent)</b>。</p>
-            <p style="background-color: #f9f2f2; border-left: 4px solid #d9534f; padding: 12px; margin: 20px 0; color: #b94a48;">
-                您的預約已被標記為：<b>缺席 (Absent)</b>。
-            </p>
-            <p>請注意，多次預約未到可能會影響您未來的預約權利。若您有任何疑問或特殊原因，請聯絡 K書中心管理員。</p>
-            <br>
-            <hr style="border: 0; border-top: 1px solid #eeeeee;">
-            <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
-        </div>
-        """
-        background_tasks.add_task(send_email_sync, subject, reservation.user.email, body)
+        background_tasks.add_task(
+            send_absent_email_helper,
+            reservation.user.email,
+            name_display,
+            reservation.res_date,
+            absent_count,
+            max_absents
+        )
 
     status_text = "有到" if req.status == "present" else "未到"
     return {"message": f"已更新出席狀態為：{status_text}"}
