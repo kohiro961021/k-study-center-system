@@ -171,8 +171,8 @@ export function AutobanView() {
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-2xl font-black text-slate-900 flex items-center gap-2">
-                        <ShieldAlert className="w-7 h-7 text-red-600 shrink-0" />
+                    <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                        <ShieldAlert className="w-6 h-6 text-red-600 shrink-0" />
                         自動停權管理 (Autoban)
                     </h2>
                     <p className="text-sm text-slate-500 mt-1">針對長期未到館簽到之預約學生進行自動化暫時性或永久性停權懲罰。</p>
@@ -181,7 +181,7 @@ export function AutobanView() {
                 <button
                     onClick={handleRunScan}
                     disabled={isScanning}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-xl transition shadow-md shadow-red-200/50 hover:shadow-lg hover:shadow-red-200/60 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     {isScanning ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -222,7 +222,7 @@ export function AutobanView() {
             {activeTab === 'rules' && (
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left: Settings Panel */}
-                    <div className="lg:col-span-2 bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                    <div className="lg:col-span-2 bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 space-y-6">
                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
                             <Settings className="w-5 h-5 text-red-600" />
                             停權規則自訂
@@ -333,7 +333,7 @@ export function AutobanView() {
 
             {/* Banned Users Tab */}
             {activeTab === 'banned' && (
-                <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+                <div className="bg-card/70 glass-card rounded-2xl border border-slate-200 overflow-hidden">
                     {/* Search bar */}
                     <div className="p-4 border-b border-slate-200 flex items-center gap-3">
                         <Search className="w-4 h-4 text-slate-400 shrink-0" />
