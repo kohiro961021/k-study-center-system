@@ -135,45 +135,72 @@ cloudflared:
 
 ## 📖 API 說明
 
-所有 API 請求需帶 Header：`X-KLib-Key: <KLIB_KEY>`
-需要登入的請求另需帶：`Authorization: Bearer <JWT_TOKEN>`
+所有 API 請求需帶 Header：`X-KLib-Key: <KLIB_KEY>`  
+需要登入的請求另需帶 Header：`Authorization: Bearer <JWT_TOKEN>`
 
-### 身份驗證
+### 🔑 身份驗證 (Authentication)
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
 | POST | `/token` | 管理員帳號密碼登入 |
 | POST | `/api/auth/google` | Google 學校帳號登入 |
 
-### 學生功能（需登入）
+### 🎒 學生端功能（需 Student / Admin Token）
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/api/seats` | 取得所有座位 |
-| GET | `/api/availability?res_date=` | 查詢指定日期可用座位 |
-| GET | `/api/my-reservations` | 可取消的預約 |
-| GET | `/api/my-history` | 歷史預約紀錄 |
-| POST | `/api/reserve` | 預約座位 |
-| DELETE | `/api/reservations/{id}` | 取消預約 |
-| GET | `/api/announcements` | 取得公告（公開） |
+| GET | `/api/seats` | 取得所有座位基礎資訊 |
+| GET | `/api/availability?res_date=` | 查詢指定日期座位預約狀態與開放狀態 |
+| GET | `/api/settings/building/overrides` | 查詢開館/閉館特別設定 |
+| GET | `/api/my-reservations` | 取得個人未來有效預約（含取消功能） |
+| GET | `/api/my-history` | 取得個人歷史預約與出席紀錄 |
+| POST | `/api/reserve` | 學生預約座位（受 Redis 鎖與 Rate Limit 保護） |
+| DELETE | `/api/reservations/{id}` | 取消指定預約 |
+| GET | `/api/announcements` | 取得系統公告（公開） |
 
-### 管理員功能（需 Admin Token）
+### 📱 現場 QR Code 簽到
 
 | 方法 | 路徑 | 說明 |
 |---|---|---|
-| GET | `/api/admin/users` | 學生帳號列表 |
+| GET | `/api/attendance/qr` | 取得動態 QR Code 簽到 Token（每 15 秒更新一次） |
+| POST | `/api/attendance/scan` | 學生掃描 QR Code 進行現場簽到 |
+
+### 🛡️ 管理員功能（需 Admin Token）
+
+#### 帳號與權限管理
+| 方法 | 路徑 | 說明 |
+|---|---|---|
+| GET | `/api/admin/users` | 學生帳號列表（支援關鍵字搜尋與分頁） |
 | PUT | `/api/admin/reset-password` | 重設學生密碼 |
-| PUT | `/api/admin/change-password` | 管理員改自己的密碼 |
-| GET | `/api/admin/reservations` | 所有預約紀錄 |
-| POST | `/api/admin/reserve` | 代替學生預約 |
-| PUT | `/api/admin/reservations/{id}` | 修改預約 |
-| DELETE | `/api/admin/reservations/{id}` | 取消預約 |
-| PUT | `/api/admin/reservations/{id}/attendance` | 更新出席狀態 |
-| GET | `/api/admin/attendance?date=` | 取得當日出席名單 |
-| PUT | `/api/admin/seats/{id}/note` | 編輯座位註記 |
-| PUT | `/api/admin/seats/{id}/status` | 設定座位狀態（`maintenance` / `available`） |
-| GET | `/api/admin/notes` | 取得所有有註記的座位 |
-| POST | `/api/admin/announcements` | 發布公告 |
+| PUT | `/api/admin/change-password` | 管理員修改個人密碼 |
+
+#### 自動停權與懲罰規則
+| 方法 | 路徑 | 說明 |
+|---|---|---|
+| GET | `/api/admin/autoban/rules` | 取得自動停權規則設定 |
+| PUT | `/api/admin/autoban/rules` | 更新自動停權規則設定 |
+| POST | `/api/admin/autoban/run` | 手動觸發全館自動停權與解鎖掃描 |
+| GET | `/api/admin/autoban/banned-users` | 取得目前受停權學生名單 |
+| POST | `/api/admin/users/{user_id}/ban` | 手動對學生執行停權 |
+| POST | `/api/admin/users/{user_id}/unban` | 手動解除學生停權 |
+
+#### 預約與出席點名管理
+| 方法 | 路徑 | 說明 |
+|---|---|---|
+| GET | `/api/admin/reservations` | 查詢全館預約紀錄（支援關鍵字搜尋與多欄排序） |
+| POST | `/api/admin/reserve` | 管理員代為預約座位 |
+| PUT | `/api/admin/reservations/{id}` | 修改預約（日期或座位） |
+| DELETE | `/api/admin/reservations/{id}` | 取消指定預約 |
+| PUT | `/api/admin/reservations/{id}/attendance` | 更新出席狀態（有到 / 缺席，含自動通知信） |
+| GET | `/api/admin/attendance?date=` | 取得當日點名名單與出席統計（支援列印） |
+
+#### 座位與公告管理
+| 方法 | 路徑 | 說明 |
+|---|---|---|
+| PUT | `/api/admin/seats/{id}/note` | 編輯座位特別註記 |
+| PUT | `/api/admin/seats/{id}/status` | 設定座位狀態（`available` / `maintenance` 維修中） |
+| GET | `/api/admin/notes` | 取得所有設有註記的座位 |
+| POST | `/api/admin/announcements` | 發布系統公告（支援 Markdown） |
 | PUT | `/api/admin/announcements/{id}` | 編輯公告 |
 | DELETE | `/api/admin/announcements/{id}` | 刪除公告 |
 
