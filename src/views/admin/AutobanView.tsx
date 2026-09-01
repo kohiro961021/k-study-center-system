@@ -307,12 +307,12 @@ export function AutobanView() {
 
                     {/* Right: Info Cards */}
                     <div className="space-y-6">
-                        <div className="bg-gradient-to-br from-red-50 to-orange-50 border border-red-100 p-6 rounded-2xl space-y-4">
-                            <h4 className="font-extrabold text-red-800 flex items-center gap-1.5">
+                        <div className="bg-card/70 glass-card border border-slate-200 p-6 rounded-2xl space-y-4">
+                            <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
                                 <AlertCircle className="w-5 h-5 text-red-600" />
                                 運作機制說明
                             </h4>
-                            <ul className="space-y-2 text-xs text-red-700/90 leading-relaxed list-decimal pl-4">
+                            <ul className="space-y-2 text-xs text-slate-500 leading-relaxed list-decimal pl-4">
                                 <li>
                                     <strong>每日定時排程：</strong>系統每天晚上 <b>22:05</b> 會自動跑一次停權檢測。
                                 </li>
