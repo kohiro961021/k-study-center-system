@@ -181,7 +181,7 @@ export function AutobanView() {
                 <button
                     onClick={handleRunScan}
                     disabled={isScanning}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="bg-accent hover:bg-accent-hover text-white font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                     {isScanning ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -198,7 +198,7 @@ export function AutobanView() {
                     onClick={() => setActiveTab('rules')}
                     className={`flex-1 py-2 px-3 text-center text-sm font-bold rounded-lg transition ${
                         activeTab === 'rules'
-                            ? 'bg-white text-red-600 shadow-sm'
+                            ? 'bg-white text-accent shadow-sm'
                             : 'text-slate-600 hover:text-slate-900'
                     }`}
                 >
@@ -209,7 +209,7 @@ export function AutobanView() {
                     onClick={() => setActiveTab('banned')}
                     className={`flex-1 py-2 px-3 text-center text-sm font-bold rounded-lg transition ${
                         activeTab === 'banned'
-                            ? 'bg-white text-red-600 shadow-sm'
+                            ? 'bg-white text-accent shadow-sm'
                             : 'text-slate-600 hover:text-slate-900'
                     }`}
                 >
@@ -241,7 +241,7 @@ export function AutobanView() {
                                     onChange={(e) => setRules({ ...rules, enabled: e.target.checked })}
                                     className="sr-only peer"
                                 />
-                                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
+                                <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                             </label>
                         </div>
 
@@ -297,7 +297,7 @@ export function AutobanView() {
                             <button
                                 onClick={handleSaveRules}
                                 disabled={isSavingRules}
-                                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-6 py-2.5 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 text-sm"
+                                className="bg-accent hover:bg-accent-hover text-white font-bold px-6 py-2.5 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 text-sm"
                             >
                                 {isSavingRules && <Loader2 className="w-4 h-4 animate-spin" />}
                                 儲存規則設定
@@ -512,7 +512,7 @@ export function AutobanView() {
                             <button
                                 onClick={() => setShowScanModal(false)}
                                 disabled={isScanning}
-                                className="bg-slate-900 hover:bg-slate-800 text-white font-bold px-5 py-2 rounded-xl transition text-sm disabled:opacity-50"
+                                className="bg-accent hover:bg-accent-hover text-white font-bold px-5 py-2 rounded-xl transition text-sm disabled:opacity-50"
                             >
                                 關閉視窗
                             </button>
