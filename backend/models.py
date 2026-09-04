@@ -21,6 +21,7 @@ class User(Base):
     banned_until = Column(DateTime, nullable=True)
     ban_reason = Column(String, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    absent_reset_at = Column(DateTime, nullable=True)  # 未到次數計算起算點，None 代表從有紀錄以來全部累計
 
     reservations = relationship("Reservation", back_populates="user")
 

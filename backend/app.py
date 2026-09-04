@@ -72,6 +72,9 @@ try:
         if 'created_at' not in columns:
             conn.execute(text("ALTER TABLE users ADD COLUMN created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"))
             print("Added created_at column to users table.")
+        if 'absent_reset_at' not in columns:
+            conn.execute(text("ALTER TABLE users ADD COLUMN absent_reset_at TIMESTAMP"))
+            print("Added absent_reset_at column to users table.")
 except Exception as e:
     print(f"⚠️ Auto-migration failed: {e}")
 
@@ -82,7 +85,6 @@ try:
     if not existing_config:
         default_rules = {
             "enabled": False,
-            "inactive_days": 30,
             "max_absents": 3,
             "ban_duration_days": 7,
             "ban_reason": "長期未到館被系統自動停權"
@@ -159,12 +161,21 @@ app = FastAPI(docs_url=None, redoc_url=None)  # 生產環境關閉 API 文件
 
 
 # --- Helper: 計算缺席統計與發送提醒信 ---
+def count_effective_absents(db: Session, user: User) -> int:
+    """計算使用者「有效」缺席次數：若曾因停權歸零過，只算歸零時間點之後的缺席紀錄。"""
+    query = db.query(Reservation).filter(
+        Reservation.user_id == user.id,
+        Reservation.attendance_status == "absent"
+    )
+    if user.absent_reset_at:
+        query = query.filter(Reservation.updated_at > user.absent_reset_at)
+    return query.count()
+
+
 def get_user_absent_stats(db: Session, user_id: int):
     """計算使用者累計缺席次數與停權門檻"""
-    absent_count = db.query(Reservation).filter(
-        Reservation.user_id == user_id,
-        Reservation.attendance_status == "absent"
-    ).count()
+    user = db.query(User).filter(User.id == user_id).first()
+    absent_count = count_effective_absents(db, user) if user else 0
 
     max_absents = 3
     config_row = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
@@ -412,8 +423,7 @@ class UserOut(BaseModel):
 
 class AutobanRulesRequest(BaseModel):
     enabled: bool
-    inactive_days: int
-    max_absents: Optional[int] = 3
+    max_absents: int
     ban_duration_days: int
     ban_reason: str
 
@@ -860,7 +870,7 @@ def get_autoban_rules(admin: User = Depends(get_admin_user), db: Session = Depen
     if not config:
         default_rules = {
             "enabled": False,
-            "inactive_days": 30,
+            "max_absents": 3,
             "ban_duration_days": 7,
             "ban_reason": "長期未到館被系統自動停權"
         }
@@ -873,7 +883,7 @@ def update_autoban_rules(req: AutobanRulesRequest, admin: User = Depends(get_adm
     config = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
     rules = {
         "enabled": req.enabled,
-        "inactive_days": req.inactive_days,
+        "max_absents": req.max_absents,
         "ban_duration_days": req.ban_duration_days,
         "ban_reason": req.ban_reason
     }
@@ -914,36 +924,27 @@ def run_autoban_scan(db: Session) -> dict:
         db.commit()
         return {"banned": [], "unbanned": unbanned_list, "message": "停權規則已停用，已解除過期停權學生"}
 
-    inactive_days = rules.get("inactive_days", 30)
+    max_absents = rules.get("max_absents", 3)
     ban_duration_days = rules.get("ban_duration_days", 7)
     default_ban_reason = rules.get("ban_reason", "長期未到館被系統自動停權")
 
-    threshold_date = (datetime.now() - timedelta(days=inactive_days)).strftime("%Y-%m-%d")
-    threshold_datetime = datetime.now(timezone.utc) - timedelta(days=inactive_days)
-
-    # Find users who are not admin, not banned, and account created before threshold (or created_at is null)
+    # Find users who are not admin, not banned, and have registered at least one reservation
     candidate_users = db.query(User).filter(
         User.is_admin == False,
         User.is_banned == False,
-        or_(User.created_at == None, User.created_at < threshold_datetime)
+        User.id.in_(db.query(Reservation.user_id).distinct())
     ).all()
 
     banned_list = []
     for u in candidate_users:
-        # Check if they have ANY attendance_status = 'present' reservation in the last inactive_days days
-        recent_present = db.query(Reservation).filter(
-            Reservation.user_id == u.id,
-            Reservation.attendance_status == 'present',
-            Reservation.res_date >= threshold_date
-        ).first()
-
-        if not recent_present:
+        if count_effective_absents(db, u) >= max_absents:
             u.is_banned = True
             u.ban_reason = default_ban_reason
             if ban_duration_days > 0:
                 u.banned_until = datetime.now(timezone.utc) + timedelta(days=ban_duration_days)
             else:
                 u.banned_until = None  # Permanent
+            u.absent_reset_at = datetime.now(timezone.utc)  # 歸零，解禁後需重新累積未到次數
 
             banned_list.append({
                 "student_id": u.student_id,

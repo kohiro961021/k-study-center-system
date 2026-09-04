@@ -5,7 +5,7 @@ import { StudentUser } from '../../type';
 
 type AutobanRules = {
     enabled: boolean;
-    inactive_days: number;
+    max_absents: number;
     ban_duration_days: number;
     ban_reason: string;
 };
@@ -29,7 +29,7 @@ export function AutobanView() {
     // Rules states
     const [rules, setRules] = useState<AutobanRules>({
         enabled: false,
-        inactive_days: 30,
+        max_absents: 3,
         ban_duration_days: 7,
         ban_reason: '長期未到館被系統自動停權',
     });
@@ -103,8 +103,8 @@ export function AutobanView() {
 
     // Save Rules
     const handleSaveRules = async () => {
-        if (rules.inactive_days <= 0) {
-            alert('未到館天數必須大於 0');
+        if (rules.max_absents <= 0) {
+            alert('累計未到次數門檻必須大於 0');
             return;
         }
         setIsSavingRules(true);
@@ -122,7 +122,7 @@ export function AutobanView() {
     // Run Scan
     const handleRunScan = async () => {
         const confirmMsg = rules.enabled
-            ? '⚠️ 確定要立刻執行停權檢測嗎？\n\n系統將掃描全校學生，將長期未到館者自動停權，並解除已到期者的停權狀態，且發送 Email 通知。'
+            ? '⚠️ 確定要立刻執行停權檢測嗎？\n\n系統將掃描曾有預約紀錄的學生，將累計未到次數達門檻者自動停權，並解除已到期者的停權狀態，且發送 Email 通知。'
             : '⚠️ 目前停權功能已關閉，執行檢測只會「解除已到期的學生停權」，不會新增停權學生。確定要執行嗎？';
 
         if (!window.confirm(confirmMsg)) return;
@@ -175,7 +175,7 @@ export function AutobanView() {
                         <ShieldAlert className="w-6 h-6 text-red-600 shrink-0" />
                         自動停權管理 (Autoban)
                     </h2>
-                    <p className="text-sm text-slate-500 mt-1">針對長期未到館簽到之預約學生進行自動化暫時性或永久性停權懲罰。</p>
+                    <p className="text-sm text-slate-500 mt-1">針對累計未到次數達門檻之預約學生進行自動化暫時性或永久性停權懲罰。</p>
                 </div>
 
                 <button
@@ -248,19 +248,19 @@ export function AutobanView() {
                         {/* Params */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <label className="text-sm font-bold text-slate-700">連續未到館天數臨界值</label>
+                                <label className="text-sm font-bold text-slate-700">累計未到次數門檻</label>
                                 <div className="relative flex items-center">
                                     <input
                                         type="number"
                                         min={1}
-                                        value={rules.inactive_days}
-                                        onChange={(e) => setRules({ ...rules, inactive_days: parseInt(e.target.value) || 0 })}
+                                        value={rules.max_absents}
+                                        onChange={(e) => setRules({ ...rules, max_absents: parseInt(e.target.value) || 0 })}
                                         className="block w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-medium"
-                                        placeholder="例如：30"
+                                        placeholder="例如：3"
                                     />
-                                    <span className="absolute right-3 text-sm font-bold text-slate-400">天</span>
+                                    <span className="absolute right-3 text-sm font-bold text-slate-400">次</span>
                                 </div>
-                                <span className="block text-xs text-slate-400">學生超過此天數無「簽到成功」出席紀錄，即觸發停權。</span>
+                                <span className="block text-xs text-slate-400">曾有預約紀錄的學生，累計「未到」次數達此門檻即觸發停權。</span>
                             </div>
 
                             <div className="space-y-1.5">
@@ -317,7 +317,13 @@ export function AutobanView() {
                                     <strong>每日定時排程：</strong>系統每天晚上 <b>22:05</b> 會自動跑一次停權檢測。
                                 </li>
                                 <li>
-                                    <strong>新註冊學生寬限：</strong>系統會檢視學生帳號的註冊時間，若註冊時間小於規則設定的天數（例如 30 天），則不會被判定為長期未到館，防止新用戶被誤鎖。
+                                    <strong>僅針對曾預約學生：</strong>從未預約過座位的學生不會被列入檢測範圍，避免誤鎖從未使用過系統的帳號。
+                                </li>
+                                <li>
+                                    <strong>累計未到次數觸發：</strong>曾有預約紀錄的學生，只要累計「未到」次數達到設定門檻，即會被自動停權。
+                                </li>
+                                <li>
+                                    <strong>停權後歸零重算：</strong>一旦被自動停權，未到次數會歸零；解禁後需重新累積達到門檻才會再次被停權。
                                 </li>
                                 <li>
                                     <strong>到期自動解禁：</strong>每日排程或學生點選「預約座位」時，後端會自動比對停權截止時間。一旦過期，將自動解除停權狀態。
