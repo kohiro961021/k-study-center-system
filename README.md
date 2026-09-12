@@ -180,6 +180,7 @@ cloudflared:
 | GET | `/api/admin/autoban/rules` | 取得自動停權規則設定 |
 | PUT | `/api/admin/autoban/rules` | 更新自動停權規則設定 |
 | POST | `/api/admin/autoban/run` | 手動觸發全館自動停權與解鎖掃描 |
+| POST | `/api/admin/autoban/reset-all-absents` | 手動立即歸零全館所有未受罰學生缺席次數 |
 | GET | `/api/admin/autoban/banned-users` | 取得目前受停權學生名單 |
 | POST | `/api/admin/users/{user_id}/ban` | 手動對學生執行停權 |
 | POST | `/api/admin/users/{user_id}/unban` | 手動解除學生停權 |

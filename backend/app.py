@@ -87,7 +87,12 @@ try:
             "enabled": False,
             "max_absents": 3,
             "ban_duration_days": 1,
-            "ban_reason": "累計未簽到達系統門檻，暫停預約／使用 K書中心 1 日"
+            "ban_reason": "累計未簽到達系統門檻，暫停預約／使用 K書中心 1 日",
+            "periodic_reset_enabled": False,
+            "reset_interval_type": "monthly",
+            "reset_day_of_month": 1,
+            "reset_custom_days": 30,
+            "last_reset_at": None
         }
         _db.add(SystemConfig(key="autoban_rules", value=json.dumps(default_rules)))
         _db.commit()
@@ -304,6 +309,94 @@ def autoban_job():
         db.close()
 
 
+def reset_all_students_absents(db: Session, admin_action: bool = False) -> dict:
+    """將所有未受停權學生的 absent_reset_at 設為現在時間，使過去未到次數歸零重新起算。"""
+    now_utc = datetime.now(timezone.utc)
+
+    target_users = db.query(User).filter(
+        User.is_admin == False,
+        User.is_banned == False
+    ).all()
+
+    count = 0
+    for u in target_users:
+        u.absent_reset_at = now_utc
+        count += 1
+
+    config = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
+    if config:
+        try:
+            rules = json.loads(config.value)
+            rules["last_reset_at"] = now_utc.isoformat()
+            config.value = json.dumps(rules)
+        except Exception as e:
+            print(f"⚠️ 更新 last_reset_at 失敗: {e}")
+
+    db.commit()
+
+    action_type = "管理員手動" if admin_action else "系統定期排程"
+    print(f"[AbsentReset] {action_type}重置完成，已將 {count} 位學生的缺席起算點歸零 (reset_at: {now_utc.isoformat()})")
+    return {
+        "success": True,
+        "message": f"全體學生缺席額度已成功歸零，共更新 {count} 位學生紀錄",
+        "affected_count": count,
+        "reset_at": now_utc.isoformat()
+    }
+
+
+def periodic_absent_reset_job():
+    """每日定時檢測是否到達缺席額度重置時間點，若符合條件則執行歸零。"""
+    db = Session(bind=engine)
+    try:
+        config = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
+        if not config:
+            return
+        rules = json.loads(config.value)
+        if not rules.get("periodic_reset_enabled", False):
+            return
+
+        interval_type = rules.get("reset_interval_type", "monthly")
+        last_reset_str = rules.get("last_reset_at")
+        last_reset = None
+        if last_reset_str:
+            try:
+                last_reset = datetime.fromisoformat(last_reset_str)
+            except Exception:
+                pass
+
+        now_tw = datetime.now(TAIPEI_TZ)
+        should_reset = False
+
+        if interval_type == "monthly":
+            day_of_month = rules.get("reset_day_of_month", 1)
+            if now_tw.day == day_of_month:
+                if last_reset:
+                    last_reset_tw = last_reset.astimezone(TAIPEI_TZ)
+                    if last_reset_tw.year == now_tw.year and last_reset_tw.month == now_tw.month:
+                        should_reset = False
+                    else:
+                        should_reset = True
+                else:
+                    should_reset = True
+        elif interval_type == "custom_days":
+            custom_days = rules.get("reset_custom_days", 30)
+            if last_reset:
+                reset_tz = last_reset if last_reset.tzinfo else last_reset.replace(tzinfo=timezone.utc)
+                diff_days = (datetime.now(timezone.utc) - reset_tz).total_seconds() / 86400
+                if diff_days >= custom_days:
+                    should_reset = True
+            else:
+                should_reset = True
+
+        if should_reset:
+            print(f"[Scheduler] 觸發定期缺席額度歸零 (週期模式: {interval_type})")
+            reset_all_students_absents(db, admin_action=False)
+    except Exception as e:
+        print(f"[Scheduler] 定期缺席額度歸零檢測失敗: {e}")
+    finally:
+        db.close()
+
+
 scheduler = BackgroundScheduler(timezone="Asia/Taipei")
 scheduler.add_job(
     mark_absent_job,
@@ -315,6 +408,12 @@ scheduler.add_job(
     autoban_job,
     CronTrigger(hour=22, minute=5, timezone="Asia/Taipei"),
     id="autoban_daily",
+    replace_existing=True
+)
+scheduler.add_job(
+    periodic_absent_reset_job,
+    CronTrigger(hour=0, minute=1, timezone="Asia/Taipei"),
+    id="periodic_absent_reset_daily",
     replace_existing=True
 )
 scheduler.start()
@@ -460,6 +559,10 @@ class AutobanRulesRequest(BaseModel):
     max_absents: int
     ban_duration_days: int
     ban_reason: str
+    periodic_reset_enabled: bool = False
+    reset_interval_type: str = "monthly"
+    reset_day_of_month: int = 1
+    reset_custom_days: int = 30
 
 
 class ManualBanRequest(BaseModel):
@@ -901,25 +1004,45 @@ def admin_change_own_password(req: AdminChangePasswordRequest, admin: User = Dep
 @app.get("/api/admin/autoban/rules")
 def get_autoban_rules(admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
     config = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
+    default_rules = {
+        "enabled": False,
+        "max_absents": 3,
+        "ban_duration_days": 1,
+        "ban_reason": "累計未簽到達系統門檻，暫停預約／使用 K書中心 1 日",
+        "periodic_reset_enabled": False,
+        "reset_interval_type": "monthly",
+        "reset_day_of_month": 1,
+        "reset_custom_days": 30,
+        "last_reset_at": None
+    }
     if not config:
-        default_rules = {
-            "enabled": False,
-            "max_absents": 3,
-            "ban_duration_days": 1,
-            "ban_reason": "累計未簽到達系統門檻，暫停預約／使用 K書中心 1 日"
-        }
         return default_rules
-    return json.loads(config.value)
+    try:
+        rules = json.loads(config.value)
+        return {**default_rules, **rules}
+    except Exception:
+        return default_rules
 
 
 @app.put("/api/admin/autoban/rules")
 def update_autoban_rules(req: AutobanRulesRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
     config = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
+    existing_rules = {}
+    if config:
+        try:
+            existing_rules = json.loads(config.value)
+        except Exception:
+            existing_rules = {}
     rules = {
         "enabled": req.enabled,
         "max_absents": req.max_absents,
         "ban_duration_days": req.ban_duration_days,
-        "ban_reason": req.ban_reason
+        "ban_reason": req.ban_reason,
+        "periodic_reset_enabled": req.periodic_reset_enabled,
+        "reset_interval_type": req.reset_interval_type,
+        "reset_day_of_month": max(1, min(28, req.reset_day_of_month)),
+        "reset_custom_days": max(1, req.reset_custom_days),
+        "last_reset_at": existing_rules.get("last_reset_at")
     }
     if not config:
         config = SystemConfig(key="autoban_rules", value=json.dumps(rules))
@@ -927,7 +1050,13 @@ def update_autoban_rules(req: AutobanRulesRequest, admin: User = Depends(get_adm
     else:
         config.value = json.dumps(rules)
     db.commit()
-    return {"message": "已更新自動暫停權限規則"}
+    return {"message": "已更新自動暫停權限規則與缺席重置設定"}
+
+
+@app.post("/api/admin/autoban/reset-all-absents")
+def admin_manual_reset_all_absents(admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    result = reset_all_students_absents(db, admin_action=True)
+    return result
 
 
 def run_autoban_scan(db: Session) -> dict:

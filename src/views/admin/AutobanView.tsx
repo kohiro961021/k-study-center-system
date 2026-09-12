@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { ShieldAlert, Settings, Play, Search, AlertCircle, Loader2, UserCheck, ChevronLeft, ChevronRight, CheckCircle2, ShieldX } from 'lucide-react';
+import { ShieldAlert, Settings, Play, Search, AlertCircle, Loader2, UserCheck, ChevronLeft, ChevronRight, CheckCircle2, ShieldX, RotateCcw, Calendar, Clock, RefreshCw } from 'lucide-react';
 import { useApi } from '../../hooks';
 import { StudentUser } from '../../type';
 
@@ -8,6 +8,11 @@ type AutobanRules = {
     max_absents: number;
     ban_duration_days: number;
     ban_reason: string;
+    periodic_reset_enabled?: boolean;
+    reset_interval_type?: 'monthly' | 'custom_days';
+    reset_day_of_month?: number;
+    reset_custom_days?: number;
+    last_reset_at?: string | null;
 };
 
 type BannedUsersResponse = {
@@ -32,7 +37,13 @@ export function AutobanView() {
         max_absents: 3,
         ban_duration_days: 1,
         ban_reason: '累計未簽到達系統門檻，暫停預約／使用 K書中心 1 日',
+        periodic_reset_enabled: false,
+        reset_interval_type: 'monthly',
+        reset_day_of_month: 1,
+        reset_custom_days: 30,
+        last_reset_at: null,
     });
+    const [isResettingAll, setIsResettingAll] = useState(false);
     const [isSavingRules, setIsSavingRules] = useState(false);
 
     // Banned list states
@@ -107,15 +118,47 @@ export function AutobanView() {
             alert('累計未到次數門檻必須大於 0');
             return;
         }
+        if (rules.periodic_reset_enabled) {
+            if (rules.reset_interval_type === 'monthly') {
+                const day = rules.reset_day_of_month ?? 1;
+                if (day < 1 || day > 28) {
+                    alert('每月重置日期請設定在 1 到 28 號之間');
+                    return;
+                }
+            } else if (rules.reset_interval_type === 'custom_days') {
+                const days = rules.reset_custom_days ?? 30;
+                if (days < 1) {
+                    alert('重置間隔天數必須至少為 1 天');
+                    return;
+                }
+            }
+        }
         setIsSavingRules(true);
         try {
             await apiCall('/api/admin/autoban/rules', 'PUT', rules);
-            alert('暫停權限規則已成功更新');
+            alert('暫停權限規則與重置設定已成功更新');
             fetchRules();
         } catch (err: any) {
             alert(`儲存失敗: ${err.message}`);
         } finally {
             setIsSavingRules(false);
+        }
+    };
+
+    // Reset All Students' Absents
+    const handleResetAllAbsents = async () => {
+        const confirmMsg = '⚠️ 確定要立即手動將【所有未停權學生】的缺席次數歸零嗎？\n\n說明：\n1. 歷史預約與點名紀錄仍會完整保留。\n2. 所有一般學生的累計缺席次數將從現在起重新計算（歸零）。\n3. 目前正處於停權狀態中的學生將不受影響。';
+        if (!window.confirm(confirmMsg)) return;
+
+        setIsResettingAll(true);
+        try {
+            const res = await apiCall('/api/admin/autoban/reset-all-absents', 'POST');
+            alert(res.message || '全體學生缺席額度已成功歸零！');
+            fetchRules();
+        } catch (err: any) {
+            alert(`重置失敗: ${err.message}`);
+        } finally {
+            setIsResettingAll(false);
         }
     };
 
@@ -293,6 +336,137 @@ export function AutobanView() {
                             <span className="block text-xs text-slate-400">此內容將記錄並顯示於學生端。</span>
                         </div>
 
+                        {/* Periodic Absent Reset Section */}
+                        <div className="p-5 bg-gradient-to-br from-indigo-50/70 via-white to-purple-50/50 rounded-2xl border border-indigo-100 shadow-xs space-y-4">
+                            <div className="flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="p-2.5 bg-indigo-500/10 text-indigo-600 rounded-xl shrink-0">
+                                        <RotateCcw className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <span className="block font-bold text-slate-800 text-sm flex items-center gap-2">
+                                            缺席額度週期性重置（自動歸零）
+                                            <span className="text-[11px] font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">自動排程</span>
+                                        </span>
+                                        <span className="block text-xs text-slate-500 mt-0.5">
+                                            時間到了自動將未達停權門檻的學生缺席次數歸零重新起算（例如：每個月 1 號歸零）。
+                                        </span>
+                                    </div>
+                                </div>
+                                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                                    <input
+                                        type="checkbox"
+                                        checked={rules.periodic_reset_enabled ?? false}
+                                        onChange={(e) => setRules({ ...rules, periodic_reset_enabled: e.target.checked })}
+                                        className="sr-only peer"
+                                    />
+                                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                </label>
+                            </div>
+
+                            {rules.periodic_reset_enabled && (
+                                <div className="space-y-4 pt-3 border-t border-indigo-100/70">
+                                    {/* Interval Type Selector */}
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => setRules({ ...rules, reset_interval_type: 'monthly' })}
+                                            className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
+                                                (rules.reset_interval_type ?? 'monthly') === 'monthly'
+                                                    ? 'bg-white border-indigo-500 shadow-xs ring-2 ring-indigo-500/20'
+                                                    : 'bg-white/60 border-slate-200 hover:bg-white'
+                                            }`}
+                                        >
+                                            <Calendar className={`w-5 h-5 mt-0.5 ${(rules.reset_interval_type ?? 'monthly') === 'monthly' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                            <div>
+                                                <div className="text-sm font-bold text-slate-800">每月固定日重置</div>
+                                                <div className="text-xs text-slate-500 mt-0.5">每個月的指定日期（凌晨 00:01）自動歸零</div>
+                                            </div>
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            onClick={() => setRules({ ...rules, reset_interval_type: 'custom_days' })}
+                                            className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
+                                                rules.reset_interval_type === 'custom_days'
+                                                    ? 'bg-white border-indigo-500 shadow-xs ring-2 ring-indigo-500/20'
+                                                    : 'bg-white/60 border-slate-200 hover:bg-white'
+                                            }`}
+                                        >
+                                            <Clock className={`w-5 h-5 mt-0.5 ${rules.reset_interval_type === 'custom_days' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                            <div>
+                                                <div className="text-sm font-bold text-slate-800">固定間隔天數重置</div>
+                                                <div className="text-xs text-slate-500 mt-0.5">每隔固定天數（例如每 30 天）自動歸零</div>
+                                            </div>
+                                        </button>
+                                    </div>
+
+                                    {/* Interval Parameters */}
+                                    {(rules.reset_interval_type ?? 'monthly') === 'monthly' ? (
+                                        <div className="bg-white p-3.5 rounded-xl border border-indigo-100 flex items-center justify-between gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-700 block">每月重置日期</label>
+                                                <span className="text-[11px] text-slate-400">每個月的這一天凌晨將自動歸零全體學生缺席紀錄（可設 1 ~ 28 號）</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-slate-500">每月</span>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    max={28}
+                                                    value={rules.reset_day_of_month ?? 1}
+                                                    onChange={(e) => setRules({ ...rules, reset_day_of_month: Math.max(1, Math.min(28, parseInt(e.target.value) || 1)) })}
+                                                    className="w-20 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm"
+                                                />
+                                                <span className="text-xs font-bold text-slate-500">日</span>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="bg-white p-3.5 rounded-xl border border-indigo-100 flex items-center justify-between gap-4">
+                                            <div>
+                                                <label className="text-xs font-bold text-slate-700 block">重置週期天數</label>
+                                                <span className="text-[11px] text-slate-400">自上次歸零起，經過此天數後自動再次執行全體歸零</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs font-bold text-slate-500">每隔</span>
+                                                <input
+                                                    type="number"
+                                                    min={1}
+                                                    value={rules.reset_custom_days ?? 30}
+                                                    onChange={(e) => setRules({ ...rules, reset_custom_days: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                    className="w-24 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm"
+                                                />
+                                                <span className="text-xs font-bold text-slate-500">天</span>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Reset info & Manual reset action */}
+                            <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-indigo-100/60">
+                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                    <span className={`inline-block w-2 h-2 rounded-full ${rules.periodic_reset_enabled ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+                                    <span>上次歸零時間：</span>
+                                    <strong className="text-slate-700 font-mono">
+                                        {rules.last_reset_at
+                                            ? new Date(rules.last_reset_at).toLocaleString('zh-TW', { hour12: false })
+                                            : '尚未執行過'}
+                                    </strong>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleResetAllAbsents}
+                                    disabled={isResettingAll}
+                                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-200 text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50"
+                                    title="立即手動將所有未停權學生的缺席次數歸零重新計算"
+                                >
+                                    {isResettingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                                    立即手動歸零所有學生額度
+                                </button>
+                            </div>
+                        </div>
+
                         <div className="border-t border-slate-100 pt-4 flex justify-end">
                             <button
                                 onClick={handleSaveRules}
@@ -330,6 +504,12 @@ export function AutobanView() {
                                 </li>
                                 <li>
                                     <strong>Email 即時通知：</strong>無論是系統自動暫停、手動暫停或手動解除，系統皆會發信通知有填寫信箱的學生。
+                                </li>
+                                <li>
+                                    <strong>缺席額度定期歸零：</strong>啟用後，若學生在週期內未滿懲處門檻（如一個月只缺席兩次），到期後缺席次數自動歸零重新累積；歷史預約與點名清單均完整保留。
+                                </li>
+                                <li>
+                                    <strong>安全獨立機制：</strong>缺席歸零僅重置未被懲處的學生，目前正處於暫停權限中的學生不會被提前解除，保障紀律有效性。
                                 </li>
                             </ul>
                         </div>
