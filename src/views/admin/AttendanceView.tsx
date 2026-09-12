@@ -100,7 +100,7 @@ export function AttendanceView() {
                     <DatePicker value={selectedDate} onChange={setSelectedDate} />
                     <button
                         onClick={() => setView('admin-autoban')}
-                        className="flex items-center gap-1 px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                        className="flex items-center gap-1 px-2.5 py-2 bg-card hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                         title="前往設定缺席規則與重置"
                     >
                         <RotateCcw className="w-3.5 h-3.5" />
@@ -118,7 +118,7 @@ export function AttendanceView() {
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setView('admin-autoban')}
-                        className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                        className="flex items-center gap-1.5 px-3 py-2 bg-card hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
                         title="前往設定缺席額度門檻與定期重置（自動歸零）規則"
                     >
                         <RotateCcw className="w-3.5 h-3.5" />

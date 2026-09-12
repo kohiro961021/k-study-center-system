@@ -337,21 +337,18 @@ export function AutobanView() {
                         </div>
 
                         {/* Periodic Absent Reset Section */}
-                        <div className="p-5 bg-gradient-to-br from-indigo-50/70 via-white to-purple-50/50 rounded-2xl border border-indigo-100 shadow-xs space-y-4">
+                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-4">
+                            {/* Header & Toggle */}
                             <div className="flex items-center justify-between gap-4">
-                                <div className="flex items-center gap-2.5">
-                                    <div className="p-2.5 bg-indigo-500/10 text-indigo-600 rounded-xl shrink-0">
-                                        <RotateCcw className="w-5 h-5" />
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                        <RotateCcw className="w-4 h-4 text-accent" />
+                                        <span className="font-bold text-slate-800 text-sm">缺席額度週期性重置（自動歸零）</span>
+                                        <span className="text-[11px] font-bold bg-accent-soft text-accent px-2 py-0.5 rounded-full">排程功能</span>
                                     </div>
-                                    <div>
-                                        <span className="block font-bold text-slate-800 text-sm flex items-center gap-2">
-                                            缺席額度週期性重置（自動歸零）
-                                            <span className="text-[11px] font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">自動排程</span>
-                                        </span>
-                                        <span className="block text-xs text-slate-500 mt-0.5">
-                                            時間到了自動將未達停權門檻的學生缺席次數歸零重新起算（例如：每個月 1 號歸零）。
-                                        </span>
-                                    </div>
+                                    <p className="text-xs text-slate-500">
+                                        週期時間一到，自動將未達停權門檻的學生缺席次數歸零重新起算（例如：每個月 1 號歸零）。
+                                    </p>
                                 </div>
                                 <label className="relative inline-flex items-center cursor-pointer shrink-0">
                                     <input
@@ -360,40 +357,40 @@ export function AutobanView() {
                                         onChange={(e) => setRules({ ...rules, periodic_reset_enabled: e.target.checked })}
                                         className="sr-only peer"
                                     />
-                                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent"></div>
                                 </label>
                             </div>
 
                             {rules.periodic_reset_enabled && (
-                                <div className="space-y-4 pt-3 border-t border-indigo-100/70">
-                                    {/* Interval Type Selector */}
+                                <div className="pt-3 border-t border-slate-200/60 space-y-3">
+                                    {/* Mode selection cards */}
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                         <button
                                             type="button"
                                             onClick={() => setRules({ ...rules, reset_interval_type: 'monthly' })}
-                                            className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
+                                            className={`p-3 rounded-xl border text-left transition flex items-start gap-3 cursor-pointer ${
                                                 (rules.reset_interval_type ?? 'monthly') === 'monthly'
-                                                    ? 'bg-white border-indigo-500 shadow-xs ring-2 ring-indigo-500/20'
-                                                    : 'bg-white/60 border-slate-200 hover:bg-white'
+                                                    ? 'bg-card border-accent text-slate-900 shadow-xs ring-1 ring-accent'
+                                                    : 'bg-slate-100/40 border-slate-200 text-slate-500 hover:bg-slate-100/70'
                                             }`}
                                         >
-                                            <Calendar className={`w-5 h-5 mt-0.5 ${(rules.reset_interval_type ?? 'monthly') === 'monthly' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                            <Calendar className={`w-4 h-4 mt-0.5 shrink-0 ${(rules.reset_interval_type ?? 'monthly') === 'monthly' ? 'text-accent' : 'text-slate-400'}`} />
                                             <div>
                                                 <div className="text-sm font-bold text-slate-800">每月固定日重置</div>
-                                                <div className="text-xs text-slate-500 mt-0.5">每個月的指定日期（凌晨 00:01）自動歸零</div>
+                                                <div className="text-xs text-slate-500 mt-0.5">每個月指定日期（凌晨 00:01）自動歸零</div>
                                             </div>
                                         </button>
 
                                         <button
                                             type="button"
                                             onClick={() => setRules({ ...rules, reset_interval_type: 'custom_days' })}
-                                            className={`p-3.5 rounded-xl border text-left transition flex items-start gap-3 ${
+                                            className={`p-3 rounded-xl border text-left transition flex items-start gap-3 cursor-pointer ${
                                                 rules.reset_interval_type === 'custom_days'
-                                                    ? 'bg-white border-indigo-500 shadow-xs ring-2 ring-indigo-500/20'
-                                                    : 'bg-white/60 border-slate-200 hover:bg-white'
+                                                    ? 'bg-card border-accent text-slate-900 shadow-xs ring-1 ring-accent'
+                                                    : 'bg-slate-100/40 border-slate-200 text-slate-500 hover:bg-slate-100/70'
                                             }`}
                                         >
-                                            <Clock className={`w-5 h-5 mt-0.5 ${rules.reset_interval_type === 'custom_days' ? 'text-indigo-600' : 'text-slate-400'}`} />
+                                            <Clock className={`w-4 h-4 mt-0.5 shrink-0 ${rules.reset_interval_type === 'custom_days' ? 'text-accent' : 'text-slate-400'}`} />
                                             <div>
                                                 <div className="text-sm font-bold text-slate-800">固定間隔天數重置</div>
                                                 <div className="text-xs text-slate-500 mt-0.5">每隔固定天數（例如每 30 天）自動歸零</div>
@@ -401,51 +398,53 @@ export function AutobanView() {
                                         </button>
                                     </div>
 
-                                    {/* Interval Parameters */}
-                                    {(rules.reset_interval_type ?? 'monthly') === 'monthly' ? (
-                                        <div className="bg-white p-3.5 rounded-xl border border-indigo-100 flex items-center justify-between gap-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 block">每月重置日期</label>
-                                                <span className="text-[11px] text-slate-400">每個月的這一天凌晨將自動歸零全體學生缺席紀錄（可設 1 ~ 28 號）</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-slate-500">每月</span>
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    max={28}
-                                                    value={rules.reset_day_of_month ?? 1}
-                                                    onChange={(e) => setRules({ ...rules, reset_day_of_month: Math.max(1, Math.min(28, parseInt(e.target.value) || 1)) })}
-                                                    className="w-20 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm"
-                                                />
-                                                <span className="text-xs font-bold text-slate-500">日</span>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="bg-white p-3.5 rounded-xl border border-indigo-100 flex items-center justify-between gap-4">
-                                            <div>
-                                                <label className="text-xs font-bold text-slate-700 block">重置週期天數</label>
-                                                <span className="text-[11px] text-slate-400">自上次歸零起，經過此天數後自動再次執行全體歸零</span>
-                                            </div>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-bold text-slate-500">每隔</span>
-                                                <input
-                                                    type="number"
-                                                    min={1}
-                                                    value={rules.reset_custom_days ?? 30}
-                                                    onChange={(e) => setRules({ ...rules, reset_custom_days: Math.max(1, parseInt(e.target.value) || 1) })}
-                                                    className="w-24 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-sm"
-                                                />
-                                                <span className="text-xs font-bold text-slate-500">天</span>
-                                            </div>
-                                        </div>
-                                    )}
+                                    {/* Parameter setting */}
+                                    <div className="p-3 bg-card rounded-xl border border-slate-200 flex items-center justify-between gap-4">
+                                        {(rules.reset_interval_type ?? 'monthly') === 'monthly' ? (
+                                            <>
+                                                <div>
+                                                    <span className="text-xs font-bold text-slate-700 block">每月重置日期</span>
+                                                    <span className="text-[11px] text-slate-400 block mt-0.5">每個月此日期的凌晨自動執行缺席次數歸零</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-slate-500">每月</span>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        max={28}
+                                                        value={rules.reset_day_of_month ?? 1}
+                                                        onChange={(e) => setRules({ ...rules, reset_day_of_month: Math.max(1, Math.min(28, parseInt(e.target.value) || 1)) })}
+                                                        className="w-20 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent text-sm bg-slate-50"
+                                                    />
+                                                    <span className="text-xs font-bold text-slate-500">日</span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div>
+                                                    <span className="text-xs font-bold text-slate-700 block">重置週期天數</span>
+                                                    <span className="text-[11px] text-slate-400 block mt-0.5">自上次歸零起，經過此天數後自動再次執行歸零</span>
+                                                </div>
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-bold text-slate-500">每隔</span>
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        value={rules.reset_custom_days ?? 30}
+                                                        onChange={(e) => setRules({ ...rules, reset_custom_days: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                        className="w-24 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent text-sm bg-slate-50"
+                                                    />
+                                                    <span className="text-xs font-bold text-slate-500">天</span>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
                             )}
 
-                            {/* Reset info & Manual reset action */}
-                            <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-indigo-100/60">
-                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                            {/* Reset status & Manual trigger */}
+                            <div className="pt-3 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-3 text-xs">
+                                <div className="flex items-center gap-2 text-slate-500">
                                     <span className={`inline-block w-2 h-2 rounded-full ${rules.periodic_reset_enabled ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
                                     <span>上次歸零時間：</span>
                                     <strong className="text-slate-700 font-mono">
@@ -458,10 +457,10 @@ export function AutobanView() {
                                     type="button"
                                     onClick={handleResetAllAbsents}
                                     disabled={isResettingAll}
-                                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 px-3 py-1.5 rounded-lg border border-indigo-200 text-xs font-bold transition flex items-center gap-1.5 disabled:opacity-50"
+                                    className="px-3 py-1.5 rounded-lg border border-slate-200 hover:border-accent hover:text-accent text-slate-700 bg-card transition flex items-center gap-1.5 font-bold cursor-pointer disabled:opacity-50"
                                     title="立即手動將所有未停權學生的缺席次數歸零重新計算"
                                 >
-                                    {isResettingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}
+                                    {isResettingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin text-accent" /> : <RotateCcw className="w-3.5 h-3.5" />}
                                     立即手動歸零所有學生額度
                                 </button>
                             </div>
