@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, Key, KeyRound, Search, AlertCircle, ChevronLeft, ChevronRight, Loader2, ShieldAlert, ShieldX } from 'lucide-react';
 import { useApi } from '../../hooks';
 
-import { UserPage } from '../../type';
+import { StudentUser, UserPage } from '../../type';
 
 const PAGE_SIZE = 20;
 
@@ -79,9 +79,9 @@ export function UserManageView() {
     };
 
     const handleBanUser = async (user: StudentUser) => {
-        const reason = window.prompt(`請輸入對學生 ${user.student_id} 的停權原因：`, '違反使用規範');
+        const reason = window.prompt(`請輸入對學生 ${user.student_id} 的暫停原因：`, '違反使用規範');
         if (reason === null) return;
-        const durationStr = window.prompt(`請輸入停權天數（輸入大於 0 的整數，或輸入 -1 代表永久停權）：`, '7');
+        const durationStr = window.prompt(`請輸入暫停天數（輸入大於 0 的整數，或輸入 -1 代表直到管理員解除）：`, '1');
         if (durationStr === null) return;
         const duration = parseInt(durationStr);
         if (isNaN(duration) || (duration <= 0 && duration !== -1)) {
@@ -97,18 +97,18 @@ export function UserManageView() {
             alert(result.message);
             fetchUsers(searchTerm, page);
         } catch (err: any) {
-            alert(`停權失敗: ${err.message}`);
+            alert(`暫停失敗: ${err.message}`);
         }
     };
 
     const handleUnbanUser = async (user: StudentUser) => {
-        if (!window.confirm(`確定要解除學生 ${user.student_id} 的停權狀態嗎？`)) return;
+        if (!window.confirm(`確定要解除學生 ${user.student_id} 的暫停狀態嗎？`)) return;
         try {
             const result = await apiCall(`/api/admin/users/${user.id}/unban`, 'POST');
             alert(result.message);
             fetchUsers(searchTerm, page);
         } catch (err: any) {
-            alert(`解除停權失敗: ${err.message}`);
+            alert(`解除暫停失敗: ${err.message}`);
         }
     };
 
@@ -183,7 +183,7 @@ export function UserManageView() {
                                             {u.student_id}
                                             {u.is_banned && (
                                                 <span className="bg-red-100 text-red-700 font-bold text-[10px] px-1.5 py-0.5 rounded border border-red-200" title={u.ban_reason || ''}>
-                                                    已停權
+                                                    暫停中
                                                 </span>
                                             )}
                                         </div>
@@ -196,11 +196,11 @@ export function UserManageView() {
                                             </button>
                                             {u.is_banned ? (
                                                 <button onClick={() => handleUnbanUser(u)} className="text-emerald-600 hover:bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs font-bold transition flex items-center gap-1">
-                                                    <ShieldX className="w-3.5 h-3.5" />解除停權
+                                                    <ShieldX className="w-3.5 h-3.5" />解除暫停
                                                 </button>
                                             ) : (
                                                 <button onClick={() => handleBanUser(u)} className="text-red-600 hover:bg-red-50 px-2.5 py-1 rounded-lg border border-red-200 text-xs font-bold transition flex items-center gap-1">
-                                                    <ShieldAlert className="w-3.5 h-3.5" />停權
+                                                    <ShieldAlert className="w-3.5 h-3.5" />暫停
                                                 </button>
                                             )}
                                         </div>

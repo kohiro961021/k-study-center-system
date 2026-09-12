@@ -60,7 +60,7 @@ export const Navbar = () => {
 									<Settings className="w-4 h-4 inline mr-1" />館別
 								</button>
 								<button onClick={() => setView('admin-autoban')} className={`px-3 py-3.5 rounded-4xl font-medium transition ${view === 'admin-autoban' ? 'bg-slate-200 text-slate-900' : 'text-slate-600 hover:bg-slate-50'}`}>
-									<ShieldAlert className="w-4 h-4 inline mr-1" />停權
+									<ShieldAlert className="w-4 h-4 inline mr-1" />暫停
 								</button>
 							</>
 						) : (

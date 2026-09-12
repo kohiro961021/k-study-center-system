@@ -86,8 +86,8 @@ try:
         default_rules = {
             "enabled": False,
             "max_absents": 3,
-            "ban_duration_days": 7,
-            "ban_reason": "長期未到館被系統自動停權"
+            "ban_duration_days": 1,
+            "ban_reason": "累計未簽到達系統門檻，暫停預約／使用 K書中心 1 日"
         }
         _db.add(SystemConfig(key="autoban_rules", value=json.dumps(default_rules)))
         _db.commit()
@@ -162,7 +162,7 @@ app = FastAPI(docs_url=None, redoc_url=None)  # 生產環境關閉 API 文件
 
 # --- Helper: 計算缺席統計與發送提醒信 ---
 def count_effective_absents(db: Session, user: User) -> int:
-    """計算使用者「有效」缺席次數：若曾因停權歸零過，只算歸零時間點之後的缺席紀錄。"""
+    """計算使用者「有效」缺席次數：若曾因暫停權限歸零過，只算歸零時間點之後的缺席紀錄。"""
     query = db.query(Reservation).filter(
         Reservation.user_id == user.id,
         Reservation.attendance_status == "absent"
@@ -173,56 +173,93 @@ def count_effective_absents(db: Session, user: User) -> int:
 
 
 def get_user_absent_stats(db: Session, user_id: int):
-    """計算使用者累計缺席次數與停權門檻"""
+    """計算使用者累計缺席次數、暫停權限門檻與天數。"""
     user = db.query(User).filter(User.id == user_id).first()
     absent_count = count_effective_absents(db, user) if user else 0
 
     max_absents = 3
+    ban_duration_days = 1
     config_row = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
     if config_row and config_row.value:
         try:
             rules = json.loads(config_row.value)
             max_absents = rules.get("max_absents", 3)
+            ban_duration_days = rules.get("ban_duration_days", 1)
         except Exception:
             pass
 
-    return absent_count, max_absents
+    return absent_count, max_absents, ban_duration_days
 
 
-def send_absent_email_helper(user_email: str, name_display: str, res_date: str, absent_count: int, max_absents: int):
-    """發送缺席通知信，包含目前缺席次數與再缺席幾次即會停權之提醒"""
+def format_ban_duration_text(ban_duration_days: int) -> tuple[str, str]:
+    if ban_duration_days > 0:
+        duration_text = f"{ban_duration_days} 日"
+        restore_text = "期滿後會自動恢復。"
+    else:
+        duration_text = "直到管理員解除"
+        restore_text = "解除時間請洽 K書中心管理員。"
+    return duration_text, restore_text
+
+
+def send_absent_email_helper(user_email: str, name_display: str, res_date: str, absent_count: int, max_absents: int, ban_duration_days: int):
+    """發送未簽到通知信，包含目前累計次數與暫停使用提醒。"""
     remaining = max_absents - absent_count
-    subject = "【K-Study K書中心】預約缺席通知與累計提醒"
+    duration_text, restore_text = format_ban_duration_text(ban_duration_days)
+    subject = "【K-Study K書中心】預約未簽到提醒"
 
     if remaining > 0:
         warning_html = f"""
         <div style="background-color: #fff3cd; border-left: 4px solid #ffc107; padding: 12px; margin: 15px 0; color: #856404;">
-            <b>⚠️ 停權提醒：</b> 您目前已累計缺席 <b>{absent_count}</b> 次（系統停權門檻為 <b>{max_absents}</b> 次）。<br>
-            再缺席 <b style="color: #d9534f; font-size: 16px;">{remaining}</b> 次您的帳號將會被處以停權處分！
+            <b>⚠️ 累計提醒：</b> 您目前已累計未簽到 <b>{absent_count}</b> 次（系統門檻為 <b>{max_absents}</b> 次）。<br>
+            再未簽到 <b style="color: #d9534f; font-size: 16px;">{remaining}</b> 次，系統將暫停您預約／使用 K書中心 <b>{duration_text}</b>。{restore_text}
         </div>
         """
     else:
         warning_html = f"""
         <div style="background-color: #f8d7da; border-left: 4px solid #dc3545; padding: 12px; margin: 15px 0; color: #721c24;">
-            <b>🚨 嚴重警告：</b> 您已達到缺席上限（累計 <b>{absent_count}</b> 次 / 上限 <b>{max_absents}</b> 次），您的帳號即將被處以停權處分！
+            <b>⚠️ 已達系統門檻：</b> 您已達到未簽到上限（累計 <b>{absent_count}</b> 次 / 上限 <b>{max_absents}</b> 次）。系統將依規則暫停您預約／使用 K書中心 <b>{duration_text}</b>。{restore_text}
         </div>
         """
 
     body = f"""
     <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 8px;">
-        <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 缺席通知</h2>
+        <h2 style="color: #d9534f; border-bottom: 2px solid #d9534f; padding-bottom: 10px; margin-top: 0;">K-Study K書中心 預約未簽到提醒</h2>
         <p><b>{name_display}</b> 同學您好：</p>
-        <p>系統記錄到您於 <b>{res_date}</b> 的 K書中心 預約未於規定時間內完成簽到，已被標記為：<b style="color: #d9534f;">缺席 (Absent)</b>。</p>
+        <p>系統記錄到您於 <b>{res_date}</b> 的 K書中心預約未於規定時間內完成簽到，已被標記為：<b style="color: #d9534f;">未簽到</b>。</p>
         
         {warning_html}
 
-        <p>請務必留意您的簽到狀況與預約規範，維護座位使用權益。若有特殊原因，請儘速聯絡 K書中心管理員。</p>
+        <p>請留意簽到狀況與預約規範，以維護座位使用權益。若您當日確實已到館，或有特殊原因，請儘速聯絡 K書中心管理員協助確認。</p>
         <br>
         <hr style="border: 0; border-top: 1px solid #eeeeee;">
         <p style="font-size: 12px; color: #777777; text-align: center;">此信件為系統自動發送，請勿直接回覆。<br>&copy; K-Study Center System</p>
     </div>
     """
     send_email_sync(subject, user_email, body)
+
+
+def send_absent_email_for_reservation(reservation_id: int):
+    """寄信前重新確認預約仍為未簽到，避免狀態已改回有到後仍寄出通知。"""
+    db = Session(bind=engine)
+    try:
+        reservation = db.query(Reservation).options(joinedload(Reservation.user)).filter(Reservation.id == reservation_id).first()
+        if not reservation or reservation.attendance_status != "absent":
+            return
+        if not reservation.user or not reservation.user.email:
+            return
+
+        absent_count, max_absents, ban_duration_days = get_user_absent_stats(db, reservation.user.id)
+        name_display = reservation.user.name or reservation.user.student_id
+        send_absent_email_helper(
+            reservation.user.email,
+            name_display,
+            reservation.res_date,
+            absent_count,
+            max_absents,
+            ban_duration_days
+        )
+    finally:
+        db.close()
 
 
 # --- Scheduler: 每日 22:00 自動標記缺席 ---
@@ -245,10 +282,7 @@ def mark_absent_job():
 
         # 發送缺席與剩餘次數提醒信件
         for r in unmarked:
-            if r.user and r.user.email:
-                absent_count, max_absents = get_user_absent_stats(db, r.user.id)
-                name_display = r.user.name or r.user.student_id
-                send_absent_email_helper(r.user.email, name_display, today, absent_count, max_absents)
+            send_absent_email_for_reservation(r.id)
 
         print(f"[Scheduler] {today} 自動標記缺席完成，共 {count} 筆")
     except Exception as e:
@@ -259,13 +293,13 @@ def mark_absent_job():
 
 
 def autoban_job():
-    """每天晚上 10 點 05 分，自動執行停權與解除過期停權的檢測。"""
+    """每天晚上 10 點 05 分，自動執行暫停權限與解除過期暫停的檢測。"""
     db = Session(bind=engine)
     try:
         result = run_autoban_scan(db)
-        print(f"[Scheduler] 自動停權檢測完成: {result['message']}")
+        print(f"[Scheduler] 自動暫停權限檢測完成: {result['message']}")
     except Exception as e:
-        print(f"[Scheduler] 自動停權檢測失敗: {e}")
+        print(f"[Scheduler] 自動暫停權限檢測失敗: {e}")
     finally:
         db.close()
 
@@ -743,12 +777,12 @@ def create_reservation(req: ReservationRequest, current_user: User = Depends(get
             current_user.ban_reason = None
             db.commit()
         else:
-            ban_msg = "您的帳號目前處於停權狀態"
+            ban_msg = "您的帳號目前暫停預約／使用 K書中心"
             if current_user.ban_reason:
                 ban_msg += f"（原因：{current_user.ban_reason}）"
             if banned_until_aware:
                 local_expire = banned_until_aware.astimezone(TAIPEI_TZ).strftime("%Y-%m-%d %H:%M:%S")
-                ban_msg += f"，預計停權至 {local_expire}"
+                ban_msg += f"，預計恢復時間：{local_expire}"
             raise HTTPException(status_code=403, detail=ban_msg)
 
     # Per-user rate limiting
@@ -871,8 +905,8 @@ def get_autoban_rules(admin: User = Depends(get_admin_user), db: Session = Depen
         default_rules = {
             "enabled": False,
             "max_absents": 3,
-            "ban_duration_days": 7,
-            "ban_reason": "長期未到館被系統自動停權"
+            "ban_duration_days": 1,
+            "ban_reason": "累計未簽到達系統門檻，暫停預約／使用 K書中心 1 日"
         }
         return default_rules
     return json.loads(config.value)
@@ -893,14 +927,14 @@ def update_autoban_rules(req: AutobanRulesRequest, admin: User = Depends(get_adm
     else:
         config.value = json.dumps(rules)
     db.commit()
-    return {"message": "已更新自動停權規則"}
+    return {"message": "已更新自動暫停權限規則"}
 
 
 def run_autoban_scan(db: Session) -> dict:
     """Executes the autoban check on all users. Can be called from job or manual action."""
     config_row = db.query(SystemConfig).filter(SystemConfig.key == "autoban_rules").first()
     if not config_row:
-        return {"banned": [], "unbanned": [], "message": "未設定停權規則"}
+        return {"banned": [], "unbanned": [], "message": "未設定暫停權限規則"}
     
     rules = json.loads(config_row.value)
     
@@ -922,11 +956,11 @@ def run_autoban_scan(db: Session) -> dict:
                 
     if not rules.get("enabled", False):
         db.commit()
-        return {"banned": [], "unbanned": unbanned_list, "message": "停權規則已停用，已解除過期停權學生"}
+        return {"banned": [], "unbanned": unbanned_list, "message": "暫停權限規則已停用，已解除過期暫停學生"}
 
     max_absents = rules.get("max_absents", 3)
-    ban_duration_days = rules.get("ban_duration_days", 7)
-    default_ban_reason = rules.get("ban_reason", "長期未到館被系統自動停權")
+    ban_duration_days = rules.get("ban_duration_days", 1)
+    default_ban_reason = rules.get("ban_reason", "累計未簽到達系統門檻，暫停預約／使用 K書中心 1 日")
 
     # Find users who are not admin, not banned, and have registered at least one reservation
     candidate_users = db.query(User).filter(
@@ -958,7 +992,7 @@ def run_autoban_scan(db: Session) -> dict:
     return {
         "banned": banned_list,
         "unbanned": unbanned_list,
-        "message": f"檢測完成。停權 {len(banned_list)} 人，解除 {len(unbanned_list)} 人。"
+        "message": f"檢測完成。暫停 {len(banned_list)} 人，解除 {len(unbanned_list)} 人。"
     }
 
 
@@ -1016,10 +1050,10 @@ def admin_manual_ban(
     if not user:
         raise HTTPException(status_code=404, detail="找不到該學生")
     if user.is_admin:
-        raise HTTPException(status_code=400, detail="無法停權管理員帳號")
+        raise HTTPException(status_code=400, detail="無法暫停管理員帳號")
     
     user.is_banned = True
-    user.ban_reason = req.reason.strip() if req.reason.strip() else "管理員手動停權"
+    user.ban_reason = req.reason.strip() if req.reason.strip() else "管理員手動暫停權限"
     if req.duration_days > 0:
         user.banned_until = datetime.now(timezone.utc) + timedelta(days=req.duration_days)
     else:
@@ -1029,7 +1063,7 @@ def admin_manual_ban(
     
 
             
-    return {"message": f"已成功將學生 {user.student_id} 停權"}
+    return {"message": f"已成功暫停學生 {user.student_id} 的預約／使用權限"}
 
 
 @app.post("/api/admin/users/{user_id}/unban")
@@ -1049,7 +1083,7 @@ def admin_manual_unban(
     
 
             
-    return {"message": f"已成功將學生 {user.student_id} 解除停權"}
+    return {"message": f"已成功解除學生 {user.student_id} 的暫停狀態"}
 
 
 @app.get("/api/admin/reservations")
@@ -1266,17 +1300,11 @@ def admin_update_attendance(reservation_id: int, req: AttendanceUpdateRequest, b
     reservation.updated_at = datetime.now(timezone.utc)
     db.commit()
     
-    # 若手動設為 absent，且使用者有 Email，透過 BackgroundTasks 在背景發送通知信
+    # 若手動設為 absent，寄信前會再次確認狀態仍為未簽到。
     if req.status == "absent" and reservation.user and reservation.user.email:
-        absent_count, max_absents = get_user_absent_stats(db, reservation.user.id)
-        name_display = reservation.user.name or reservation.user.student_id
         background_tasks.add_task(
-            send_absent_email_helper,
-            reservation.user.email,
-            name_display,
-            reservation.res_date,
-            absent_count,
-            max_absents
+            send_absent_email_for_reservation,
+            reservation.id
         )
 
     status_text = "有到" if req.status == "present" else "未到"

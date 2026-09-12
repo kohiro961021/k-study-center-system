@@ -30,8 +30,8 @@ export function AutobanView() {
     const [rules, setRules] = useState<AutobanRules>({
         enabled: false,
         max_absents: 3,
-        ban_duration_days: 7,
-        ban_reason: '長期未到館被系統自動停權',
+        ban_duration_days: 1,
+        ban_reason: '累計未簽到達系統門檻，暫停預約／使用 K書中心 1 日',
     });
     const [isSavingRules, setIsSavingRules] = useState(false);
 
@@ -110,7 +110,7 @@ export function AutobanView() {
         setIsSavingRules(true);
         try {
             await apiCall('/api/admin/autoban/rules', 'PUT', rules);
-            alert('停權規則已成功更新');
+            alert('暫停權限規則已成功更新');
             fetchRules();
         } catch (err: any) {
             alert(`儲存失敗: ${err.message}`);
@@ -122,8 +122,8 @@ export function AutobanView() {
     // Run Scan
     const handleRunScan = async () => {
         const confirmMsg = rules.enabled
-            ? '⚠️ 確定要立刻執行停權檢測嗎？\n\n系統將掃描曾有預約紀錄的學生，將累計未到次數達門檻者自動停權，並解除已到期者的停權狀態，且發送 Email 通知。'
-            : '⚠️ 目前停權功能已關閉，執行檢測只會「解除已到期的學生停權」，不會新增停權學生。確定要執行嗎？';
+            ? '⚠️ 確定要立刻執行暫停權限檢測嗎？\n\n系統將掃描曾有預約紀錄的學生，將累計未到次數達門檻者暫停預約／使用權限，並解除已到期者的暫停狀態，且發送 Email 通知。'
+            : '⚠️ 目前自動暫停權限功能已關閉，執行檢測只會「解除已到期的暫停狀態」，不會新增學生。確定要執行嗎？';
 
         if (!window.confirm(confirmMsg)) return;
 
@@ -148,10 +148,10 @@ export function AutobanView() {
 
     // Unban User
     const handleUnbanUser = async (userId: number, studentId: string) => {
-        if (!window.confirm(`確定要手動解除學生 ${studentId} 的停權狀態嗎？`)) return;
+        if (!window.confirm(`確定要手動解除學生 ${studentId} 的暫停狀態嗎？`)) return;
         try {
             await apiCall(`/api/admin/users/${userId}/unban`, 'POST');
-            alert(`已解除 ${studentId} 的停權`);
+            alert(`已解除 ${studentId} 的暫停狀態`);
             if (bannedData && bannedData.users.length === 1 && page > 1) {
                 setPage(page - 1);
             } else {
@@ -173,9 +173,9 @@ export function AutobanView() {
                 <div>
                     <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                         <ShieldAlert className="w-6 h-6 text-red-600 shrink-0" />
-                        自動停權管理 (Autoban)
+                        自動暫停權限管理
                     </h2>
-                    <p className="text-sm text-slate-500 mt-1">針對累計未到次數達門檻之預約學生進行自動化暫時性或永久性停權懲罰。</p>
+                    <p className="text-sm text-slate-500 mt-1">針對累計未到次數達門檻之預約學生，自動暫停預約／使用權限並於到期後恢復。</p>
                 </div>
 
                 <button
@@ -188,7 +188,7 @@ export function AutobanView() {
                     ) : (
                         <Play className="w-4 h-4 fill-current" />
                     )}
-                    立即執行停權檢測
+                    立即執行檢測
                 </button>
             </div>
 
@@ -214,7 +214,7 @@ export function AutobanView() {
                     }`}
                 >
                     <ShieldX className="w-4 h-4 inline mr-1.5" />
-                    已停權名單 ({rules.enabled ? totalBanned : '查閱'})
+                    暫停名單 ({rules.enabled ? totalBanned : '查閱'})
                 </button>
             </div>
 
@@ -225,14 +225,14 @@ export function AutobanView() {
                     <div className="lg:col-span-2 bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 space-y-6">
                         <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
                             <Settings className="w-5 h-5 text-red-600" />
-                            停權規則自訂
+                            暫停權限規則自訂
                         </h3>
 
                         {/* Enable/Disable switch */}
                         <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
                             <div>
-                                <span className="block font-bold text-slate-800 text-sm">啟用自動停權系統</span>
-                                <span className="block text-xs text-slate-500 mt-0.5">關閉後，系統將不再對未到館學生進行停權（但每日定時解禁仍會運作）。</span>
+                                <span className="block font-bold text-slate-800 text-sm">啟用自動暫停權限系統</span>
+                                <span className="block text-xs text-slate-500 mt-0.5">關閉後，系統將不再對未到館學生暫停權限（但每日定時恢復仍會運作）。</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
                                 <input
@@ -260,11 +260,11 @@ export function AutobanView() {
                                     />
                                     <span className="absolute right-3 text-sm font-bold text-slate-400">次</span>
                                 </div>
-                                <span className="block text-xs text-slate-400">曾有預約紀錄的學生，累計「未到」次數達此門檻即觸發停權。</span>
+                                <span className="block text-xs text-slate-400">曾有預約紀錄的學生，累計「未到」次數達此門檻即觸發暫停權限。</span>
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-sm font-bold text-slate-700">停權懲罰時長</label>
+                                <label className="text-sm font-bold text-slate-700">暫停權限時長</label>
                                 <div className="relative flex items-center">
                                     <input
                                         type="number"
@@ -272,25 +272,25 @@ export function AutobanView() {
                                         value={rules.ban_duration_days}
                                         onChange={(e) => setRules({ ...rules, ban_duration_days: parseInt(e.target.value) || 0 })}
                                         className="block w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-medium"
-                                        placeholder="例如：7"
+                                        placeholder="例如：1"
                                     />
                                     <span className="absolute right-3 text-sm font-bold text-slate-400">天</span>
                                 </div>
-                                <span className="block text-xs text-slate-400">設定停權天數。輸入 <code className="font-mono bg-slate-100 text-red-600 px-1 py-0.5 rounded text-[11px] font-bold">-1</code> 代表永久停權直到管理員解禁。</span>
+                                <span className="block text-xs text-slate-400">設定暫停天數。輸入 <code className="font-mono bg-slate-100 text-red-600 px-1 py-0.5 rounded text-[11px] font-bold">-1</code> 代表直到管理員手動解除。</span>
                             </div>
                         </div>
 
                         {/* Default reason */}
                         <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">系統自動停權原因註記</label>
+                            <label className="text-sm font-bold text-slate-700">系統自動暫停原因註記</label>
                             <input
                                 type="text"
                                 value={rules.ban_reason}
                                 onChange={(e) => setRules({ ...rules, ban_reason: e.target.value })}
                                 className="block w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-medium"
-                                placeholder="請輸入自動停權原因..."
+                                placeholder="請輸入自動暫停原因..."
                             />
-                            <span className="block text-xs text-slate-400">此內容將記錄在學生的停權記錄中，並顯示於學生端。</span>
+                            <span className="block text-xs text-slate-400">此內容將記錄並顯示於學生端。</span>
                         </div>
 
                         <div className="border-t border-slate-100 pt-4 flex justify-end">
@@ -314,22 +314,22 @@ export function AutobanView() {
                             </h4>
                             <ul className="space-y-2 text-xs text-slate-500 leading-relaxed list-decimal pl-4">
                                 <li>
-                                    <strong>每日定時排程：</strong>系統每天晚上 <b>22:05</b> 會自動跑一次停權檢測。
+                                    <strong>每日定時排程：</strong>系統每天晚上 <b>22:05</b> 會自動跑一次暫停權限檢測。
                                 </li>
                                 <li>
                                     <strong>僅針對曾預約學生：</strong>從未預約過座位的學生不會被列入檢測範圍，避免誤鎖從未使用過系統的帳號。
                                 </li>
                                 <li>
-                                    <strong>累計未到次數觸發：</strong>曾有預約紀錄的學生，只要累計「未到」次數達到設定門檻，即會被自動停權。
+                                    <strong>累計未到次數觸發：</strong>曾有預約紀錄的學生，只要累計「未到」次數達到設定門檻，即會被自動暫停預約／使用權限。
                                 </li>
                                 <li>
-                                    <strong>停權後歸零重算：</strong>一旦被自動停權，未到次數會歸零；解禁後需重新累積達到門檻才會再次被停權。
+                                    <strong>暫停後歸零重算：</strong>一旦被自動暫停權限，未到次數會歸零；恢復後需重新累積達到門檻才會再次觸發。
                                 </li>
                                 <li>
-                                    <strong>到期自動解禁：</strong>每日排程或學生點選「預約座位」時，後端會自動比對停權截止時間。一旦過期，將自動解除停權狀態。
+                                    <strong>到期自動恢復：</strong>每日排程或學生點選「預約座位」時，後端會自動比對暫停截止時間。一旦過期，將自動解除暫停狀態。
                                 </li>
                                 <li>
-                                    <strong>Email 即時通知：</strong>無論是系統自動停權、手動停權或手動解除停權，系統皆會發信通知有填寫信箱的學生。
+                                    <strong>Email 即時通知：</strong>無論是系統自動暫停、手動暫停或手動解除，系統皆會發信通知有填寫信箱的學生。
                                 </li>
                             </ul>
                         </div>
@@ -347,12 +347,12 @@ export function AutobanView() {
                             type="text"
                             value={inputValue}
                             onChange={(e) => handleSearchChange(e.target.value)}
-                            placeholder="搜尋已停權學生學號或姓名..."
+                            placeholder="搜尋暫停中學生學號或姓名..."
                             className="flex-1 outline-none text-sm bg-transparent"
                         />
                         {isLoadingList && <Loader2 className="w-4 h-4 text-slate-400 animate-spin shrink-0" />}
                         {totalBanned > 0 && !isLoadingList && (
-                            <span className="text-xs text-slate-400 shrink-0">共 {totalBanned} 筆已停權</span>
+                            <span className="text-xs text-slate-400 shrink-0">共 {totalBanned} 筆暫停中</span>
                         )}
                     </div>
 
@@ -363,8 +363,8 @@ export function AutobanView() {
                                 <tr>
                                     <th className="px-4 py-3 text-left font-bold text-slate-700">學號</th>
                                     <th className="px-4 py-3 text-left font-bold text-slate-700">姓名</th>
-                                    <th className="px-4 py-3 text-left font-bold text-slate-700">停權原因</th>
-                                    <th className="px-4 py-3 text-left font-bold text-slate-700">停權截止時間</th>
+                                    <th className="px-4 py-3 text-left font-bold text-slate-700">暫停原因</th>
+                                    <th className="px-4 py-3 text-left font-bold text-slate-700">預計恢復時間</th>
                                     <th className="px-4 py-3 text-right font-bold text-slate-700">操作</th>
                                 </tr>
                             </thead>
@@ -382,7 +382,7 @@ export function AutobanView() {
                                 ) : bannedUsers.length === 0 ? (
                                     <tr>
                                         <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
-                                            {searchTerm ? `找不到「${searchTerm}」的停權學生` : '目前無任何學生被停權'}
+                                            {searchTerm ? `找不到「${searchTerm}」的暫停中學生` : '目前無任何學生暫停中'}
                                         </td>
                                     </tr>
                                 ) : (
@@ -400,7 +400,7 @@ export function AutobanView() {
                                                     </span>
                                                 ) : (
                                                     <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-100 inline-block">
-                                                        永久停權
+                                                        手動解除
                                                     </span>
                                                 )}
                                             </td>
@@ -410,7 +410,7 @@ export function AutobanView() {
                                                     className="text-emerald-600 hover:bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs font-bold transition inline-flex items-center gap-1"
                                                 >
                                                     <UserCheck className="w-3.5 h-3.5" />
-                                                    解除停權
+                                                    解除暫停
                                                 </button>
                                             </td>
                                         </tr>
@@ -455,7 +455,7 @@ export function AutobanView() {
                     <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 max-h-[85vh] flex flex-col">
                         <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100 shrink-0">
                             <ShieldAlert className="w-6 h-6 text-red-600" />
-                            <h3 className="text-lg font-bold text-slate-900">停權檢測程序執行中</h3>
+                            <h3 className="text-lg font-bold text-slate-900">暫停權限檢測程序執行中</h3>
                         </div>
 
                         {/* Content */}
@@ -476,10 +476,10 @@ export function AutobanView() {
                                     {/* Banned details */}
                                     <div className="space-y-2">
                                         <span className="block font-bold text-slate-700 text-sm">
-                                            新增停權名單 ({scanResult.banned.length} 人)
+                                            新增暫停名單 ({scanResult.banned.length} 人)
                                         </span>
                                         {scanResult.banned.length === 0 ? (
-                                            <span className="block text-xs text-slate-400 bg-slate-50 p-3 rounded-lg border border-slate-100">無新增停權學生</span>
+                                            <span className="block text-xs text-slate-400 bg-slate-50 p-3 rounded-lg border border-slate-100">無新增暫停學生</span>
                                         ) : (
                                             <div className="max-h-36 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl bg-slate-50/50">
                                                 {scanResult.banned.map((b, idx) => (
@@ -498,7 +498,7 @@ export function AutobanView() {
                                             自動復權名單 ({scanResult.unbanned.length} 人)
                                         </span>
                                         {scanResult.unbanned.length === 0 ? (
-                                            <span className="block text-xs text-slate-400 bg-slate-50 p-3 rounded-lg border border-slate-100">無解除停權學生</span>
+                                            <span className="block text-xs text-slate-400 bg-slate-50 p-3 rounded-lg border border-slate-100">無解除暫停學生</span>
                                         ) : (
                                             <div className="max-h-28 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50/50 p-2 text-xs flex flex-wrap gap-1.5">
                                                 {scanResult.unbanned.map((sid, idx) => (
