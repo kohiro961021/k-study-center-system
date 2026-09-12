@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { ClipboardList, CheckCircle, XCircle } from 'lucide-react';
+import { ClipboardList, CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 import { useApi } from '../../hooks';
-import { useSeats } from '../../context';
+import { useSeats, useUI } from '../../context';
 import { AttendanceEntry } from '../../type';
 import { escapeHtml } from '../../utils';
 import { DatePicker, RefreshButton, PrintButton } from '../../components';
@@ -10,6 +10,7 @@ export function AttendanceView() {
     const apiCall = useApi();
 
     const { selectedDate, setSelectedDate } = useSeats();
+    const { setView } = useUI();
     
     const [attendanceList, setAttendanceList] = useState<AttendanceEntry[]>([]);
 
@@ -97,6 +98,14 @@ export function AttendanceView() {
                 </div>
                 <div className="flex items-center justify-between gap-2">
                     <DatePicker value={selectedDate} onChange={setSelectedDate} />
+                    <button
+                        onClick={() => setView('admin-autoban')}
+                        className="flex items-center gap-1 px-2.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                        title="前往設定缺席規則與重置"
+                    >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        缺席重置
+                    </button>
                     <PrintButton onClick={handlePrintAttendance} />
                 </div>
             </div>
@@ -106,7 +115,15 @@ export function AttendanceView() {
                 <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                     <ClipboardList className="w-6 h-6 text-amber-600" />每日出席狀況
                 </h2>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => setView('admin-autoban')}
+                        className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+                        title="前往設定缺席額度門檻與定期重置（自動歸零）規則"
+                    >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        缺席規則與重置
+                    </button>
                     <DatePicker value={selectedDate} onChange={setSelectedDate} />
                     <PrintButton onClick={handlePrintAttendance} />
                     <RefreshButton onClick={fetchAttendanceList} />
