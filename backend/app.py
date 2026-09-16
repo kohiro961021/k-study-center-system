@@ -1320,6 +1320,41 @@ def admin_cancel_reservation(reservation_id: int, admin: User = Depends(get_admi
     db.delete(reservation)
     db.commit()
     return {"message": "已取消該學生的預約"}
+@app.put("/api/admin/settings/building/overrides")
+def update_building_override_range(req: BuildingOverrideRangeRequest, admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    try:
+        validate_date_format(req.start_date)
+        validate_date_format(req.end_date)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if req.start_date > req.end_date:
+        raise HTTPException(status_code=400, detail="起始日期不能晚於結束日期")
+
+    buildings = ["新館", "舊館"] if req.building == "全部" else [req.building]
+
+    cur = datetime.strptime(req.start_date, "%Y-%m-%d")
+    end_d = datetime.strptime(req.end_date, "%Y-%m-%d")
+    dates = []
+    while cur <= end_d:
+        dates.append(cur.strftime("%Y-%m-%d"))
+        cur += timedelta(days=1)
+
+    for d in dates:
+        for b in buildings:
+            override = db.query(BuildingDateOverride).filter(
+                BuildingDateOverride.date == d,
+                BuildingDateOverride.building == b
+            ).first()
+            if req.status == "auto":
+                if override:
+                    db.delete(override)
+            else:
+                if override:
+                    override.status = req.status
+                else:
+                    db.add(BuildingDateOverride(date=d, building=b, status=req.status))
+    db.commit()
+    return {"message": f"已更新 {len(dates)} 天 × {len(buildings)} 館"}
 
 
 @app.put("/api/admin/seats/{seat_id}/note")
