@@ -371,17 +371,17 @@ export function AutobanView() {
 
                         {/* Unsaved Changes Banner */}
                         {unsavedChanges.length > 0 && (
-                            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3">
+                            <div className="p-4 sm:p-5 bg-amber-500/10 border border-amber-500/20 rounded-2xl space-y-3">
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
-                                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                                    <div className="flex items-center gap-2 text-amber-600 dark:text-amber-400 font-bold text-sm">
+                                        <AlertTriangle className="w-4 h-4 shrink-0" />
                                         <span>注意：目前有 {unsavedChanges.length} 項設定僅在前端修改，尚未同步發送給後端儲存</span>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         <button
                                             type="button"
                                             onClick={handleDiscardChanges}
-                                            className="text-xs px-2.5 py-1 text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition font-medium flex items-center gap-1 cursor-pointer"
+                                            className="text-xs px-3 py-1.5 text-slate-700 bg-card border border-slate-200 hover:border-slate-300 rounded-xl transition font-bold flex items-center gap-1 cursor-pointer"
                                         >
                                             <Undo2 className="w-3.5 h-3.5" />
                                             還原
@@ -390,21 +390,21 @@ export function AutobanView() {
                                             type="button"
                                             onClick={handleSaveRules}
                                             disabled={isSavingRules}
-                                            className="text-xs px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition font-bold flex items-center gap-1 shadow-xs cursor-pointer disabled:opacity-50"
+                                            className="text-xs px-3.5 py-1.5 bg-accent hover:bg-accent-hover text-white rounded-xl transition font-bold flex items-center gap-1 shadow-xs cursor-pointer disabled:opacity-50"
                                         >
                                             {isSavingRules ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
                                             立即儲存設定
                                         </button>
                                     </div>
                                 </div>
-                                <div className="text-xs text-amber-800 space-y-1 pl-7">
-                                    <p className="font-semibold text-amber-900/90">尚未儲存的異動清單：</p>
-                                    <ul className="list-disc pl-4 space-y-0.5 text-amber-800/95 font-medium">
+                                <div className="text-xs space-y-1.5 pl-6">
+                                    <p className="font-semibold text-slate-700">尚未同步至後端的異動項目：</p>
+                                    <ul className="list-disc pl-4 space-y-1 text-slate-600 dark:text-slate-300">
                                         {unsavedChanges.map((item, idx) => (
-                                            <li key={idx}>{item.desc}</li>
+                                            <li key={idx} className="leading-relaxed">{item.desc}</li>
                                         ))}
                                     </ul>
-                                    <p className="text-[11px] text-amber-700/90 pt-1">
+                                    <p className="text-[11px] text-amber-600/90 dark:text-amber-400/90 pt-0.5">
                                         💡 提示：開關或參數變更後，請點擊「立即儲存設定」按鈕將設定寫入後端資料庫，避免重新整理頁面後失效。
                                     </p>
                                 </div>
@@ -414,14 +414,14 @@ export function AutobanView() {
                         {/* Enable/Disable switch */}
                         <div className={`flex items-center justify-between p-4 rounded-xl border transition ${
                             unsavedChanges.some((c) => c.field === 'enabled')
-                                ? 'bg-amber-500/5 border-amber-300 ring-1 ring-amber-300/60'
+                                ? 'bg-amber-500/5 border-amber-500/30 ring-1 ring-amber-500/20'
                                 : 'bg-slate-50 border-slate-100'
                         }`}>
                             <div>
                                 <div className="flex items-center gap-2">
                                     <span className="block font-bold text-slate-800 text-sm">啟用自動暫停權限系統</span>
                                     {savedRules && rules.enabled !== savedRules.enabled && (
-                                        <span className="text-[11px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                             <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                             未儲存（原為：{savedRules.enabled ? '已啟用' : '已關閉'}）
                                         </span>
@@ -446,7 +446,7 @@ export function AutobanView() {
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-slate-700">累計未到次數門檻</label>
                                     {savedRules && rules.max_absents !== savedRules.max_absents && (
-                                        <span className="text-[11px] font-semibold text-amber-600">未儲存（原：{savedRules.max_absents} 次）</span>
+                                        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">未儲存（原：{savedRules.max_absents} 次）</span>
                                     )}
                                 </div>
                                 <div className="relative flex items-center">
@@ -455,10 +455,10 @@ export function AutobanView() {
                                         min={1}
                                         value={rules.max_absents}
                                         onChange={(e) => setRules({ ...rules, max_absents: parseInt(e.target.value) || 0 })}
-                                        className={`block w-full px-3 py-2.5 border rounded-lg outline-none font-medium transition ${
+                                        className={`block w-full px-3 py-2.5 border rounded-xl outline-none font-medium bg-card text-slate-800 transition ${
                                             savedRules && rules.max_absents !== savedRules.max_absents
-                                                ? 'border-amber-300 bg-amber-50/30 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
-                                                : 'border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+                                                ? 'border-amber-400/60 ring-1 ring-amber-400/30 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
+                                                : 'border-slate-200 focus:ring-2 focus:ring-accent/20 focus:border-accent'
                                         }`}
                                         placeholder="例如：3"
                                     />
@@ -471,7 +471,7 @@ export function AutobanView() {
                                 <div className="flex items-center justify-between">
                                     <label className="text-sm font-bold text-slate-700">暫停權限時長</label>
                                     {savedRules && rules.ban_duration_days !== savedRules.ban_duration_days && (
-                                        <span className="text-[11px] font-semibold text-amber-600">未儲存（原：{savedRules.ban_duration_days === -1 ? '手動解除' : `${savedRules.ban_duration_days} 天`}）</span>
+                                        <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">未儲存（原：{savedRules.ban_duration_days === -1 ? '手動解除' : `${savedRules.ban_duration_days} 天`}）</span>
                                     )}
                                 </div>
                                 <div className="relative flex items-center">
@@ -480,16 +480,16 @@ export function AutobanView() {
                                         min={-1}
                                         value={rules.ban_duration_days}
                                         onChange={(e) => setRules({ ...rules, ban_duration_days: parseInt(e.target.value) || 0 })}
-                                        className={`block w-full px-3 py-2.5 border rounded-lg outline-none font-medium transition ${
+                                        className={`block w-full px-3 py-2.5 border rounded-xl outline-none font-medium bg-card text-slate-800 transition ${
                                             savedRules && rules.ban_duration_days !== savedRules.ban_duration_days
-                                                ? 'border-amber-300 bg-amber-50/30 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
-                                                : 'border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+                                                ? 'border-amber-400/60 ring-1 ring-amber-400/30 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
+                                                : 'border-slate-200 focus:ring-2 focus:ring-accent/20 focus:border-accent'
                                         }`}
                                         placeholder="例如：1"
                                     />
                                     <span className="absolute right-3 text-sm font-bold text-slate-400">天</span>
                                 </div>
-                                <span className="block text-xs text-slate-400">設定暫停天數。輸入 <code className="font-mono bg-slate-100 text-red-600 px-1 py-0.5 rounded text-[11px] font-bold">-1</code> 代表直到管理員手動解除。</span>
+                                <span className="block text-xs text-slate-400">設定暫停天數。輸入 <code className="font-mono bg-slate-100 text-accent px-1.5 py-0.5 rounded text-[11px] font-bold">-1</code> 代表直到管理員手動解除。</span>
                             </div>
                         </div>
 
@@ -498,18 +498,18 @@ export function AutobanView() {
                             <div className="flex items-center justify-between">
                                 <label className="text-sm font-bold text-slate-700">系統自動暫停原因註記</label>
                                 {savedRules && (rules.ban_reason || '').trim() !== (savedRules.ban_reason || '').trim() && (
-                                    <span className="text-[11px] font-semibold text-amber-600">未儲存</span>
+                                    <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400">未儲存</span>
                                 )}
                             </div>
                             <input
                                 type="text"
                                 value={rules.ban_reason}
                                 onChange={(e) => setRules({ ...rules, ban_reason: e.target.value })}
-                                className={`block w-full px-3 py-2.5 border rounded-lg outline-none font-medium transition ${
+                                className={`block w-full px-3 py-2.5 border rounded-xl outline-none font-medium bg-card text-slate-800 transition ${
                                     savedRules && (rules.ban_reason || '').trim() !== (savedRules.ban_reason || '').trim()
-                                        ? 'border-amber-300 bg-amber-50/30 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
-                                        : 'border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
-                                        }`}
+                                        ? 'border-amber-400/60 ring-1 ring-amber-400/30 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
+                                        : 'border-slate-200 focus:ring-2 focus:ring-accent/20 focus:border-accent'
+                                }`}
                                 placeholder="請輸入自動暫停原因..."
                             />
                             <span className="block text-xs text-slate-400">此內容將記錄並顯示於學生端。</span>
@@ -525,7 +525,7 @@ export function AutobanView() {
                                         <span className="font-bold text-slate-800 text-sm">缺席額度週期性重置（自動歸零）</span>
                                         <span className="text-[11px] font-bold bg-accent-soft text-accent px-2 py-0.5 rounded-full">排程功能</span>
                                         {savedRules && Boolean(rules.periodic_reset_enabled) !== Boolean(savedRules.periodic_reset_enabled) && (
-                                            <span className="text-[11px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                            <span className="text-[11px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
                                                 <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
                                                 未儲存
                                             </span>
@@ -599,7 +599,7 @@ export function AutobanView() {
                                                         max={28}
                                                         value={rules.reset_day_of_month ?? 1}
                                                         onChange={(e) => setRules({ ...rules, reset_day_of_month: Math.max(1, Math.min(28, parseInt(e.target.value) || 1)) })}
-                                                        className="w-20 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent text-sm bg-slate-50"
+                                                        className="w-20 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent text-sm bg-card"
                                                     />
                                                     <span className="text-xs font-bold text-slate-500">日</span>
                                                 </div>
@@ -617,7 +617,7 @@ export function AutobanView() {
                                                         min={1}
                                                         value={rules.reset_custom_days ?? 30}
                                                         onChange={(e) => setRules({ ...rules, reset_custom_days: Math.max(1, parseInt(e.target.value) || 1) })}
-                                                        className="w-24 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent text-sm bg-slate-50"
+                                                        className="w-24 px-2.5 py-1.5 border border-slate-200 rounded-lg text-center font-bold text-slate-800 outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent text-sm bg-card"
                                                     />
                                                     <span className="text-xs font-bold text-slate-500">天</span>
                                                 </div>
@@ -655,7 +655,7 @@ export function AutobanView() {
                         <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
                             <div>
                                 {unsavedChanges.length > 0 ? (
-                                    <span className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
+                                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
                                         <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
                                         尚有 {unsavedChanges.length} 項變更未儲存至後端
                                     </span>
@@ -671,7 +671,7 @@ export function AutobanView() {
                                     <button
                                         type="button"
                                         onClick={handleDiscardChanges}
-                                        className="px-4 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold transition flex items-center gap-1.5 text-sm cursor-pointer"
+                                        className="px-4 py-2.5 rounded-xl border border-slate-200 hover:border-slate-300 text-slate-700 bg-card font-bold transition flex items-center gap-1.5 text-sm cursor-pointer"
                                     >
                                         <Undo2 className="w-4 h-4" />
                                         還原變更
@@ -680,7 +680,7 @@ export function AutobanView() {
                                 <button
                                     onClick={handleSaveRules}
                                     disabled={isSavingRules}
-                                    className={`font-bold px-6 py-2.5 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 text-sm ${
+                                    className={`font-bold px-6 py-2.5 rounded-xl transition disabled:opacity-50 flex items-center gap-1.5 text-sm cursor-pointer ${
                                         unsavedChanges.length > 0
                                             ? 'bg-accent hover:bg-accent-hover text-white shadow-md ring-2 ring-accent/30'
                                             : 'bg-accent/80 hover:bg-accent text-white'
@@ -701,7 +701,7 @@ export function AutobanView() {
                     <div className="space-y-6">
                         <div className="bg-card/70 glass-card border border-slate-200 p-6 rounded-2xl space-y-4">
                             <h4 className="font-bold text-slate-800 flex items-center gap-1.5">
-                                <AlertCircle className="w-5 h-5 text-red-600" />
+                                <AlertCircle className="w-5 h-5 text-accent" />
                                 運作機制說明
                             </h4>
                             <ul className="space-y-2 text-xs text-slate-500 leading-relaxed list-decimal pl-4">
@@ -786,18 +786,18 @@ export function AutobanView() {
                                 ) : (
                                     bannedUsers.map((u) => (
                                         <tr key={u.id} className="hover:bg-slate-50/50 transition">
-                                            <td className="px-4 py-3 text-red-600 font-bold font-mono">{u.student_id}</td>
+                                            <td className="px-4 py-3 text-accent font-bold font-mono">{u.student_id}</td>
                                             <td className="px-4 py-3 text-slate-700 font-medium">{u.name || '未填寫'}</td>
                                             <td className="px-4 py-3 text-slate-500 text-xs max-w-xs truncate" title={u.ban_reason || ''}>
                                                 {u.ban_reason || '無註記原因'}
                                             </td>
                                             <td className="px-4 py-3 text-slate-600 font-medium text-xs">
                                                 {u.banned_until ? (
-                                                    <span className="bg-red-50 text-red-700 px-2 py-1 rounded border border-red-100 inline-block font-mono">
+                                                    <span className="bg-accent-soft text-accent px-2 py-1 rounded-lg border border-accent/20 inline-block font-mono">
                                                         {u.banned_until}
                                                     </span>
                                                 ) : (
-                                                    <span className="bg-purple-50 text-purple-700 px-2 py-1 rounded border border-purple-100 inline-block">
+                                                    <span className="bg-purple-500/10 text-purple-600 dark:text-purple-400 px-2 py-1 rounded-lg border border-purple-500/20 inline-block">
                                                         手動解除
                                                     </span>
                                                 )}
@@ -805,7 +805,7 @@ export function AutobanView() {
                                             <td className="px-4 py-3 text-right">
                                                 <button
                                                     onClick={() => handleUnbanUser(u.id, u.student_id)}
-                                                    className="text-emerald-600 hover:bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 text-xs font-bold transition inline-flex items-center gap-1"
+                                                    className="text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 px-2.5 py-1 rounded-lg border border-emerald-500/20 text-xs font-bold transition inline-flex items-center gap-1 cursor-pointer"
                                                 >
                                                     <UserCheck className="w-3.5 h-3.5" />
                                                     解除暫停
@@ -824,7 +824,7 @@ export function AutobanView() {
                             <button
                                 onClick={() => setPage(page - 1)}
                                 disabled={page <= 1 || isLoadingList}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                             >
                                 <ChevronLeft className="w-4 h-4" />
                                 上一頁
@@ -837,7 +837,7 @@ export function AutobanView() {
                             <button
                                 onClick={() => setPage(page + 1)}
                                 disabled={page >= totalPages || isLoadingList}
-                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
                             >
                                 下一頁
                                 <ChevronRight className="w-4 h-4" />
@@ -850,9 +850,9 @@ export function AutobanView() {
             {/* Scan Modal */}
             {showScanModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 max-h-[85vh] flex flex-col">
+                    <div className="bg-card rounded-2xl border border-slate-200 shadow-2xl w-full max-w-lg p-6 max-h-[85vh] flex flex-col">
                         <div className="flex items-center gap-2.5 pb-4 border-b border-slate-100 shrink-0">
-                            <ShieldAlert className="w-6 h-6 text-red-600" />
+                            <ShieldAlert className="w-6 h-6 text-accent" />
                             <h3 className="text-lg font-bold text-slate-900">暫停權限檢測程序執行中</h3>
                         </div>
 
@@ -860,14 +860,14 @@ export function AutobanView() {
                         <div className="flex-1 overflow-y-auto py-6 space-y-4">
                             {isScanning ? (
                                 <div className="flex flex-col items-center justify-center py-10 space-y-3">
-                                    <Loader2 className="w-10 h-10 text-red-600 animate-spin" />
+                                    <Loader2 className="w-10 h-10 text-accent animate-spin" />
                                     <span className="text-sm font-bold text-slate-600">正在掃描資料庫、評估出席率與發送通知...</span>
                                 </div>
                             ) : scanResult ? (
                                 <div className="space-y-4">
                                     {/* Success Header */}
-                                    <div className="flex items-center gap-2 p-3 bg-emerald-50 text-emerald-800 rounded-xl border border-emerald-100 text-sm font-bold">
-                                        <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                                    <div className="flex items-center gap-2 p-3 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 rounded-xl border border-emerald-500/20 text-sm font-bold">
+                                        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
                                         {scanResult.message}
                                     </div>
 
@@ -883,7 +883,7 @@ export function AutobanView() {
                                                 {scanResult.banned.map((b, idx) => (
                                                     <div key={idx} className="p-2.5 flex items-center justify-between text-xs">
                                                         <span className="font-bold text-slate-700">{b.student_id} ({b.name})</span>
-                                                        <span className="text-red-600 font-bold bg-red-50 border border-red-100 px-1.5 py-0.5 rounded scale-90">{b.reason}</span>
+                                                        <span className="text-accent font-bold bg-accent-soft border border-accent/20 px-2 py-0.5 rounded-lg scale-90">{b.reason}</span>
                                                     </div>
                                                 ))}
                                             </div>
@@ -900,7 +900,7 @@ export function AutobanView() {
                                         ) : (
                                             <div className="max-h-28 overflow-y-auto border border-slate-200 rounded-xl bg-slate-50/50 p-2 text-xs flex flex-wrap gap-1.5">
                                                 {scanResult.unbanned.map((sid, idx) => (
-                                                    <span key={idx} className="bg-emerald-50 text-emerald-700 font-mono font-bold px-2 py-0.5 rounded border border-emerald-100">
+                                                    <span key={idx} className="bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 font-mono font-bold px-2 py-0.5 rounded-lg border border-emerald-500/20">
                                                         {sid}
                                                     </span>
                                                 ))}
@@ -916,7 +916,7 @@ export function AutobanView() {
                             <button
                                 onClick={() => setShowScanModal(false)}
                                 disabled={isScanning}
-                                className="bg-accent hover:bg-accent-hover text-white font-bold px-5 py-2 rounded-xl transition text-sm disabled:opacity-50"
+                                className="bg-accent hover:bg-accent-hover text-white font-bold px-5 py-2.5 rounded-xl transition text-sm disabled:opacity-50 cursor-pointer"
                             >
                                 關閉視窗
                             </button>
