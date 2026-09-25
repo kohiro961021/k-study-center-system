@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { ShieldAlert, Settings, Play, Search, AlertCircle, Loader2, UserCheck, ChevronLeft, ChevronRight, CheckCircle2, ShieldX, RotateCcw, Calendar, Clock, RefreshCw } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { ShieldAlert, Settings, Play, Search, AlertCircle, Loader2, UserCheck, ChevronLeft, ChevronRight, CheckCircle2, ShieldX, RotateCcw, Calendar, Clock, RefreshCw, AlertTriangle, Undo2, Save } from 'lucide-react';
 import { useApi } from '../../hooks';
 import { StudentUser } from '../../type';
 
@@ -43,6 +43,7 @@ export function AutobanView() {
         reset_custom_days: 30,
         last_reset_at: null,
     });
+    const [savedRules, setSavedRules] = useState<AutobanRules | null>(null);
     const [isResettingAll, setIsResettingAll] = useState(false);
     const [isSavingRules, setIsSavingRules] = useState(false);
 
@@ -68,6 +69,7 @@ export function AutobanView() {
         try {
             const res: AutobanRules = await apiCall('/api/admin/autoban/rules');
             setRules(res);
+            setSavedRules(res);
         } catch (err: any) {
             console.error('Failed to fetch autoban rules:', err);
         }
@@ -112,6 +114,85 @@ export function AutobanView() {
         }, 300);
     };
 
+    // Calculate unsaved changes diff
+    const unsavedChanges = useMemo(() => {
+        if (!savedRules) return [];
+        const diffs: { field: string; desc: string }[] = [];
+
+        if (rules.enabled !== savedRules.enabled) {
+            diffs.push({
+                field: 'enabled',
+                desc: `自動暫停權限系統：由「${savedRules.enabled ? '已啟用' : '已關閉'}」改為「${rules.enabled ? '已啟用' : '已關閉'}」`,
+            });
+        }
+        if (rules.max_absents !== savedRules.max_absents) {
+            diffs.push({
+                field: 'max_absents',
+                desc: `累計未到次數門檻：由 ${savedRules.max_absents} 次改為 ${rules.max_absents} 次`,
+            });
+        }
+        if (rules.ban_duration_days !== savedRules.ban_duration_days) {
+            const fmtDays = (d: number) => (d === -1 ? '直到手動解除' : `${d} 天`);
+            diffs.push({
+                field: 'ban_duration_days',
+                desc: `暫停權限時長：由 ${fmtDays(savedRules.ban_duration_days)} 改為 ${fmtDays(rules.ban_duration_days)}`,
+            });
+        }
+        if ((rules.ban_reason || '').trim() !== (savedRules.ban_reason || '').trim()) {
+            diffs.push({
+                field: 'ban_reason',
+                desc: '自動暫停原因註記文字已修改',
+            });
+        }
+        if (Boolean(rules.periodic_reset_enabled) !== Boolean(savedRules.periodic_reset_enabled)) {
+            diffs.push({
+                field: 'periodic_reset_enabled',
+                desc: `定期重置缺席額度：由「${savedRules.periodic_reset_enabled ? '已開啟' : '已關閉'}」改為「${rules.periodic_reset_enabled ? '已開啟' : '已關閉'}」`,
+            });
+        }
+        if (rules.periodic_reset_enabled) {
+            if ((rules.reset_interval_type ?? 'monthly') !== (savedRules.reset_interval_type ?? 'monthly')) {
+                const fmtType = (t?: string) => (t === 'custom_days' ? '固定間隔天數' : '每月固定日');
+                diffs.push({
+                    field: 'reset_interval_type',
+                    desc: `重置週期模式：由「${fmtType(savedRules.reset_interval_type)}」改為「${fmtType(rules.reset_interval_type)}」`,
+                });
+            }
+            if ((rules.reset_interval_type ?? 'monthly') === 'monthly' && (rules.reset_day_of_month ?? 1) !== (savedRules.reset_day_of_month ?? 1)) {
+                diffs.push({
+                    field: 'reset_day_of_month',
+                    desc: `每月重置日期：由每月 ${savedRules.reset_day_of_month ?? 1} 日改為 ${rules.reset_day_of_month ?? 1} 日`,
+                });
+            }
+            if (rules.reset_interval_type === 'custom_days' && (rules.reset_custom_days ?? 30) !== (savedRules.reset_custom_days ?? 30)) {
+                diffs.push({
+                    field: 'reset_custom_days',
+                    desc: `重置週期天數：由每隔 ${savedRules.reset_custom_days ?? 30} 天改為 ${rules.reset_custom_days ?? 30} 天`,
+                });
+            }
+        }
+
+        return diffs;
+    }, [rules, savedRules]);
+
+    // Warn before navigating away if there are unsaved changes
+    useEffect(() => {
+        const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+            if (unsavedChanges.length > 0) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        };
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [unsavedChanges.length]);
+
+    // Discard unsaved changes
+    const handleDiscardChanges = () => {
+        if (!savedRules) return;
+        setRules(savedRules);
+    };
+
     // Save Rules
     const handleSaveRules = async () => {
         if (rules.max_absents <= 0) {
@@ -136,6 +217,7 @@ export function AutobanView() {
         setIsSavingRules(true);
         try {
             await apiCall('/api/admin/autoban/rules', 'PUT', rules);
+            setSavedRules(rules);
             alert('暫停權限規則與重置設定已成功更新');
             fetchRules();
         } catch (err: any) {
@@ -247,6 +329,9 @@ export function AutobanView() {
                 >
                     <Settings className="w-4 h-4 inline mr-1.5" />
                     規則設定
+                    {unsavedChanges.length > 0 && (
+                        <span className="ml-1.5 w-2 h-2 rounded-full bg-amber-500 inline-block align-middle animate-pulse" title="有尚未儲存的變更" />
+                    )}
                 </button>
                 <button
                     onClick={() => setActiveTab('banned')}
@@ -266,15 +351,82 @@ export function AutobanView() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                     {/* Left: Settings Panel */}
                     <div className="lg:col-span-2 bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 space-y-6">
-                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 border-b border-slate-100 pb-3">
-                            <Settings className="w-5 h-5 text-red-600" />
-                            暫停權限規則自訂
-                        </h3>
+                        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                                <Settings className="w-5 h-5 text-red-600" />
+                                暫停權限規則自訂
+                            </h3>
+                            {unsavedChanges.length > 0 ? (
+                                <span className="text-xs font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                    {unsavedChanges.length} 項變更尚未儲存
+                                </span>
+                            ) : (
+                                <span className="text-xs text-slate-400 flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                    已與後端同步
+                                </span>
+                            )}
+                        </div>
+
+                        {/* Unsaved Changes Banner */}
+                        {unsavedChanges.length > 0 && (
+                            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-xl space-y-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2 text-amber-800 font-bold text-sm">
+                                        <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                                        <span>注意：目前有 {unsavedChanges.length} 項設定僅在前端修改，尚未同步發送給後端儲存</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        <button
+                                            type="button"
+                                            onClick={handleDiscardChanges}
+                                            className="text-xs px-2.5 py-1 text-slate-600 hover:text-slate-800 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition font-medium flex items-center gap-1 cursor-pointer"
+                                        >
+                                            <Undo2 className="w-3.5 h-3.5" />
+                                            還原
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={handleSaveRules}
+                                            disabled={isSavingRules}
+                                            className="text-xs px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg transition font-bold flex items-center gap-1 shadow-xs cursor-pointer disabled:opacity-50"
+                                        >
+                                            {isSavingRules ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+                                            立即儲存設定
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="text-xs text-amber-800 space-y-1 pl-7">
+                                    <p className="font-semibold text-amber-900/90">尚未儲存的異動清單：</p>
+                                    <ul className="list-disc pl-4 space-y-0.5 text-amber-800/95 font-medium">
+                                        {unsavedChanges.map((item, idx) => (
+                                            <li key={idx}>{item.desc}</li>
+                                        ))}
+                                    </ul>
+                                    <p className="text-[11px] text-amber-700/90 pt-1">
+                                        💡 提示：開關或參數變更後，請點擊「立即儲存設定」按鈕將設定寫入後端資料庫，避免重新整理頁面後失效。
+                                    </p>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Enable/Disable switch */}
-                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                        <div className={`flex items-center justify-between p-4 rounded-xl border transition ${
+                            unsavedChanges.some((c) => c.field === 'enabled')
+                                ? 'bg-amber-500/5 border-amber-300 ring-1 ring-amber-300/60'
+                                : 'bg-slate-50 border-slate-100'
+                        }`}>
                             <div>
-                                <span className="block font-bold text-slate-800 text-sm">啟用自動暫停權限系統</span>
+                                <div className="flex items-center gap-2">
+                                    <span className="block font-bold text-slate-800 text-sm">啟用自動暫停權限系統</span>
+                                    {savedRules && rules.enabled !== savedRules.enabled && (
+                                        <span className="text-[11px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                            未儲存（原為：{savedRules.enabled ? '已啟用' : '已關閉'}）
+                                        </span>
+                                    )}
+                                </div>
                                 <span className="block text-xs text-slate-500 mt-0.5">關閉後，系統將不再對未到館學生暫停權限（但每日定時恢復仍會運作）。</span>
                             </div>
                             <label className="relative inline-flex items-center cursor-pointer">
@@ -291,14 +443,23 @@ export function AutobanView() {
                         {/* Params */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1.5">
-                                <label className="text-sm font-bold text-slate-700">累計未到次數門檻</label>
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-bold text-slate-700">累計未到次數門檻</label>
+                                    {savedRules && rules.max_absents !== savedRules.max_absents && (
+                                        <span className="text-[11px] font-semibold text-amber-600">未儲存（原：{savedRules.max_absents} 次）</span>
+                                    )}
+                                </div>
                                 <div className="relative flex items-center">
                                     <input
                                         type="number"
                                         min={1}
                                         value={rules.max_absents}
                                         onChange={(e) => setRules({ ...rules, max_absents: parseInt(e.target.value) || 0 })}
-                                        className="block w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-medium"
+                                        className={`block w-full px-3 py-2.5 border rounded-lg outline-none font-medium transition ${
+                                            savedRules && rules.max_absents !== savedRules.max_absents
+                                                ? 'border-amber-300 bg-amber-50/30 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
+                                                : 'border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+                                        }`}
                                         placeholder="例如：3"
                                     />
                                     <span className="absolute right-3 text-sm font-bold text-slate-400">次</span>
@@ -307,14 +468,23 @@ export function AutobanView() {
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-sm font-bold text-slate-700">暫停權限時長</label>
+                                <div className="flex items-center justify-between">
+                                    <label className="text-sm font-bold text-slate-700">暫停權限時長</label>
+                                    {savedRules && rules.ban_duration_days !== savedRules.ban_duration_days && (
+                                        <span className="text-[11px] font-semibold text-amber-600">未儲存（原：{savedRules.ban_duration_days === -1 ? '手動解除' : `${savedRules.ban_duration_days} 天`}）</span>
+                                    )}
+                                </div>
                                 <div className="relative flex items-center">
                                     <input
                                         type="number"
                                         min={-1}
                                         value={rules.ban_duration_days}
                                         onChange={(e) => setRules({ ...rules, ban_duration_days: parseInt(e.target.value) || 0 })}
-                                        className="block w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-medium"
+                                        className={`block w-full px-3 py-2.5 border rounded-lg outline-none font-medium transition ${
+                                            savedRules && rules.ban_duration_days !== savedRules.ban_duration_days
+                                                ? 'border-amber-300 bg-amber-50/30 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
+                                                : 'border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+                                        }`}
                                         placeholder="例如：1"
                                     />
                                     <span className="absolute right-3 text-sm font-bold text-slate-400">天</span>
@@ -325,12 +495,21 @@ export function AutobanView() {
 
                         {/* Default reason */}
                         <div className="space-y-1.5">
-                            <label className="text-sm font-bold text-slate-700">系統自動暫停原因註記</label>
+                            <div className="flex items-center justify-between">
+                                <label className="text-sm font-bold text-slate-700">系統自動暫停原因註記</label>
+                                {savedRules && (rules.ban_reason || '').trim() !== (savedRules.ban_reason || '').trim() && (
+                                    <span className="text-[11px] font-semibold text-amber-600">未儲存</span>
+                                )}
+                            </div>
                             <input
                                 type="text"
                                 value={rules.ban_reason}
                                 onChange={(e) => setRules({ ...rules, ban_reason: e.target.value })}
-                                className="block w-full px-3 py-2.5 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-500 font-medium"
+                                className={`block w-full px-3 py-2.5 border rounded-lg outline-none font-medium transition ${
+                                    savedRules && (rules.ban_reason || '').trim() !== (savedRules.ban_reason || '').trim()
+                                        ? 'border-amber-300 bg-amber-50/30 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500'
+                                        : 'border-slate-200 focus:ring-2 focus:ring-red-500/20 focus:border-red-500'
+                                        }`}
                                 placeholder="請輸入自動暫停原因..."
                             />
                             <span className="block text-xs text-slate-400">此內容將記錄並顯示於學生端。</span>
@@ -345,6 +524,12 @@ export function AutobanView() {
                                         <RotateCcw className="w-4 h-4 text-accent" />
                                         <span className="font-bold text-slate-800 text-sm">缺席額度週期性重置（自動歸零）</span>
                                         <span className="text-[11px] font-bold bg-accent-soft text-accent px-2 py-0.5 rounded-full">排程功能</span>
+                                        {savedRules && Boolean(rules.periodic_reset_enabled) !== Boolean(savedRules.periodic_reset_enabled) && (
+                                            <span className="text-[11px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+                                                未儲存
+                                            </span>
+                                        )}
                                     </div>
                                     <p className="text-xs text-slate-500">
                                         週期時間一到，自動將未達停權門檻的學生缺席次數歸零重新起算（例如：每個月 1 號歸零）。
@@ -466,15 +651,49 @@ export function AutobanView() {
                             </div>
                         </div>
 
-                        <div className="border-t border-slate-100 pt-4 flex justify-end">
-                            <button
-                                onClick={handleSaveRules}
-                                disabled={isSavingRules}
-                                className="bg-accent hover:bg-accent-hover text-white font-bold px-6 py-2.5 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 text-sm"
-                            >
-                                {isSavingRules && <Loader2 className="w-4 h-4 animate-spin" />}
-                                儲存規則設定
-                            </button>
+                        {/* Bottom Actions Bar */}
+                        <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+                            <div>
+                                {unsavedChanges.length > 0 ? (
+                                    <span className="text-xs font-bold text-amber-600 flex items-center gap-1.5">
+                                        <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                                        尚有 {unsavedChanges.length} 項變更未儲存至後端
+                                    </span>
+                                ) : (
+                                    <span className="text-xs text-slate-400 flex items-center gap-1.5">
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
+                                        所有規則設定皆已與後端同步
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                                {unsavedChanges.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleDiscardChanges}
+                                        className="px-4 py-2.5 rounded-lg border border-slate-200 hover:bg-slate-100 text-slate-600 font-bold transition flex items-center gap-1.5 text-sm cursor-pointer"
+                                    >
+                                        <Undo2 className="w-4 h-4" />
+                                        還原變更
+                                    </button>
+                                )}
+                                <button
+                                    onClick={handleSaveRules}
+                                    disabled={isSavingRules}
+                                    className={`font-bold px-6 py-2.5 rounded-lg transition disabled:opacity-50 flex items-center gap-1.5 text-sm ${
+                                        unsavedChanges.length > 0
+                                            ? 'bg-accent hover:bg-accent-hover text-white shadow-md ring-2 ring-accent/30'
+                                            : 'bg-accent/80 hover:bg-accent text-white'
+                                    }`}
+                                >
+                                    {isSavingRules ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                    ) : (
+                                        <Save className="w-4 h-4" />
+                                    )}
+                                    儲存規則設定{unsavedChanges.length > 0 ? ` (${unsavedChanges.length} 項未儲存)` : ''}
+                                </button>
+                            </div>
                         </div>
                     </div>
 
