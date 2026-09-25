@@ -297,7 +297,7 @@ export function AutobanView() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-                        <ShieldAlert className="w-6 h-6 text-red-600 shrink-0" />
+                        <ShieldAlert className="w-6 h-6 text-accent shrink-0" />
                         自動暫停權限管理
                     </h2>
                     <p className="text-sm text-slate-500 mt-1">針對累計未到次數達門檻之預約學生，自動暫停預約／使用權限並於到期後恢復。</p>
@@ -306,7 +306,7 @@ export function AutobanView() {
                 <button
                     onClick={handleRunScan}
                     disabled={isScanning}
-                    className="bg-accent hover:bg-accent-hover text-white font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                    className="bg-accent hover:bg-accent-hover text-white font-bold px-5 py-2.5 rounded-xl transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-xs cursor-pointer"
                 >
                     {isScanning ? (
                         <Loader2 className="w-4 h-4 animate-spin" />
@@ -321,9 +321,9 @@ export function AutobanView() {
             <div className="flex border-b border-slate-200 bg-slate-100/60 p-1.5 rounded-xl max-w-xs">
                 <button
                     onClick={() => setActiveTab('rules')}
-                    className={`flex-1 py-2 px-3 text-center text-sm font-bold rounded-lg transition ${
+                    className={`flex-1 py-2 px-3 text-center text-sm font-bold rounded-lg transition cursor-pointer ${
                         activeTab === 'rules'
-                            ? 'bg-white text-accent shadow-sm'
+                            ? 'bg-card text-accent shadow-xs'
                             : 'text-slate-600 hover:text-slate-900'
                     }`}
                 >
@@ -335,9 +335,9 @@ export function AutobanView() {
                 </button>
                 <button
                     onClick={() => setActiveTab('banned')}
-                    className={`flex-1 py-2 px-3 text-center text-sm font-bold rounded-lg transition ${
+                    className={`flex-1 py-2 px-3 text-center text-sm font-bold rounded-lg transition cursor-pointer ${
                         activeTab === 'banned'
-                            ? 'bg-white text-accent shadow-sm'
+                            ? 'bg-card text-accent shadow-xs'
                             : 'text-slate-600 hover:text-slate-900'
                     }`}
                 >
@@ -353,12 +353,12 @@ export function AutobanView() {
                     <div className="lg:col-span-2 bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 space-y-6">
                         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                             <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                                <Settings className="w-5 h-5 text-red-600" />
+                                <Settings className="w-5 h-5 text-accent" />
                                 暫停權限規則自訂
                             </h3>
                             {unsavedChanges.length > 0 ? (
-                                <span className="text-xs font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
-                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                                <span className="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-pulse">
+                                    <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
                                     {unsavedChanges.length} 項變更尚未儲存
                                 </span>
                             ) : (
