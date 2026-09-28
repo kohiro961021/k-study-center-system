@@ -31,6 +31,7 @@ ok "前端 build 完成"
 step "3/3" "重新編譯並啟動容器"
 cd "$BACKEND_DIR"
 docker compose up -d --build || err "docker compose up 失敗"
+docker compose restart nginx || err "nginx 重啟失敗"
 ok "容器已重啟"
 
 echo ""

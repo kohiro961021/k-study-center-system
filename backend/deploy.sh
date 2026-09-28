@@ -201,6 +201,7 @@ cd "$BACKEND_DIR"
 
 echo "  Building and starting containers..."
 docker compose up -d --build
+docker compose restart nginx
 
 # 等待服務啟動
 echo "  等待服務啟動..."
