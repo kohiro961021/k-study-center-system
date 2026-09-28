@@ -1735,15 +1735,29 @@ def easter_egg_flag(req: EasterEggFlagRequest):
             status_code=403,
             content={"error": "The passphrase is incorrect, try again!"}
         )
+
+    flag_raw = os.getenv("EASTER_EGG_FLAG", "").strip()
+    if flag_raw:
+        flag = flag_raw if flag_raw.startswith("fsshFLAG{") else f"fsshFLAG{{{flag_raw}}}"
+    else:
+        flag = "fsshFLAG{}"
+
+    form_url = os.getenv("EASTER_EGG_FORM_URL", "").strip()
+    form_str = f"[{form_url}]" if form_url else "[]"
+
+    contact_email = os.getenv("EASTER_EGG_CONTACT_EMAIL", "kohiro961021@gmail.com").strip()
+    email_str = f"[{contact_email}]" if contact_email else "[]"
+
     return {
-        "flag": "fsshFLAG{kstudy_system_the_f1na1_stage_cl3ar}",
+        "flag": flag,
         "message": (
             "🎉 Congratulation, you completed all the challenges!\n\n"
             "如果你有興趣接手維護「K書中心的預約系統」，\n"
-            "請填寫這個表單：[https://forms.gle/3UwBZyx6v3eHzqgT9]\n"
+            f"請填寫這個表單：{form_str}\n"
             "這個系統是我受主任之託寫的，\n"
             "期待你成為下一代的維護者！\n"
             "百十五級kohiro留\n"
-            "mymail：[kohiro961021@gmail.com]"
+            f"mymail：{email_str}"
         ),
     }
+

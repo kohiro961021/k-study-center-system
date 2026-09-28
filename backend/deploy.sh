@@ -125,6 +125,10 @@ GOOGLE_CLIENT_ID=請填入你的_Google_Client_ID
 POSTGRES_USER=kstudy_user
 POSTGRES_PASSWORD=${DB_PASSWORD}
 POSTGRES_DB=kstudy
+
+# 彩蛋 CTF 設定（若不設定則預設留空）
+EASTER_EGG_FLAG=
+EASTER_EGG_FORM_URL=
 EOF
 
   print_ok ".env.prod 已自動產生（SECRET_KEY 和資料庫密碼已隨機生成）"
