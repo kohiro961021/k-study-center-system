@@ -47,7 +47,7 @@ services:
         max-file: "3"
 
   nginx:
-    image: nginx:1.30.1-alpine  # 已修補 CVE-2026-42945 (NGINX Rift RCE)
+    image: nginx:1.30.7-alpine  # 已修補 CVE-2026-123007 (HTTP/2) 等 1.30.7+ 安全更新
     container_name: kstudy_nginx
     restart: always
     environment:
