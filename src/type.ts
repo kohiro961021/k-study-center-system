@@ -84,6 +84,11 @@ type TopUserEntry = {
     count: number;
 };
 
+type TopUserMonth = {
+    month: string;
+    top_users: TopUserEntry[];
+};
+
 type AttendanceEntry = {
     id: number;
     seat_label: string;
@@ -117,4 +122,4 @@ type ScanResult = {
     seat_label?: string;
 };
 
-export type { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, UserPage, TopUserEntry, AttendanceEntry, NoteEntry, SortKey, SortDir, ScanResult };
+export type { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, UserPage, TopUserEntry, TopUserMonth, AttendanceEntry, NoteEntry, SortKey, SortDir, ScanResult };

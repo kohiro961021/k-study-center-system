@@ -971,21 +971,21 @@ def admin_list_users(
 
 @app.get("/api/admin/stats/top-users")
 def admin_top_users(admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    month = func.substr(Reservation.res_date, 1, 7).label("month")
     rows = (
-        db.query(User.student_id, User.name, func.count(Reservation.id).label("cnt"))
-        .join(Reservation, Reservation.user_id == User.id)
+        db.query(month, User.student_id, User.name, func.count(Reservation.id).label("cnt"))
+        .join(User, Reservation.user_id == User.id)
         .filter(User.is_admin == False)
-        .group_by(User.id, User.student_id, User.name)
-        .order_by(desc("cnt"))
-        .limit(3)
+        .group_by(month, User.id, User.student_id, User.name)
+        .order_by(month.desc(), desc("cnt"))
         .all()
     )
-    return {
-        "top_users": [
-            {"student_id": r.student_id, "name": r.name, "count": r.cnt}
-            for r in rows
-        ]
-    }
+    months = {}
+    for r in rows:
+        top = months.setdefault(r.month, [])
+        if len(top) < 3:
+            top.append({"student_id": r.student_id, "name": r.name, "count": r.cnt})
+    return {"months": [{"month": m, "top_users": t} for m, t in months.items()]}
 
 
 @app.put("/api/admin/reset-password")

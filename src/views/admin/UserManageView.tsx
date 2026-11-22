@@ -2,9 +2,13 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Users, Key, KeyRound, Search, AlertCircle, ChevronLeft, ChevronRight, Loader2, ShieldAlert, ShieldX, Trophy } from 'lucide-react';
 import { useApi } from '../../hooks';
 
-import { StudentUser, UserPage, TopUserEntry } from '../../type';
+import { StudentUser, UserPage, TopUserMonth } from '../../type';
 
-const MEDAL_COLORS = ['text-amber-500', 'text-slate-400', 'text-orange-700'];
+const RANK_STYLES = [
+    'from-violet-500 to-purple-600',
+    'from-sky-500 to-blue-600',
+    'from-rose-400 to-pink-600',
+];
 
 const PAGE_SIZE = 20;
 
@@ -26,11 +30,16 @@ export function UserManageView() {
     const [resetStudentId, setResetStudentId] = useState('');
     const [resetNewPassword, setResetNewPassword] = useState('');
 
-    const [topUsers, setTopUsers] = useState<TopUserEntry[]>([]);
+    const [topMonths, setTopMonths] = useState<TopUserMonth[]>([]);
+    const [topMonth, setTopMonth] = useState('');
 
     useEffect(() => {
         apiCall('/api/admin/stats/top-users')
-            .then((res: any) => setTopUsers(res.top_users ?? []))
+            .then((res: any) => {
+                const months: TopUserMonth[] = res.months ?? [];
+                setTopMonths(months);
+                if (months.length > 0) setTopMonth(months[0].month);
+            })
             .catch(() => {});
     }, [apiCall]);
 
@@ -268,18 +277,29 @@ export function UserManageView() {
                 )}
             </div>
 
-            {/* Top 3 stats */}
-            {topUsers.length > 0 && (
+            {/* Top 3 stats per month */}
+            {topMonths.length > 0 && (
                 <div className="bg-card/70 glass-card p-6 rounded-2xl border border-slate-200 shadow-sm">
-                    <h3 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><Trophy className="w-5 h-5 text-amber-500" /> 訂位次數前三名</h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2"><Trophy className="w-5 h-5 text-violet-600" /> 每月訂位次數前三名</h3>
+                        <select
+                            value={topMonth}
+                            onChange={e => setTopMonth(e.target.value)}
+                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-violet-400"
+                        >
+                            {topMonths.map(m => (
+                                <option key={m.month} value={m.month}>{m.month.replace('-', ' / ')}</option>
+                            ))}
+                        </select>
+                    </div>
                     <div className="grid sm:grid-cols-3 gap-3">
-                        {topUsers.map((u, i) => (
-                            <div key={u.student_id} className="flex items-center gap-3 p-4 rounded-xl border border-slate-200 bg-white/60">
-                                <Trophy className={`w-6 h-6 shrink-0 ${MEDAL_COLORS[i]}`} />
-                                <div className="min-w-0">
-                                    <span className="text-xs font-bold text-slate-400">第 {i + 1} 名</span>
-                                    <p className="text-sm font-bold text-slate-800 truncate">{u.name || '未填寫'}（{u.student_id}）</p>
-                                    <p className="text-xs text-slate-500">訂位 {u.count} 次</p>
+                        {(topMonths.find(m => m.month === topMonth)?.top_users ?? []).map((u, i) => (
+                            <div key={u.student_id} className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${RANK_STYLES[i]} p-4 text-white shadow-md`}>
+                                <span className="absolute -top-3 -right-2 text-6xl font-black opacity-15 select-none">{i + 1}</span>
+                                <div className="relative">
+                                    <span className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded-full">第 {i + 1} 名</span>
+                                    <p className="mt-2 text-sm font-bold truncate">{u.name || '未填寫'}（{u.student_id}）</p>
+                                    <p className="text-xs text-white/80 mt-0.5">訂位 {u.count} 次</p>
                                 </div>
                             </div>
                         ))}
