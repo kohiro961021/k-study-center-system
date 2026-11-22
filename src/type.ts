@@ -78,6 +78,12 @@ type UserPage = {
     total_pages: number;
 };
 
+type TopUserEntry = {
+    student_id: string;
+    name: string | null;
+    count: number;
+};
+
 type AttendanceEntry = {
     id: number;
     seat_label: string;
@@ -111,4 +117,4 @@ type ScanResult = {
     seat_label?: string;
 };
 
-export type { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, UserPage, AttendanceEntry, NoteEntry, SortKey, SortDir, ScanResult };
+export type { View, AnnouncementData, SeatData, Reservation, AdminReservation, HistoryReservation, StudentUser, UserPage, TopUserEntry, AttendanceEntry, NoteEntry, SortKey, SortDir, ScanResult };

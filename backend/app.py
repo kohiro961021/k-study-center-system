@@ -15,7 +15,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, BackgroundTasks
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session, joinedload, contains_eager
-from sqlalchemy import create_engine, or_
+from sqlalchemy import create_engine, or_, func, desc
 from jose import JWTError, jwt
 from pydantic import BaseModel, field_validator
 import redis
@@ -967,6 +967,25 @@ def admin_list_users(
     users = query.order_by(User.student_id).offset((page - 1) * page_size).limit(page_size).all()
     total_pages = math.ceil(total / page_size) if total > 0 else 1
     return {"users": users, "total": total, "page": page, "page_size": page_size, "total_pages": total_pages}
+
+
+@app.get("/api/admin/stats/top-users")
+def admin_top_users(admin: User = Depends(get_admin_user), db: Session = Depends(get_db)):
+    rows = (
+        db.query(User.student_id, User.name, func.count(Reservation.id).label("cnt"))
+        .join(Reservation, Reservation.user_id == User.id)
+        .filter(User.is_admin == False)
+        .group_by(User.id, User.student_id, User.name)
+        .order_by(desc("cnt"))
+        .limit(3)
+        .all()
+    )
+    return {
+        "top_users": [
+            {"student_id": r.student_id, "name": r.name, "count": r.cnt}
+            for r in rows
+        ]
+    }
 
 
 @app.put("/api/admin/reset-password")
