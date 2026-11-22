@@ -285,7 +285,7 @@ export function UserManageView() {
                         <select
                             value={topMonth}
                             onChange={e => setTopMonth(e.target.value)}
-                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-white outline-none focus:ring-2 focus:ring-violet-400"
+                            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm bg-input text-slate-700 outline-none focus:ring-2 focus:ring-violet-400"
                         >
                             {topMonths.map(m => (
                                 <option key={m.month} value={m.month}>{m.month.replace('-', ' / ')}</option>
